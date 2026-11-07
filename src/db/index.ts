@@ -39,3 +39,8 @@ export function db(): Promise<DB> {
 }
 
 export { schema };
+
+/** Rows from `db.execute`, whichever driver is in use. */
+export function rowsOf<T>(result: unknown): T[] {
+  return (result as { rows?: T[] }).rows ?? (result as T[]);
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { Alert, Button, Card, Field, Input, Select } from "@/components/ui";
 import { placeholderCount, render } from "@/lib/template-render";
@@ -14,15 +15,17 @@ export function Composer({
   numbers,
   tags,
   fields,
+  initialTags = [],
 }: {
   templates: Tpl[];
   numbers: { id: string; label: string; quality: string | null; tier: string | null }[];
   tags: { tag: string; n: number }[];
   fields: string[];
+  initialTags?: string[];
 }) {
   const [state, action, pending] = useActionState<CampaignState, FormData>(createCampaign, undefined);
   const [tplId, setTplId] = useState(templates[0].id);
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(initialTags);
   const [when, setWhen] = useState("now");
   const [vars, setVars] = useState<Record<number, { src: string; text: string }>>({});
   const [size, setSize] = useState<{ total: number; reachable: number } | null>(null);
@@ -78,7 +81,13 @@ export function Composer({
           </div>
           <fieldset>
             <legend className="mb-1.5 text-[13px] font-medium">Audience</legend>
-            <p className="mb-2 text-xs text-muted">Leave all unticked to send to every contact. Tick tags to send to anyone with at least one of them.</p>
+            <p className="mb-2 text-xs text-muted">
+              Leave all unticked to send to every contact. Tick tags to send to anyone with at least one of them. Have a spreadsheet?{" "}
+              <Link className="text-accent" href={`/contacts/import?for=campaign&tag=list-${new Date().toISOString().slice(0, 10)}`}>
+                Upload it as a list
+              </Link>{" "}
+              and it comes back here as a tag.
+            </p>
             <div className="flex flex-wrap gap-2">
               {tags.length === 0 && <span className="text-sm text-muted">No tags yet. Add tags on contacts or when importing.</span>}
               {tags.map((t) => (

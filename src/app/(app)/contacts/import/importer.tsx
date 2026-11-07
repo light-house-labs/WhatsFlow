@@ -24,11 +24,11 @@ function guess(header: string): string {
   return "custom";
 }
 
-export function Importer() {
+export function Importer({ initialTag = "", forCampaign = false }: { initialTag?: string; forCampaign?: boolean }) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [map, setMap] = useState<Record<string, string>>({});
-  const [tag, setTag] = useState("");
+  const [tag, setTag] = useState(initialTag);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -128,9 +128,15 @@ export function Importer() {
               ))}
             </ul>
           )}
-          <Link href="/contacts" className="text-sm text-accent">
-            Back to contacts →
-          </Link>
+          {forCampaign && tag ? (
+            <Link href={`/campaigns/new?tag=${encodeURIComponent(tag.trim().toLowerCase())}`} className="text-sm font-medium text-accent">
+              Continue to the broadcast with this list →
+            </Link>
+          ) : (
+            <Link href="/contacts" className="text-sm text-accent">
+              Back to contacts →
+            </Link>
+          )}
         </Card>
       )}
     </div>

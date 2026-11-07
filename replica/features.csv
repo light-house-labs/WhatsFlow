@@ -4,18 +4,18 @@ Terms and marketing opt-in checkboxes at sign up,auth,must,yes,yes,S01
 Log in with email or username,auth,must,yes,yes,S02
 Forgot and reset password,auth,must,yes,yes,S03
 Account update messages on WhatsApp after sign up,auth,could,yes,no,consent text on S01
-Connect WhatsApp Business number via Meta Embedded Signup,onboarding,must,yes,partial,S04; needs Meta Tech Provider approval - manual WABA ID + token fallback first; manual WABA ID + token connect; Embedded Signup needs Meta Tech Provider approval
+Connect WhatsApp Business number via Meta Embedded Signup,onboarding,must,yes,partial,S04; needs Meta Tech Provider approval - manual WABA ID + token fallback first; manual WABA ID + token connect; Embedded Signup needs Meta Tech Provider approval; phase 2: built behind META_APP_ID + META_ES_CONFIG_ID; needs Meta Tech Provider approval to test
 Number status card (pending verified connected failed),onboarding,must,yes,yes,S04 S43
 Workspace setup with industry and team invites,onboarding,must,yes,yes,S05
 Start from industry template flow,onboarding,should,yes,no,write our own templates
 Shared team inbox for all WhatsApp chats,inbox,must,yes,yes,S06
 Real-time new messages and status ticks,inbox,must,yes,yes,sent delivered read failed
 Assign chats to teammates,inbox,must,yes,yes,S06
-See who is replying (collision indicator),inbox,should,yes,no,S06
+See who is replying (collision indicator),inbox,should,yes,yes,S06
 Labels on conversations,inbox,must,yes,yes,S06
 Internal notes in chat,inbox,must,yes,yes,S06
 Quick replies,inbox,must,yes,yes,S06 S34
-Send media (image document audio video),inbox,must,yes,partial,S06; send by public https link; inbound photos/files viewable; direct upload not built
+Send media (image document audio video),inbox,must,yes,yes,S06; send by public https link; inbound photos/files viewable; direct upload not built
 Template-only composer when 24h window closed,inbox,must,yes,yes,Cloud API rule
 Waiting-too-long alert,inbox,should,yes,yes,S06 S34
 Bot-to-human handover with full history,inbox,must,yes,yes,F02
@@ -26,7 +26,7 @@ Welcome and away messages with business hours,inbox,must,yes,yes,S34
 Route chats by topic or language,inbox,should,yes,no,S34
 Contacts saved automatically on first message,contacts,must,yes,yes,S08
 Tags notes and custom fields on contacts,contacts,must,yes,yes,S09
-Contact profile with order count total last order birthday,contacts,should,yes,no,S09
+Contact profile with order count total last order birthday,contacts,should,yes,yes,S09
 Contact activity timeline,contacts,should,yes,yes,S09
 Import contacts from spreadsheet,contacts,must,yes,yes,S10
 Import from existing CRM,contacts,could,yes,no,S10
@@ -35,7 +35,7 @@ Contact owner,contacts,should,yes,yes,S09
 Opt-out handling (one-tap stop),contacts,must,yes,yes,W05; exclude from marketing
 Contact source tagging (ad website WhatsApp),contacts,should,yes,yes,S09
 Enquiries log with source and status,enquiries,must,yes,yes,S07
-Instant bot or AI answer to enquiries 24/7,enquiries,must,yes,partial,F05; keyword bots answer 24/7; AI agent is Phase 2
+Instant bot or AI answer to enquiries 24/7,enquiries,must,yes,yes,F05; keyword bots answer 24/7; AI agent is Phase 2
 Convert enquiry to lead or ticket,enquiries,should,yes,yes,F05
 Convert chat to lead (one click),pipeline,must,yes,yes,F04
 Auto-create lead from bot,pipeline,should,yes,yes,F04
@@ -43,9 +43,9 @@ Kanban pipeline with drag and drop,pipeline,must,yes,yes,S12
 Customizable pipeline stages,pipeline,must,yes,yes,S14
 Lead fields value owner notes next follow-up,pipeline,must,yes,yes,S13
 Reminders for quiet leads,pipeline,should,yes,yes,F04
-Report by lead source and teammate,pipeline,should,yes,no,S39
+Report by lead source and teammate,pipeline,should,yes,yes,S39
 Support tickets with status and assignee,tickets,must,yes,yes,S21
-Ticket detail with linked chat order and photo,tickets,must,yes,partial,S22; linked chat + customer photos; orders are Phase 2
+Ticket detail with linked chat order and photo,tickets,must,yes,yes,S22; linked chat + customer photos; orders are Phase 2
 Create ticket from chat or bot,tickets,must,yes,yes,F06
 Ticket SLA timers,tickets,should,yes,yes,"src 1 ""close requests on time"""
 Notify customer on ticket resolve,tickets,should,yes,yes,F06
@@ -56,7 +56,7 @@ Template categories (marketing utility authentication),templates,must,yes,yes,S2
 Media headers (image document video logo),templates,should,yes,no,S27
 Starter template library for orders bookings payments,templates,should,yes,yes,write our own
 Broadcast template to list or segment,campaigns,must,yes,yes,S24
-Audience by labels tags or spreadsheet upload,campaigns,must,yes,partial,S24; tags yes; spreadsheet = import with a tag then target it
+Audience by labels tags or spreadsheet upload,campaigns,must,yes,yes,S24; tags yes; spreadsheet = import with a tag then target it
 Personalize variables per recipient,campaigns,must,yes,yes,S24
 Send now or schedule,campaigns,must,yes,yes,S24
 Campaign metrics delivered read replied,campaigns,must,yes,yes,S25
@@ -69,45 +69,45 @@ Drag-and-drop flow builder,bots,must,yes,yes,S29
 Nodes: trigger message buttons list question,bots,must,yes,yes,S29
 Node: assign to agent / handover,bots,must,yes,yes,S29
 Node: condition and save answer to field,bots,should,yes,yes,S29
-Node: look up data (order status catalog),bots,should,yes,no,S29
-Node: offer booking slots,bots,should,yes,no,S29 W02
+Node: look up data (order status catalog),bots,should,yes,yes,S29
+Node: offer booking slots,bots,should,yes,yes,S29 W02
 Test a flow before publishing,bots,should,yes,no,S29
 Lead capture in bot (name phone requirement),bots,must,yes,yes,src 3
 Plan limit on number of flows,bots,must,yes,yes,3 on Growth
-AI agent trained on business details,ai,should,yes,no,S30
-AI replies to text and media,ai,should,yes,no,"src 2 ""AI agent (text and media)"""
-AI handover rules,ai,should,yes,no,S30
-AI knowledge from FAQs files catalog,ai,should,yes,no,S30
-Product catalog,catalog,should,yes,no,S15
-Product editor with image price stock,catalog,should,yes,no,S16
-Share products in chat,catalog,should,yes,no,W03
-Take orders in chat,catalog,should,yes,no,W03
-Catalog size limit per plan,catalog,should,yes,no,5 on Growth
+AI agent trained on business details,ai,should,yes,yes,S30
+AI replies to text and media,ai,should,yes,yes,"src 2 ""AI agent (text and media)"""
+AI handover rules,ai,should,yes,yes,S30
+AI knowledge from FAQs files catalog,ai,should,yes,partial,"S30; phase 2: business info, FAQ text and catalog; no file uploads as knowledge"
+Product catalog,catalog,should,yes,yes,S15
+Product editor with image price stock,catalog,should,yes,yes,S16
+Share products in chat,catalog,should,yes,partial,W03; phase 2: product list via bot block and order summary; not Meta native product messages
+Take orders in chat,catalog,should,yes,yes,W03
+Catalog size limit per plan,catalog,should,yes,yes,5 on Growth
 Sync catalog to Meta Commerce,catalog,could,no,no,our guess; enables native product messages
-Orders list with payment and delivery status,orders,should,yes,no,S17
-Order detail with timeline,orders,should,yes,no,S18
-Automatic order confirmation shipping delivery messages,orders,should,yes,no,F09
-Order history on contact,orders,should,yes,no,S09
-Payment links in chat (Stripe),payments,should,yes,no,W04
-Razorpay payment links,payments,should,no,no,our addition - India pricing in INR
-Payment reminders,payments,should,yes,no,src 3
-Payment status via webhook updates order,payments,should,yes,no,F08
-Customers book reschedule cancel in WhatsApp,appointments,should,yes,no,W02 F07
-Slots by service staff or branch,appointments,should,yes,no,S20
-Instant booking confirmation,appointments,should,yes,no,F07
-Automatic reminders before appointment,appointments,should,yes,no,F07
-Daily calendar view,appointments,should,yes,no,S19
-Services hours team setup,appointments,should,yes,no,S20
-Appointment limit per plan,appointments,should,yes,no,250 single seat on Growth
-Automations list with run counter,automations,should,yes,no,S31
-Automation builder When Then Wait If,automations,should,yes,no,S32
-Triggers new chat new order payment sheet CRM,automations,should,yes,no,S32
-Follow-up for unanswered messages,automations,should,yes,no,src 3
-Automation run activity log,automations,should,yes,no,S33
+Orders list with payment and delivery status,orders,should,yes,yes,S17
+Order detail with timeline,orders,should,yes,yes,S18
+Automatic order confirmation shipping delivery messages,orders,should,yes,yes,F09
+Order history on contact,orders,should,yes,yes,S09
+Payment links in chat (Stripe),payments,should,yes,yes,W04
+Razorpay payment links,payments,should,no,yes,our addition - India pricing in INR
+Payment reminders,payments,should,yes,partial,src 3; phase 2: build with an automation (order created -> wait -> if not paid); no dedicated reminder
+Payment status via webhook updates order,payments,should,yes,yes,F08
+Customers book reschedule cancel in WhatsApp,appointments,should,yes,yes,W02 F07
+Slots by service staff or branch,appointments,should,yes,yes,S20
+Instant booking confirmation,appointments,should,yes,yes,F07
+Automatic reminders before appointment,appointments,should,yes,yes,F07
+Daily calendar view,appointments,should,yes,yes,S19
+Services hours team setup,appointments,should,yes,yes,S20
+Appointment limit per plan,appointments,should,yes,yes,250 single seat on Growth
+Automations list with run counter,automations,should,yes,yes,S31
+Automation builder When Then Wait If,automations,should,yes,yes,S32
+Triggers new chat new order payment sheet CRM,automations,should,yes,partial,"S32; phase 2: new chat, order created/paid, booking, lead won, no reply; no Google Sheets/CRM triggers"
+Follow-up for unanswered messages,automations,should,yes,yes,src 3
+Automation run activity log,automations,should,yes,yes,S33
 Shopify integration (orders customers abandoned carts),integrations,should,yes,no,S36
 WooCommerce integration,integrations,should,yes,no,S36
 Google Sheets sync for leads and bookings,integrations,should,yes,no,every minute per src 3
-Stripe integration,integrations,should,yes,no,S36
+Stripe integration,integrations,should,yes,yes,S36
 Meta Ads Click to WhatsApp tracking,integrations,could,yes,no,ad referral on inbound message
 Zoho CRM integration,integrations,could,yes,no,
 HubSpot integration,integrations,could,yes,no,
@@ -116,23 +116,23 @@ Salesforce integration,integrations,could,yes,no,
 monday.com integration,integrations,could,yes,no,
 Microsoft Dynamics 365 integration,integrations,could,yes,no,
 Connected apps counter and per-app sync settings,integrations,should,yes,no,S35 S36
-Public REST API send template and session messages,api,should,yes,no,S37
-API manage contacts and tags,api,should,yes,no,S37
-API read conversations and message status,api,should,yes,no,S37
-API keys with roles,api,should,yes,no,S37
+Public REST API send template and session messages,api,should,yes,yes,S37
+API manage contacts and tags,api,should,yes,yes,S37
+API read conversations and message status,api,should,yes,yes,S37
+API keys with roles,api,should,yes,yes,S37
 API usage and error monitoring,api,could,yes,no,S37
-Outbound webhooks with event selection,api,should,yes,no,S38
-Webhook retries and delivery log,api,should,yes,no,S38
-Analytics: first reply time resolution time chats handled,analytics,should,yes,no,S39
-Analytics: leads bookings sales from WhatsApp,analytics,should,yes,no,S39
-Teammate and source comparison,analytics,should,yes,no,S39
-Date range and team filters,analytics,should,yes,no,S39
-Report export,analytics,could,yes,no,S39
+Outbound webhooks with event selection,api,should,yes,yes,S38
+Webhook retries and delivery log,api,should,yes,yes,S38
+Analytics: first reply time resolution time chats handled,analytics,should,yes,yes,S39
+Analytics: leads bookings sales from WhatsApp,analytics,should,yes,yes,S39
+Teammate and source comparison,analytics,should,yes,yes,S39
+Date range and team filters,analytics,should,yes,yes,S39
+Report export,analytics,could,yes,yes,S39
 Dashboard home KPIs,analytics,must,yes,yes,S40
 Team members and invites with seat limits,team,must,yes,yes,S41
 Roles and permissions,team,must,yes,yes,S41
 Audit log,team,could,yes,no,S42
-Data export contacts chats reports,team,could,yes,no,S46
+Data export contacts chats reports,team,could,yes,yes,S46
 WhatsApp profile settings (about logo address),settings,should,yes,partial,S43; display name shown; editing profile not built
 Quality rating and messaging tier display,settings,could,no,yes,our addition from Cloud API
 Plans Growth Scale Enterprise with feature gates,billing,must,yes,yes,S44
@@ -151,7 +151,7 @@ Free consultation and custom builds,services,could,yes,skip,human service
 Dedicated success manager and hand-held onboarding,services,could,yes,skip,human service
 One-click self-serve cancel with confirmation email and no charge after cancel,billing,must,no,yes,fix F1 - cancel/billing 39 reviews
 Downgrade warns about over-limit items and auto-pauses them at period end,billing,must,no,yes,fix F1
-Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,partial,fix F2; disconnect deletes token; export not built
+Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,yes,fix F2; disconnect deletes token; export not built
 Talk to a person in-app (WhatsApp chat with WhatsFlow team) and ticket status,support,must,no,yes,fix F3 - human support 51 reviews
 Public status page,support,should,no,no,fix F3
 Connection doctor: token webhook number and round-trip test with fix steps,onboarding,must,no,partial,fix F4 - setup 17 reviews; token/number/quality/subscription/webhook checks with fixes; no automatic round-trip test message

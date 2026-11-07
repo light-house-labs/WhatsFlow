@@ -7,7 +7,8 @@ import { Composer } from "./composer";
 
 export const metadata: Metadata = { title: "New campaign" };
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ tag?: string }> }) {
+  const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
   const [templates, numbers, tagRows, fieldRows] = await Promise.all([
     d.select().from(schema.templates).where(and(eq(schema.templates.orgId, org.id), eq(schema.templates.status, "approved"))),
@@ -31,6 +32,7 @@ export default async function Page() {
         numbers={numbers.map((n) => ({ id: n.id, label: `${n.displayPhone} · ${n.displayName}${n.provider === "sandbox" ? " (sandbox)" : ""}`, quality: n.qualityRating, tier: n.messagingTier }))}
         tags={rows<{ tag: string; n: number }>(tagRows)}
         fields={rows<{ k: string }>(fieldRows).map((f) => f.k)}
+        initialTags={sp.tag ? [sp.tag] : []}
       />
     </>
   );

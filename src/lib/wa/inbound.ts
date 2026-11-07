@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Meta webhook and Graph API bodies are untyped JSON, read defensively field by field */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 import { isOpen } from "@/lib/hours";
 import { runBot } from "@/lib/flows/engine";
+import { aiReply } from "@/lib/ai";
+import { emit } from "@/lib/events";
+import { availableSlots, bookAppointment, BookingError, cancelAppointment, nextAppointment, slotLabel } from "@/lib/booking";
 import { sendInConversation, windowOpen } from "./outbound";
 import type { WaNumber } from "./index";
 
@@ -51,7 +54,10 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
         updatedAt: new Date(),
       },
     })
-    .returning();
+    .returning({ ...getTableColumns(schema.contacts), inserted: sql<boolean>`(xmax = 0)` });
+  if (contact.inserted) {
+    await emit(d, orgId, "contact.created", { contact: { id: contact.id, phone: contact.waId, name: contact.name, source: contact.source } });
+  }
 
   const [existing] = await d
     .select()
@@ -71,7 +77,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
       .returning();
   }
 
-  await d.insert(schema.messages).values({
+  const [inserted] = await d.insert(schema.messages).values({
     orgId,
     conversationId: conv.id,
     direction: "in",
@@ -82,6 +88,9 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     status: "received",
     senderKind: "contact",
     createdAt: now,
+  }).returning({ id: schema.messages.id });
+  await emit(d, orgId, "message.received", {
+    message: { id: inserted.id, conversationId: conv.id, from: m.from, type: m.type, text: m.text, at: now.toISOString() },
   });
 
   await d
@@ -93,7 +102,8 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
       lastMessagePreview: m.text.slice(0, 120),
       unreadCount: sql`${schema.conversations.unreadCount} + 1`,
       waitingSince: sql`coalesce(${schema.conversations.waitingSince}, ${now.toISOString()}::timestamptz)`,
-      ...(existing?.status === "closed" ? { handledBy: "bot" as const, assigneeId: null } : {}),
+      ...(existing?.status === "closed" ? { handledBy: "bot" as const, assigneeId: null, closedAt: null } : {}),
+      ...(isNewThread ? { aiReplies: 0 } : {}),
     })
     .where(eq(schema.conversations.id, conv.id));
 
@@ -123,6 +133,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
   }
 
   if (isNewThread) {
+    await emit(d, orgId, "conversation.started", { conversation: { id: conv.id, contactId: contact.id, from: m.from } }, { contactId: contact.id, conversationId: conv.id, key: `conv:${conv.id}:${now.getTime()}` });
     await d.insert(schema.enquiries).values({
       orgId,
       contactId: contact.id,
@@ -134,7 +145,12 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     });
   }
 
-  const bot = org?.billingStatus === "cancelled" ? { handled: false, handedOver: false } : await runBot(d, {
+  if (org && org.billingStatus !== "cancelled") {
+    const handled = await handleBookingReply(d, { orgId, timeZone: org.timezone, conversationId: conv.id, contactId: contact.id, text: m.text, replyId: m.replyId ?? null, pending: existing?.pending ?? null });
+    if (handled) return { duplicate: false as const, conversationId: conv.id, optedOut: false };
+  }
+
+  let bot = org?.billingStatus === "cancelled" ? { handled: false, handedOver: false } : await runBot(d, {
     orgId,
     conversationId: conv.id,
     contactId: contact.id,
@@ -143,6 +159,10 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     isNewConversation: isNewThread,
     handledBy: existing?.status === "closed" ? "bot" : (conv.handledBy ?? "bot"),
   });
+
+  if (!bot.handled && org?.billingStatus !== "cancelled") {
+    bot = await aiReply(d, { orgId, conversationId: conv.id, text: m.text, isNewThread });
+  }
 
   if (bot.handled && !bot.handedOver) {
     await d
@@ -164,6 +184,58 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
   }
 
   return { duplicate: false as const, conversationId: conv.id, optedOut: false };
+}
+
+/**
+ * Customers manage their booking by replying CANCEL or RESCHEDULE, then picking a
+ * new time from the list we send. Returns true when the message was about that.
+ */
+async function handleBookingReply(
+  d: DB,
+  a: { orgId: string; timeZone: string; conversationId: string; contactId: string; text: string; replyId: string | null; pending: typeof schema.conversations.$inferSelect["pending"] },
+) {
+  const say = (body: string) => sendInConversation(d, a.conversationId, { kind: "text", body }, { senderKind: "system" });
+  if (a.pending?.kind === "reschedule") {
+    await d.update(schema.conversations).set({ pending: null }).where(eq(schema.conversations.id, a.conversationId));
+    const idx = a.replyId?.match(/^row:(\d+)$/) ? Number(a.replyId.slice(4)) : Number(a.text.trim()) - 1;
+    const pick = Number.isInteger(idx) ? a.pending.slots[idx] : undefined;
+    if (!pick) return false; // not a pick: treat as a normal message
+    try {
+      const { appt, service } = await bookAppointment(d, { orgId: a.orgId, serviceId: a.pending.serviceId, contactId: a.contactId, conversationId: a.conversationId, startAt: new Date(pick), source: "reschedule" });
+      await cancelAppointment(d, a.orgId, a.pending.appointmentId);
+      await say(`Done. Your ${service.name} is now on ${slotLabel(appt.startAt, a.timeZone)}.`);
+    } catch (e) {
+      if (!(e instanceof BookingError)) throw e;
+      await say(`${e.message} Reply RESCHEDULE to see the latest times.`);
+    }
+    return true;
+  }
+  const word = a.text.trim().toUpperCase();
+  if (word !== "CANCEL" && word !== "RESCHEDULE") return false;
+  const next = await nextAppointment(d, a.orgId, a.contactId);
+  if (!next) return false;
+  const when = slotLabel(next.a.startAt, a.timeZone);
+  if (word === "CANCEL") {
+    await cancelAppointment(d, a.orgId, next.a.id);
+    await say(`Your ${next.service.name} on ${when} is cancelled. Reply here any time to book again.`);
+    return true;
+  }
+  const slots = (await availableSlots(d, a.orgId, next.service.id, 10)).filter((x) => x.getTime() !== next.a.startAt.getTime());
+  if (!slots.length) {
+    await say(`There are no other free times online right now. Your ${next.service.name} on ${when} is still booked; our team will be in touch.`);
+    return true;
+  }
+  await d
+    .update(schema.conversations)
+    .set({ pending: { kind: "reschedule", appointmentId: next.a.id, serviceId: next.service.id, slots: slots.map((x) => x.toISOString()) } })
+    .where(eq(schema.conversations.id, a.conversationId));
+  await sendInConversation(
+    d,
+    a.conversationId,
+    { kind: "list", body: `Your ${next.service.name} is on ${when}. Pick a new time:`, button: "See times", rows: slots.map((x) => slotLabel(x, a.timeZone)) },
+    { senderKind: "system" },
+  );
+  return true;
 }
 
 /** Parse a Meta Cloud API webhook body into messages and statuses. */

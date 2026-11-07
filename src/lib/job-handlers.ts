@@ -6,6 +6,13 @@ import { sandboxReview } from "./wa/sandbox";
 import { providerFor } from "./wa";
 import { placeholderCount, resolveVariables } from "./template-render";
 import { processPeriodEnds } from "./billing";
+import { decrypt } from "./crypto";
+import { signWebhook } from "./webhooks-out";
+import { assertPublicUrl } from "./net-guard";
+import { bookingSettingsFor, slotLabel } from "./booking";
+import { startAutomations } from "./events";
+import { SendError } from "./wa/outbound";
+import type { RunLogEntry } from "@/db/schema";
 
 // Sandbox: delivered, then read a moment later.
 registerJob("sandbox.status", async (d, p) => {
@@ -169,6 +176,198 @@ registerJob("lead.followups", async (d) => {
 
 registerJob("billing.period_end", async (d) => {
   await processPeriodEnds(d);
+});
+
+const WEBHOOK_ATTEMPTS = 6;
+
+// Outbound webhooks: signed POST, retried with backoff by the job runner on any non-2xx.
+registerJob("webhook.deliver", async (d, p) => {
+  const [row] = await d
+    .select({ del: schema.webhookDeliveries, ep: schema.webhookEndpoints })
+    .from(schema.webhookDeliveries)
+    .innerJoin(schema.webhookEndpoints, eq(schema.webhookEndpoints.id, schema.webhookDeliveries.endpointId))
+    .where(eq(schema.webhookDeliveries.id, p.deliveryId))
+    .limit(1);
+  if (!row || row.del.status === "ok" || !row.ep.active) return;
+  const attempts = row.del.attempts + 1;
+  const body = JSON.stringify({ id: row.del.id, event: row.del.event, createdAt: row.del.createdAt.toISOString(), data: row.del.payload });
+  const ts = Math.floor(Date.now() / 1000);
+  let code: number | null = null;
+  let error: string | null = null;
+  try {
+    await assertPublicUrl(row.ep.url);
+    const res = await fetch(row.ep.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "WhatsFlow-Webhooks/1",
+        "X-WhatsFlow-Event": row.del.event,
+        "X-WhatsFlow-Delivery": row.del.id,
+        "X-WhatsFlow-Timestamp": String(ts),
+        "X-WhatsFlow-Signature": signWebhook(decrypt(row.ep.secretEnc), ts, body),
+      },
+      body,
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+    });
+    code = res.status;
+    if (!res.ok) error = `HTTP ${res.status}`;
+  } catch (e) {
+    error = (e as Error).message;
+  }
+  const done = !error;
+  await d
+    .update(schema.webhookDeliveries)
+    .set({
+      attempts,
+      responseCode: code,
+      error,
+      status: done ? "ok" : attempts >= WEBHOOK_ATTEMPTS ? "failed" : "pending",
+      deliveredAt: done ? new Date() : null,
+    })
+    .where(eq(schema.webhookDeliveries.id, row.del.id));
+  if (!done && attempts < WEBHOOK_ATTEMPTS) await enqueue(d, "webhook.deliver", { deliveryId: row.del.id }, 2 ** attempts * 10_000);
+});
+
+// Automations: run steps in order until a wait, a failed "if", or the end.
+registerJob("automation.step", async (d, p) => {
+  const [row] = await d
+    .select({ run: schema.automationRuns, a: schema.automations })
+    .from(schema.automationRuns)
+    .innerJoin(schema.automations, eq(schema.automations.id, schema.automationRuns.automationId))
+    .where(eq(schema.automationRuns.id, p.runId))
+    .limit(1);
+  if (!row || row.run.status === "done" || row.run.status === "stopped" || row.run.status === "failed") return;
+  const { run, a } = row;
+  const log: RunLogEntry[] = [...run.log];
+  const note = (step: number, ok: boolean, detail: string) => log.push({ at: new Date().toISOString(), step, ok, detail });
+  const [org] = await d.select({ status: schema.orgs.billingStatus }).from(schema.orgs).where(eq(schema.orgs.id, run.orgId));
+  if (a.status !== "live" || org?.status === "cancelled") {
+    note(run.step, false, "Stopped: automation paused or plan cancelled");
+    await d.update(schema.automationRuns).set({ status: "stopped", log, updatedAt: new Date() }).where(eq(schema.automationRuns.id, run.id));
+    return;
+  }
+  const [contact] = await d.select().from(schema.contacts).where(eq(schema.contacts.id, run.contactId));
+  let convId = run.conversationId;
+  if (!convId) {
+    const [c] = await d.select({ id: schema.conversations.id }).from(schema.conversations).where(eq(schema.conversations.contactId, run.contactId)).limit(1);
+    convId = c?.id ?? null;
+  }
+  let i = run.step;
+  let status: "done" | "waiting" | "stopped" | "failed" = "done";
+  for (; i < a.steps.length; i++) {
+    const s = a.steps[i];
+    try {
+      if (s.type === "wait") {
+        if (p.resumed !== i) {
+          await enqueue(d, "automation.step", { runId: run.id, resumed: i }, Math.max(1, s.minutes) * 60_000);
+          note(i, true, `Waiting ${s.minutes} min`);
+          status = "waiting";
+          break;
+        }
+        continue;
+      }
+      if (s.type === "if_tag") {
+        const [fresh] = await d.select({ tags: schema.contacts.tags }).from(schema.contacts).where(eq(schema.contacts.id, run.contactId));
+        if (!fresh?.tags.includes(s.tag)) {
+          note(i, true, `Stopped: contact isn't tagged ${s.tag}`);
+          status = "stopped";
+          break;
+        }
+        note(i, true, `Tagged ${s.tag}: continue`);
+        continue;
+      }
+      if (s.type === "add_tag") {
+        await d
+          .update(schema.contacts)
+          .set({ tags: sql`array(select distinct unnest(${schema.contacts.tags} || array[${s.tag}]::text[]))` })
+          .where(eq(schema.contacts.id, run.contactId));
+        note(i, true, `Tagged ${s.tag}`);
+        continue;
+      }
+      if (s.type === "assign") {
+        if (convId) await d.update(schema.conversations).set({ assigneeId: s.userId, handledBy: "human" }).where(and(eq(schema.conversations.id, convId), eq(schema.conversations.orgId, run.orgId)));
+        note(i, true, "Assigned conversation");
+        continue;
+      }
+      if (!convId) throw new SendError("No WhatsApp conversation with this contact yet");
+      if (s.type === "send_text") {
+        const body = s.text.replace(/\{name\}/g, contact?.name ?? "there");
+        const m = await sendInConversation(d, convId, { kind: "text", body }, { senderKind: "system" });
+        if (m.status === "failed") throw new SendError(m.error ?? "Send failed");
+        note(i, true, "Sent message");
+      } else if (s.type === "send_template") {
+        const [tpl] = await d.select().from(schema.templates).where(and(eq(schema.templates.id, s.templateId), eq(schema.templates.orgId, run.orgId), eq(schema.templates.status, "approved")));
+        if (!tpl) throw new SendError("Template missing or not approved");
+        const m = await sendInConversation(d, convId, { kind: "template", template: tpl, variables: resolveVariables({ "1": "name" }, placeholderCount(tpl.body), contact) }, { senderKind: "system", templateId: tpl.id });
+        if (m.status === "failed") throw new SendError(m.error ?? "Send failed");
+        note(i, true, `Sent template ${tpl.name}`);
+      }
+    } catch (e) {
+      if (!(e instanceof SendError)) throw e;
+      note(i, false, e.message);
+      status = "failed";
+      break;
+    }
+  }
+  await d
+    .update(schema.automationRuns)
+    .set({ step: status === "waiting" ? i : i, status: status === "waiting" ? "waiting" : status, log, conversationId: convId, updatedAt: new Date() })
+    .where(eq(schema.automationRuns.id, run.id));
+});
+
+// "No reply" automations: our last message went unanswered for N minutes.
+registerJob("automation.no_reply", async (d) => {
+  const live = await d.select().from(schema.automations).where(and(eq(schema.automations.trigger, "no_reply"), eq(schema.automations.status, "live")));
+  for (const a of live) {
+    const minutes = Number(a.triggerConfig.minutes ?? 120);
+    const rows = await d.execute<{ id: string; contact_id: string; last_message_at: string }>(sql`
+      select c.id, c.contact_id, c.last_message_at from conversations c
+      where c.org_id = ${a.orgId} and c.status <> 'closed'
+        and c.last_message_at < now() - (${minutes} || ' minutes')::interval
+        and c.last_message_at > now() - interval '7 days'
+        and (select m.direction from messages m where m.conversation_id = c.id order by m.created_at desc limit 1) = 'out'
+      limit 200`);
+    const list = (rows as unknown as { rows?: { id: string; contact_id: string; last_message_at: string }[] }).rows ?? (rows as unknown as { id: string; contact_id: string; last_message_at: string }[]);
+    for (const r of list) {
+      await startAutomations(d, a.orgId, "no_reply", { contactId: r.contact_id, conversationId: r.id, key: `noreply:${r.id}:${new Date(r.last_message_at).getTime()}` });
+    }
+  }
+});
+
+// Appointment reminders: free text inside the 24-hour window, the chosen template outside it.
+registerJob("appointment.reminder", async (d, p) => {
+  const [row] = await d
+    .select({ a: schema.appointments, svc: schema.services, contact: schema.contacts, org: schema.orgs })
+    .from(schema.appointments)
+    .innerJoin(schema.services, eq(schema.services.id, schema.appointments.serviceId))
+    .innerJoin(schema.contacts, eq(schema.contacts.id, schema.appointments.contactId))
+    .innerJoin(schema.orgs, eq(schema.orgs.id, schema.appointments.orgId))
+    .where(eq(schema.appointments.id, p.appointmentId))
+    .limit(1);
+  if (!row || row.a.status !== "booked" || row.a.reminderSentAt || row.a.startAt < new Date()) return;
+  let convId = row.a.conversationId;
+  if (!convId) {
+    const [c] = await d.select({ id: schema.conversations.id }).from(schema.conversations).where(eq(schema.conversations.contactId, row.contact.id)).limit(1);
+    convId = c?.id ?? null;
+  }
+  if (!convId) return;
+  const when = slotLabel(row.a.startAt, row.org.timezone);
+  const s = await bookingSettingsFor(d, row.org.id);
+  try {
+    await sendInConversation(d, convId, { kind: "text", body: `Reminder: your ${row.svc.name} at ${row.org.name} is on ${when}. Reply CANCEL to cancel or RESCHEDULE to pick another time.` }, { senderKind: "system" });
+  } catch (e) {
+    if (!(e instanceof SendError)) throw e;
+    const [tpl] = s.reminderTemplateId
+      ? await d.select().from(schema.templates).where(and(eq(schema.templates.id, s.reminderTemplateId), eq(schema.templates.status, "approved")))
+      : [];
+    if (!tpl) {
+      await d.insert(schema.notes).values({ orgId: row.org.id, conversationId: convId, body: `Couldn't send the reminder for ${row.svc.name} on ${when}: the 24-hour window is closed and no reminder template is set in Appointments → Settings.` });
+      return;
+    }
+    await sendInConversation(d, convId, { kind: "template", template: tpl, variables: [row.contact.name ?? "there", row.svc.name, when].slice(0, placeholderCount(tpl.body)) }, { senderKind: "system", templateId: tpl.id });
+  }
+  await d.update(schema.appointments).set({ reminderSentAt: new Date() }).where(eq(schema.appointments.id, row.a.id));
 });
 
 export {};

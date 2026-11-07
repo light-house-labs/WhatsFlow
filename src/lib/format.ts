@@ -9,9 +9,9 @@ export function timeAgo(d: Date | string | null | undefined): string {
   return t.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-export function dateTime(d: Date | string | null | undefined): string {
+export function dateTime(d: Date | string | null | undefined, timeZone?: string): string {
   if (!d) return "—";
-  return new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  return new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone });
 }
 
 export function duration(seconds: number | null | undefined): string {

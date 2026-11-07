@@ -16,6 +16,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { db: d, org, role } = await requireOrg();
   const [contact] = await d.select().from(schema.contacts).where(and(eq(schema.contacts.id, id), eq(schema.contacts.orgId, org.id))).limit(1);
   if (!contact) notFound();
+  const [orders, appointments] = await Promise.all([
+    d.select().from(schema.orders).where(and(eq(schema.orders.contactId, id), eq(schema.orders.orgId, org.id))).orderBy(desc(schema.orders.createdAt)).limit(20),
+    d
+      .select({ a: schema.appointments, service: schema.services.name })
+      .from(schema.appointments)
+      .innerJoin(schema.services, eq(schema.services.id, schema.appointments.serviceId))
+      .where(and(eq(schema.appointments.contactId, id), eq(schema.appointments.orgId, org.id)))
+      .orderBy(desc(schema.appointments.startAt))
+      .limit(10),
+  ]);
   const [members, convs, leads, tickets, enquiries] = await Promise.all([
     d.select({ id: schema.users.id, name: schema.users.name }).from(schema.memberships).innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId)).where(eq(schema.memberships.orgId, org.id)),
     d.select().from(schema.conversations).where(eq(schema.conversations.contactId, id)),
@@ -93,6 +103,44 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 {contact.optedOutAt ? "Mark as subscribed (they asked)" : "Opt them out"}
               </Button>
             </form>
+          </Card>
+          <Card className="p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Orders</h2>
+              <Link href={`/orders/new?contact=${contact.id}`} className="text-sm text-accent">
+                + New order
+              </Link>
+            </div>
+            {orders.length === 0 ? (
+              <p className="text-sm text-muted">None yet.</p>
+            ) : (
+              <>
+                <p className="mb-2 text-sm text-muted">
+                  {orders.length} order{orders.length === 1 ? "" : "s"} · {formatMoney(orders.filter((o) => o.paymentStatus === "paid").reduce((t, o) => t + o.totalMinor, 0))} paid · last {dateTime(orders[0].createdAt)}
+                </p>
+                {orders.map((o) => (
+                  <Link key={o.id} href={`/orders/${o.id}`} className="flex justify-between py-1 text-sm hover:text-accent">
+                    <span>#{o.number}</span>
+                    <span className="text-muted">
+                      {o.status} · {o.paymentStatus.replace("_", " ")} · {formatMoney(o.totalMinor, o.currency)}
+                    </span>
+                  </Link>
+                ))}
+              </>
+            )}
+            {appointments.length > 0 && (
+              <>
+                <h3 className="mb-1 mt-4 text-sm font-semibold">Appointments</h3>
+                {appointments.map(({ a, service }) => (
+                  <div key={a.id} className="flex justify-between py-1 text-sm">
+                    <span>{service}</span>
+                    <span className="text-muted">
+                      {dateTime(a.startAt, org.timezone)} · {a.status.replace("_", " ")}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
           </Card>
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold">Leads</h2>

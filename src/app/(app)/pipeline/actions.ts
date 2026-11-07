@@ -4,15 +4,22 @@ import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
+import { startAutomations } from "@/lib/events";
+import { kickJobs } from "@/lib/jobs";
 
 export async function moveLead(leadId: string, stageId: string) {
   const ctx = await requireOrg();
   const [stage] = await ctx.db.select().from(schema.pipelineStages).where(and(eq(schema.pipelineStages.id, stageId), eq(schema.pipelineStages.orgId, ctx.org.id))).limit(1);
   if (!stage) return;
-  await ctx.db
+  const [lead] = await ctx.db
     .update(schema.leads)
     .set({ stageId, closedAt: stage.kind === "open" ? null : new Date(), updatedAt: new Date() })
-    .where(and(eq(schema.leads.id, leadId), eq(schema.leads.orgId, ctx.org.id)));
+    .where(and(eq(schema.leads.id, leadId), eq(schema.leads.orgId, ctx.org.id)))
+    .returning();
+  if (lead && stage.kind === "won") {
+    await startAutomations(ctx.db, ctx.org.id, "lead_won", { contactId: lead.contactId, conversationId: lead.conversationId, key: `lead-won:${lead.id}` });
+    kickJobs(ctx.db);
+  }
   revalidatePath("/pipeline");
 }
 

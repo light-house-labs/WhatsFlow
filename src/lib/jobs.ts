@@ -75,3 +75,8 @@ export function kickJobs(d: DB) {
     runDueJobs(d).catch((e) => console.error("[jobs]", e));
   }, 0);
 }
+
+/** Housekeeping jobs queued by cron (prod) or the in-process timer (dev). */
+export async function enqueuePeriodic(d: DB) {
+  for (const kind of ["lead.followups", "billing.period_end", "automation.no_reply"]) await enqueue(d, kind, {});
+}

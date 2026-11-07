@@ -62,7 +62,13 @@ type Thread = {
   notes: Note[];
   leads: { id: string; title: string }[];
   tickets: { id: string; number: number; subject: string; status: string }[];
+  orders: { id: string; number: number; totalMinor: number; currency: string; status: string; paymentStatus: string }[];
+  appointment: { startAt: string; service: string } | null;
+  viewers: { name: string; typing: boolean }[];
 };
+
+// Whether this browser's agent is mid-reply; sent with each poll for the collision indicator.
+let typingNow = false;
 
 const FILTERS = [
   { id: "open", label: "All open" },
@@ -106,7 +112,7 @@ export function InboxApp({
       setThread(null);
       return;
     }
-    const r = await fetch(`/api/inbox/conversations/${selected}`, { cache: "no-store" });
+    const r = await fetch(`/api/inbox/conversations/${selected}?typing=${typingNow ? 1 : 0}`, { cache: "no-store" });
     if (r.ok) setThread(await r.json());
   }, [selected]);
 
@@ -291,6 +297,8 @@ function ThreadView({
   const [mode, setMode] = useState<"reply" | "note" | "media">("reply");
   const [mediaType, setMediaType] = useState<"image" | "document" | "video" | "audio">("image");
   const [mediaLink, setMediaLink] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [tplId, setTplId] = useState("");
   const [vars, setVars] = useState<string[]>([]);
@@ -320,13 +328,17 @@ function ThreadView({
         return;
       }
       if (mode === "media") {
-        if (await act(sendMedia(id, mediaType, mediaLink, text))) {
+        if (await act(sendMedia(id, mediaType, mediaLink, text, fileName))) {
           setText("");
           setMediaLink("");
+          setFileName(null);
         }
         return;
       }
-      if (await act(sendReply(id, text))) setText("");
+      if (await act(sendReply(id, text))) {
+        setText("");
+        typingNow = false;
+      }
     });
 
   return (
@@ -341,6 +353,11 @@ function ThreadView({
             </div>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            {thread.viewers.length > 0 && (
+              <Badge tone="warning">
+                {thread.viewers.map((v) => `${v.name} ${v.typing ? "is replying…" : "is viewing"}`).join(" · ")}
+              </Badge>
+            )}
             {conv.handledBy === "bot" ? (
               <Button size="sm" variant="secondary" onClick={() => act(takeOver(id))}>
                 <Bot size={14} /> Bot is replying · Take over
@@ -475,7 +492,30 @@ function ThreadView({
                     <option value="video">Video</option>
                     <option value="audio">Audio</option>
                   </Select>
-                  <Input aria-label="Link to file" className="h-9 text-[13px]" placeholder="https://… public link to the file" value={mediaLink} onChange={(e) => setMediaLink(e.target.value)} />
+                  <Input aria-label="Link to file" className="h-9 text-[13px]" placeholder="Upload, or paste a public https:// link" value={mediaLink} onChange={(e) => setMediaLink(e.target.value)} />
+                  <label className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-md border border-line px-3 text-[13px] hover:bg-surface-2">
+                    {uploading ? "Uploading…" : "Upload"}
+                    <input
+                      type="file"
+                      className="sr-only"
+                      disabled={uploading}
+                      accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,audio/mpeg,audio/ogg,.docx,.xlsx,.pptx,.txt,.csv"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploading(true);
+                        const body = new FormData();
+                        body.set("file", file);
+                        const r = await fetch("/api/files", { method: "POST", body });
+                        const j = (await r.json().catch(() => ({}))) as { url?: string; kind?: typeof mediaType; name?: string; error?: string };
+                        setUploading(false);
+                        if (!r.ok || !j.url) return void act(Promise.resolve({ ok: false, error: j.error ?? "Upload failed." }));
+                        setMediaLink(j.url);
+                        setFileName(j.name ?? null);
+                        if (j.kind) setMediaType(j.kind);
+                      }}
+                    />
+                  </label>
                 </div>
               )}
               <div className="flex items-end gap-2">
@@ -485,7 +525,10 @@ function ThreadView({
                   rows={2}
                   value={text}
                   placeholder={mode === "note" ? "Only your team sees this" : mode === "media" ? "Caption (optional)" : `Message ${contact.name ?? "customer"}`}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    typingNow = e.target.value.trim().length > 0 && mode !== "note";
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -630,6 +673,26 @@ function ContactPanel({ thread, act }: { thread: Thread; act: (p: Promise<{ ok: 
             </Button>
           </div>
         </form>
+      </div>
+
+      <div>
+        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Orders & bookings</h3>
+        {thread.appointment && (
+          <p className="mb-1 text-sm">
+            Next visit: {thread.appointment.service}, {new Date(thread.appointment.startAt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+          </p>
+        )}
+        {thread.orders.map((o) => (
+          <Link key={o.id} href={`/orders/${o.id}`} className="block text-sm text-accent">
+            #{o.number} · {new Intl.NumberFormat("en-IN", { style: "currency", currency: o.currency, maximumFractionDigits: 0 }).format(o.totalMinor / 100)}{" "}
+            <span className="text-muted">
+              ({o.status}, {o.paymentStatus.replace("_", " ")})
+            </span>
+          </Link>
+        ))}
+        <Link href={`/orders/new?contact=${contact.id}`} className="mt-1 inline-block text-sm font-medium text-accent">
+          + New order
+        </Link>
       </div>
 
       <div>

@@ -2,6 +2,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 import { enqueue, kickJobs } from "@/lib/jobs";
+import { emit } from "@/lib/events";
 import { providerFor } from "./index";
 import { MAX_BUTTONS, MAX_BUTTON_CHARS, MAX_LIST_ROWS, previewText, type Outbound } from "./types";
 
@@ -134,6 +135,7 @@ export async function applyStatus(
   if (!m) return false;
   if (m.status === "failed" || ORDER[status] <= ORDER[m.status]) return true;
   await d.update(schema.messages).set({ status, error: error ?? null }).where(eq(schema.messages.id, m.id));
+  await emit(d, m.orgId, "message.status", { message: { id: m.id, conversationId: m.conversationId, status, error: error ?? null } });
   if (m.campaignId) {
     const rs = status === "failed" ? "failed" : status;
     await d

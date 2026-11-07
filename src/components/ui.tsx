@@ -110,6 +110,21 @@ export const STATUS_TONE: Record<string, Tone> = {
   cancelled: "neutral",
   urgent: "danger",
   high: "warning",
+  paid: "success",
+  confirmed: "accent",
+  shipped: "accent",
+  delivered: "success",
+  unpaid: "neutral",
+  link_sent: "warning",
+  refunded: "neutral",
+  booked: "accent",
+  completed: "success",
+  no_show: "danger",
+  ok: "success",
+  waiting: "warning",
+  running: "warning",
+  done: "success",
+  stopped: "neutral",
 };
 
 export function StatusBadge({ status }: { status: string }) {

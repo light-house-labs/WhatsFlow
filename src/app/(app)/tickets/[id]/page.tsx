@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
@@ -20,9 +21,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     .limit(1);
   if (!row) notFound();
   const { t, c } = row;
-  const [members, messages] = await Promise.all([
+  const [members, messages, orders] = await Promise.all([
     d.select({ id: schema.users.id, name: schema.users.name }).from(schema.memberships).innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId)).where(eq(schema.memberships.orgId, org.id)),
     t.conversationId ? d.select().from(schema.messages).where(eq(schema.messages.conversationId, t.conversationId)).orderBy(asc(schema.messages.createdAt)).limit(60) : Promise.resolve([]),
+    d.select({ id: schema.orders.id, number: schema.orders.number, status: schema.orders.status }).from(schema.orders).where(eq(schema.orders.contactId, c.id)).orderBy(desc(schema.orders.createdAt)).limit(20),
   ]);
   const toLocal = (x: Date | null) => (x ? new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "");
   return (
@@ -75,6 +77,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </Select>
               </Field>
             </div>
+            <Field label="Related order" htmlFor="orderId">
+              <Select id="orderId" name="orderId" defaultValue={t.orderId ?? ""}>
+                <option value="">None</option>
+                {orders.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    #{o.number} ({o.status})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {t.orderId && (
+              <Link href={`/orders/${t.orderId}`} className="text-sm text-accent">
+                Open order →
+              </Link>
+            )}
             <Field label="Assignee" htmlFor="assigneeId">
               <Select id="assigneeId" name="assigneeId" defaultValue={t.assigneeId ?? ""}>
                 <option value="">Unassigned</option>

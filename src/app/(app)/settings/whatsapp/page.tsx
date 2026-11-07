@@ -9,6 +9,7 @@ import { timeAgo } from "@/lib/format";
 import { Alert, Badge, Button, Card, PageHeader, StatusBadge } from "@/components/ui";
 import { disconnectNumber, fixSubscription } from "../actions";
 import { ConnectForm } from "./connect-form";
+import { EmbeddedSignup } from "./embedded-signup";
 
 export const metadata: Metadata = { title: "WhatsApp numbers" };
 
@@ -103,6 +104,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
         </div>
         <Card className="h-fit p-5">
           <h2 className="font-semibold">Connect a real number</h2>
+          {process.env.META_APP_ID && process.env.META_ES_CONFIG_ID && (
+            <div className="mt-3 border-b border-line pb-4">
+              <EmbeddedSignup appId={process.env.META_APP_ID} configId={process.env.META_ES_CONFIG_ID} version={process.env.META_GRAPH_VERSION ?? "v23.0"} />
+              <p className="mt-3 text-xs font-medium text-muted">Or connect by hand:</p>
+            </div>
+          )}
           <ol className="my-3 list-decimal space-y-1 pl-5 text-sm text-muted">
             <li>
               In <a className="text-accent" href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">Meta for Developers</a>, create a Business app and add WhatsApp.

@@ -4,6 +4,9 @@ export type PlanLimits = {
   seats: number;
   botFlows: number;
   numbers: number;
+  products: number;
+  appointmentsPerMonth: number;
+  automations: number;
 };
 
 export type PlanInfo = {
@@ -25,7 +28,7 @@ export const PLANS: Record<Plan, PlanInfo> = {
     tagline: "14 days, everything in Starter, sandbox number included",
     monthlyMinor: 0,
     yearlyMinor: 0,
-    limits: { seats: 2, botFlows: 3, numbers: 1 },
+    limits: { seats: 2, botFlows: 3, numbers: 1, products: 50, appointmentsPerMonth: 100, automations: 3 },
     features: [],
   },
   starter: {
@@ -34,12 +37,13 @@ export const PLANS: Record<Plan, PlanInfo> = {
     tagline: "For a shop or clinic with a small front desk",
     monthlyMinor: 2499_00,
     yearlyMinor: 2499_00 * 10,
-    limits: { seats: 3, botFlows: 5, numbers: 1 },
+    limits: { seats: 3, botFlows: 5, numbers: 1, products: 200, appointmentsPerMonth: 300, automations: 5 },
     features: [
       "Shared inbox, labels, notes, quick replies",
       "Contacts, enquiries, tickets, pipeline",
       "Broadcasts with approved templates",
-      "5 bot flows",
+      "5 bot flows, 5 automations",
+      "200 products, 300 bookings a month",
       "3 team members",
     ],
   },
@@ -49,10 +53,11 @@ export const PLANS: Record<Plan, PlanInfo> = {
     tagline: "For sales and support teams working the same number",
     monthlyMinor: 5499_00,
     yearlyMinor: 5499_00 * 10,
-    limits: { seats: 8, botFlows: 1000, numbers: 2 },
+    limits: { seats: 8, botFlows: 1000, numbers: 2, products: 2000, appointmentsPerMonth: 3000, automations: 50 },
     features: [
       "Everything in Starter",
-      "Unlimited bot flows",
+      "Unlimited bot flows, 50 automations",
+      "2,000 products, 3,000 bookings a month",
       "8 team members, 2 WhatsApp numbers",
       "Priority human support",
     ],
@@ -63,7 +68,7 @@ export const PLANS: Record<Plan, PlanInfo> = {
     tagline: "More numbers, seats and custom work",
     monthlyMinor: 0,
     yearlyMinor: 0,
-    limits: { seats: 1000, botFlows: 100000, numbers: 20 },
+    limits: { seats: 1000, botFlows: 100000, numbers: 20, products: 100000, appointmentsPerMonth: 100000, automations: 1000 },
     features: ["Everything in Team", "Custom limits", "Onboarding with our team"],
   },
 };
@@ -88,4 +93,10 @@ export function overLimit(plan: Plan, usage: Usage): string[] {
 
 export function formatMoney(minor: number, currency = "INR"): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(minor / 100);
+}
+
+/** "2,499.50" → 249950 minor units. NaN-safe: returns null for anything that isn't a price. */
+export function parseMoney(input: string): number | null {
+  const n = Number(input.replace(/[,\s₹$]/g, ""));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
 }

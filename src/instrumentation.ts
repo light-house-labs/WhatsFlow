@@ -7,7 +7,7 @@ export async function register() {
   if (process.env.VERCEL || process.env.JOBS_INLINE === "0") return;
   const g = globalThis as unknown as { __wfJobTimer?: NodeJS.Timeout };
   if (g.__wfJobTimer) return;
-  const [{ db }, { enqueue, runDueJobs }] = await Promise.all([import("./db"), import("./lib/jobs")]);
+  const [{ db }, { enqueuePeriodic, runDueJobs }] = await Promise.all([import("./db"), import("./lib/jobs")]);
   let busy = false;
   let ticks = 0;
   g.__wfJobTimer = setInterval(async () => {
@@ -16,8 +16,7 @@ export async function register() {
     try {
       const d = await db();
       if (ticks++ % 30 === 0) {
-        await enqueue(d, "lead.followups", {});
-        await enqueue(d, "billing.period_end", {});
+        await enqueuePeriodic(d);
       }
       await runDueJobs(d);
     } catch (e) {

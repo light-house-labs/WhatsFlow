@@ -5,6 +5,15 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bot,
+  CalendarDays,
+  Code2,
+  Database,
+  LineChart,
+  Package,
+  ShoppingBag,
+  Sparkles,
+  Wallet,
+  Workflow,
   CreditCard,
   FileText,
   Inbox,
@@ -30,15 +39,24 @@ const NAV = [
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/tickets", label: "Tickets", icon: Ticket },
   { href: "/contacts", label: "Contacts", icon: Users },
+  { href: "/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/catalog", label: "Catalog", icon: Package },
+  { href: "/appointments", label: "Appointments", icon: CalendarDays },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/bots", label: "Bot flows", icon: Bot },
+  { href: "/automations", label: "Automations", icon: Workflow },
+  { href: "/analytics", label: "Analytics", icon: LineChart, admin: true },
 ];
 
 const SETTINGS = [
   { href: "/settings/whatsapp", label: "WhatsApp numbers", icon: Phone },
   { href: "/settings", label: "Inbox settings", icon: Settings, exact: true },
   { href: "/settings/team", label: "Team", icon: Users },
+  { href: "/settings/ai", label: "AI replies", icon: Sparkles },
+  { href: "/settings/payments", label: "Payments", icon: Wallet },
+  { href: "/settings/developers", label: "API & webhooks", icon: Code2 },
+  { href: "/settings/data", label: "Your data", icon: Database },
   { href: "/settings/billing", label: "Plan & billing", icon: CreditCard },
 ];
 
@@ -85,7 +103,7 @@ export function Sidebar({ org, orgs, user, role, unread, numbers, trialDaysLeft 
         )}
       </div>
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3" aria-label="Main">
-        {NAV.map(({ href, label, icon: Icon, badge }) => (
+        {NAV.filter((n) => role !== "agent" || !("admin" in n)).map(({ href, label, icon: Icon, badge }) => (
           <Link
             key={href}
             href={href}

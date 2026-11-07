@@ -6,6 +6,7 @@ import { requireOrg } from "@/lib/auth";
 import { sendInConversation, SendError } from "@/lib/wa/outbound";
 import { stopBot } from "@/lib/flows/engine";
 import { nextTicketNumber } from "@/lib/crm";
+import { emit } from "@/lib/events";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -36,12 +37,13 @@ export async function sendReply(conversationId: string, text: string): Promise<R
   }
 }
 
-export async function sendMedia(conversationId: string, mediaType: "image" | "document" | "video" | "audio", link: string, caption: string): Promise<Result> {
-  if (!/^https:\/\/\S+$/.test(link.trim())) return { ok: false, error: "Paste a public https:// link to the file. WhatsApp downloads it from there." };
+export async function sendMedia(conversationId: string, mediaType: "image" | "document" | "video" | "audio", link: string, caption: string, uploadedName?: string | null): Promise<Result> {
+  const ours = link.trim().startsWith(`${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/api/files/`);
+  if (!ours && !/^https:\/\/\S+$/.test(link.trim())) return { ok: false, error: "Paste a public https:// link to the file. WhatsApp downloads it from there." };
   const { ctx } = await ownedConversation(conversationId);
   try {
     await stopBot(ctx.db, conversationId);
-    const filename = mediaType === "document" ? decodeURIComponent(link.split("/").pop()?.split("?")[0] ?? "file") : undefined;
+    const filename = mediaType === "document" ? (uploadedName ?? decodeURIComponent(link.split("/").pop()?.split("?")[0] ?? "file")) : undefined;
     const m = await sendInConversation(ctx.db, conversationId, { kind: "media", mediaType, link: link.trim(), caption: caption.trim() || undefined, filename }, { senderKind: "user", senderUserId: ctx.user.id });
     if (m.status === "failed") return { ok: false, error: `WhatsApp didn't accept it: ${m.error}` };
     return { ok: true };
@@ -98,7 +100,7 @@ export async function setStatus(conversationId: string, status: "open" | "closed
   if (status === "closed") await stopBot(ctx.db, conversationId);
   await ctx.db
     .update(schema.conversations)
-    .set({ status, ...(status === "closed" ? { waitingSince: null, unreadCount: 0 } : {}) })
+    .set({ status, closedAt: status === "closed" ? new Date() : null, ...(status === "closed" ? { waitingSince: null, unreadCount: 0 } : {}) })
     .where(eq(schema.conversations.id, conversationId));
   return { ok: true };
 }
@@ -139,7 +141,7 @@ export async function convertToLead(conversationId: string, title: string, value
     .orderBy(asc(schema.pipelineStages.position))
     .limit(1);
   if (!stage) return { ok: false, error: "Add a pipeline stage first." };
-  await ctx.db.insert(schema.leads).values({
+  const [lead] = await ctx.db.insert(schema.leads).values({
     orgId: ctx.org.id,
     contactId: conv.contactId,
     conversationId,
@@ -148,7 +150,8 @@ export async function convertToLead(conversationId: string, title: string, value
     valueMinor: Math.max(0, Math.round(value * 100)),
     ownerId: ctx.user.id,
     source: "whatsapp",
-  });
+  }).returning();
+  await emit(ctx.db, ctx.org.id, "lead.created", { lead: { id: lead.id, title: lead.title, contactId: lead.contactId, source: lead.source } });
   await markEnquiry(ctx.db, conversationId, "lead");
   return { ok: true };
 }

@@ -121,6 +121,10 @@ export async function connectCloudNumber(_: ConnectState, form: FormData): Promi
   if (!/^\d{6,}$/.test(phoneNumberId)) return { error: "The Phone number ID is a long number from WhatsApp → API Setup in your Meta app." };
   if (!/^\d{6,}$/.test(wabaId)) return { error: "The WhatsApp Business Account ID is a long number from the same page." };
   if (token.length < 20) return { error: "Paste the full access token." };
+  return saveCloudNumber(ctx, phoneNumberId, wabaId, token);
+}
+
+async function saveCloudNumber(ctx: Awaited<ReturnType<typeof requireOrg>>, phoneNumberId: string, wabaId: string, token: string): Promise<ConnectState> {
   const numbers = await ctx.db.select().from(schema.waNumbers).where(eq(schema.waNumbers.orgId, ctx.org.id));
   const realOnes = numbers.filter((n) => n.provider === "cloud" && n.status !== "disconnected");
   if (realOnes.length >= limitsFor(ctx.org.plan).numbers) return { error: `Your plan includes ${limitsFor(ctx.org.plan).numbers} WhatsApp number(s).` };
@@ -154,6 +158,32 @@ export async function connectCloudNumber(_: ConnectState, form: FormData): Promi
     })
     .returning();
   redirect(`/settings/whatsapp?n=${n.id}`);
+}
+
+/**
+ * Finish Meta Embedded Signup: swap the one-time code for a business token,
+ * register the number for Cloud API, then connect it like a pasted token.
+ */
+export async function completeEmbeddedSignup(code: string, phoneNumberId: string, wabaId: string): Promise<ConnectState> {
+  const ctx = await requireOrg("admin");
+  const appId = process.env.META_APP_ID;
+  const secret = process.env.META_APP_SECRET;
+  if (!appId || !secret) return { error: "Embedded Signup isn't configured on this server." };
+  if (!/^\d{6,}$/.test(phoneNumberId) || !/^\d{6,}$/.test(wabaId) || !code) return { error: "Meta didn't send the number details. Try again." };
+  const graph = `https://graph.facebook.com/${process.env.META_GRAPH_VERSION ?? "v23.0"}`;
+  const tokenRes = await fetch(`${graph}/oauth/access_token?${new URLSearchParams({ client_id: appId, client_secret: secret, code })}`, { cache: "no-store" });
+  const tokenJson = (await tokenRes.json().catch(() => ({}))) as { access_token?: string; error?: { message?: string } };
+  if (!tokenRes.ok || !tokenJson.access_token) return { error: tokenJson.error?.message ?? "Meta didn't accept the sign-up code." };
+  const token = tokenJson.access_token;
+  // Register the number for Cloud API. A number that is already registered returns an error we can ignore.
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  await fetch(`${graph}/${phoneNumberId}/register`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", pin }),
+  }).catch(() => null);
+  await ctx.db.insert(schema.auditLog).values({ orgId: ctx.org.id, actorId: ctx.user.id, action: "whatsapp.embedded_signup", target: phoneNumberId });
+  return saveCloudNumber(ctx, phoneNumberId, wabaId, token);
 }
 
 export async function fixSubscription(form: FormData) {

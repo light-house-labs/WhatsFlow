@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ReactFlow,
@@ -18,7 +18,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Bot, GitBranch, HelpCircle, List, MessageSquare, MousePointerClick, Play, Tag, Ticket, Trash2, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Bot, CalendarClock, GitBranch, PackageSearch, ShoppingBag, HelpCircle, List, MessageSquare, MousePointerClick, Play, Tag, Ticket, Trash2, UserRound, Users } from "lucide-react";
 import type { FlowEdge, FlowNode, FlowTrigger } from "@/db/schema";
 import { Alert, Button, Field, Input, Select, StatusBadge, Textarea, cx } from "@/components/ui";
 import { saveFlow } from "../actions";
@@ -36,8 +36,13 @@ const META: Record<Kind, { label: string; icon: typeof Bot; hint: string }> = {
   tag: { label: "Tag contact", icon: Tag, hint: "Add a tag for segments" },
   lead: { label: "Create lead", icon: Users, hint: "Adds a card to the pipeline" },
   ticket: { label: "Open ticket", icon: Ticket, hint: "Logs a support request" },
+  products: { label: "Take an order", icon: ShoppingBag, hint: "Product list, then a payment link" },
+  booking: { label: "Offer booking times", icon: CalendarClock, hint: "Free slots for a service, then book" },
+  order_status: { label: "Order status", icon: PackageSearch, hint: "Tells the customer about their last order" },
   handover: { label: "Hand over to team", icon: UserRound, hint: "Stops the bot, alerts the inbox" },
 };
+
+const ServicesCtx = createContext<{ id: string; name: string }[]>([]);
 
 const DEFAULTS: Partial<Record<Kind, Record<string, unknown>>> = {
   message: { text: "" },
@@ -48,6 +53,8 @@ const DEFAULTS: Partial<Record<Kind, Record<string, unknown>>> = {
   tag: { tag: "" },
   lead: { title: "New lead" },
   ticket: { subject: "Support request" },
+  products: { text: "What would you like to order?" },
+  booking: { text: "Pick a time that suits you:", serviceId: "" },
   handover: { text: "Connecting you to our team now." },
 };
 
@@ -110,6 +117,7 @@ export function Builder(props: {
   initialNodes: FlowNode[];
   initialEdges: FlowEdge[];
   initialProblems: string[];
+  services: { id: string; name: string }[];
 }) {
   const [name, setName] = useState(props.initialName);
   const [status, setStatus] = useState(props.initialStatus);
@@ -153,7 +161,8 @@ export function Builder(props: {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <ServicesCtx.Provider value={props.services}>
+      <div className="flex h-screen flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-3">
         <Link href="/bots" aria-label="Back to flows" className="text-muted">
           <ArrowLeft size={18} />
@@ -241,7 +250,8 @@ export function Builder(props: {
           )}
         </aside>
       </div>
-    </div>
+      </div>
+    </ServicesCtx.Provider>
   );
 }
 
@@ -272,6 +282,22 @@ function TriggerPanel({ trigger, setTrigger }: { trigger: FlowTrigger; setTrigge
         Keyword flows win over “any new conversation” flows. While a bot is waiting for an answer, the customer&apos;s reply goes to the bot. If they reply with something that isn&apos;t one of the options, the chat is handed to your team.
       </p>
     </div>
+  );
+}
+
+function ServicePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const services = useContext(ServicesCtx);
+  return (
+    <Field label="Service" htmlFor="svc" hint={services.length ? undefined : "Add services in Appointments → Settings first."}>
+      <Select id="svc" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Choose…</option>
+        {services.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </Select>
+    </Field>
   );
 }
 
@@ -310,6 +336,15 @@ function NodePanel({ data, update, remove }: { data: Data; update: (p: Record<st
     <div className="space-y-4">
       <h2 className="font-semibold">{META[kind].label}</h2>
       {(kind === "message" || kind === "buttons" || kind === "list" || kind === "question") && text("Message")}
+      {(kind === "products" || kind === "booking") &&
+        text(
+          "Message",
+          kind === "products"
+            ? "Lists up to 10 in-stock products from your catalog. The pick becomes an order and the customer gets a payment link."
+            : "Lists the next 10 free times. The pick is booked and confirmed. Saved answers go into the booking notes.",
+        )}
+      {kind === "booking" && <ServicePicker value={String(data.serviceId ?? "")} onChange={(v) => update({ serviceId: v })} />}
+      {kind === "order_status" && <p className="text-sm text-muted">Replies with the status and payment of the customer&apos;s most recent order, then continues.</p>}
       {kind === "handover" && text("Message before handing over (optional)", "The conversation moves to the inbox as waiting for a person.")}
       {kind === "buttons" && list("buttons", 3, 20)}
       {kind === "list" && (

@@ -192,6 +192,10 @@ export const conversations = pgTable(
     lastMessagePreview: text("last_message_preview"),
     unreadCount: integer("unread_count").notNull().default(0),
     waitingSince: ts("waiting_since"),
+    /** Something the next customer reply answers, outside any bot flow (e.g. picking a new slot). */
+    pending: jsonb("pending").$type<PendingPrompt | null>(),
+    aiReplies: integer("ai_replies").notNull().default(0),
+    closedAt: ts("closed_at"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -200,6 +204,8 @@ export const conversations = pgTable(
     index().on(t.assigneeId),
   ],
 );
+
+export type PendingPrompt = { kind: "reschedule"; appointmentId: string; serviceId: string; slots: string[] };
 
 export type MessageStatus = "queued" | "sent" | "delivered" | "read" | "failed" | "received";
 
@@ -445,6 +451,7 @@ export const tickets = pgTable(
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
     dueAt: ts("due_at"),
     resolvedAt: ts("resolved_at"),
+    orderId: uuid("order_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -457,6 +464,9 @@ export type FlowNode = {
   id: string;
   type:
     | "trigger"
+    | "products"
+    | "booking"
+    | "order_status"
     | "message"
     | "buttons"
     | "list"
@@ -616,4 +626,355 @@ export const auditLog = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.orgId, t.createdAt)],
+);
+
+// ---------- commerce ----------
+
+export const products = pgTable(
+  "products",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    priceMinor: integer("price_minor").notNull(),
+    currency: text("currency").notNull().default("INR"),
+    imageUrl: text("image_url"),
+    sku: text("sku"),
+    /** Null means stock isn't tracked. */
+    stock: integer("stock"),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.orgId, t.active)],
+);
+
+export type OrderItem = { productId: string | null; name: string; qty: number; priceMinor: number };
+export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+export type PaymentStatus = "unpaid" | "link_sent" | "paid" | "failed" | "refunded";
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+    items: jsonb("items").$type<OrderItem[]>().notNull(),
+    totalMinor: integer("total_minor").notNull(),
+    currency: text("currency").notNull().default("INR"),
+    status: text("status").$type<OrderStatus>().notNull().default("pending"),
+    paymentStatus: text("payment_status").$type<PaymentStatus>().notNull().default("unpaid"),
+    paymentProvider: text("payment_provider").$type<PaymentProviderKind>(),
+    paymentRef: text("payment_ref"),
+    paymentUrl: text("payment_url"),
+    paidAt: ts("paid_at"),
+    source: text("source").notNull().default("inbox"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("orders_org_number_idx").on(t.orgId, t.number),
+    index().on(t.orgId, t.createdAt),
+    index().on(t.contactId),
+    index().on(t.paymentRef),
+  ],
+);
+
+export const orderEvents = pgTable(
+  "order_events",
+  {
+    id: id(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    detail: text("detail"),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orderId, t.createdAt)],
+);
+
+export type PaymentProviderKind = "sandbox" | "razorpay" | "stripe";
+
+/** Per-workspace credentials for third-party services. Secrets are encrypted at rest. */
+export const integrations = pgTable(
+  "integrations",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<PaymentProviderKind | "google_sheets">().notNull(),
+    configEnc: text("config_enc").notNull(),
+    /** Non-secret display info, e.g. the key id's last 4 characters. */
+    label: text("label"),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("integrations_org_kind_idx").on(t.orgId, t.kind)],
+);
+
+// ---------- appointments ----------
+
+export const bookingSettings = pgTable("booking_settings", {
+  orgId: uuid("org_id")
+    .primaryKey()
+    .references(() => orgs.id, { onDelete: "cascade" }),
+  hours: jsonb("hours").$type<BusinessHours>().notNull(),
+  slotMinutes: integer("slot_minutes").notNull().default(30),
+  /** How soon the earliest bookable slot can be. */
+  leadMinutes: integer("lead_minutes").notNull().default(60),
+  daysAhead: integer("days_ahead").notNull().default(14),
+  reminderHours: integer("reminder_hours").notNull().default(24),
+  /** Approved utility template used when the 24-hour window is closed. {{1}} name, {{2}} service, {{3}} time. */
+  reminderTemplateId: uuid("reminder_template_id").references(() => templates.id, { onDelete: "set null" }),
+});
+
+export const services = pgTable(
+  "services",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    durationMinutes: integer("duration_minutes").notNull().default(30),
+    priceMinor: integer("price_minor").notNull().default(0),
+    /** How many customers can book the same slot (e.g. number of chairs or staff). */
+    capacity: integer("capacity").notNull().default(1),
+    staffId: uuid("staff_id").references(() => users.id, { onDelete: "set null" }),
+    branch: text("branch"),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orgId)],
+);
+
+export const appointments = pgTable(
+  "appointments",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+    startAt: ts("start_at").notNull(),
+    endAt: ts("end_at").notNull(),
+    status: text("status").$type<"booked" | "cancelled" | "completed" | "no_show">().notNull().default("booked"),
+    source: text("source").notNull().default("whatsapp"),
+    notes: text("notes"),
+    reminderSentAt: ts("reminder_sent_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orgId, t.startAt), index().on(t.serviceId, t.startAt), index().on(t.contactId)],
+);
+
+// ---------- automations ----------
+
+export type AutomationTrigger =
+  | "conversation_started"
+  | "order_created"
+  | "order_paid"
+  | "appointment_booked"
+  | "lead_won"
+  | "no_reply";
+
+export type AutomationStep =
+  | { type: "wait"; minutes: number }
+  | { type: "send_text"; text: string }
+  | { type: "send_template"; templateId: string }
+  | { type: "add_tag"; tag: string }
+  | { type: "assign"; userId: string }
+  | { type: "if_tag"; tag: string };
+
+export const automations = pgTable(
+  "automations",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    trigger: text("trigger").$type<AutomationTrigger>().notNull(),
+    /** e.g. { minutes: 120 } for no_reply */
+    triggerConfig: jsonb("trigger_config").$type<Record<string, number | string>>().notNull().default({}),
+    steps: jsonb("steps").$type<AutomationStep[]>().notNull().default([]),
+    status: text("status").$type<"draft" | "live">().notNull().default("draft"),
+    runs: integer("runs").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.orgId, t.trigger)],
+);
+
+export type RunLogEntry = { at: string; step: number; ok: boolean; detail: string };
+
+export const automationRuns = pgTable(
+  "automation_runs",
+  {
+    id: id(),
+    automationId: uuid("automation_id")
+      .notNull()
+      .references(() => automations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+    /** Dedupes a trigger firing twice for the same thing, e.g. "order:<id>". */
+    triggerKey: text("trigger_key").notNull(),
+    step: integer("step").notNull().default(0),
+    status: text("status").$type<"running" | "waiting" | "done" | "stopped" | "failed">().notNull().default("running"),
+    log: jsonb("log").$type<RunLogEntry[]>().notNull().default([]),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("automation_runs_key_idx").on(t.automationId, t.triggerKey),
+    index().on(t.orgId, t.createdAt),
+  ],
+);
+
+// ---------- AI replies ----------
+
+export const aiSettings = pgTable("ai_settings", {
+  orgId: uuid("org_id")
+    .primaryKey()
+    .references(() => orgs.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
+  businessInfo: text("business_info").notNull().default(""),
+  faqs: text("faqs").notNull().default(""),
+  includeCatalog: boolean("include_catalog").notNull().default(true),
+  /** Hand to a person when the customer says any of these. */
+  handoverKeywords: text("handover_keywords").array().notNull().default(["human", "agent", "person", "call me"]),
+  /** Hand over after this many AI replies in one conversation. */
+  maxReplies: integer("max_replies").notNull().default(6),
+});
+
+// ---------- developer API ----------
+
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    prefix: text("prefix").notNull(),
+    keyHash: text("key_hash").notNull(),
+    scope: text("scope").$type<"full" | "read">().notNull().default("full"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    lastUsedAt: ts("last_used_at"),
+    revokedAt: ts("revoked_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("api_keys_hash_idx").on(t.keyHash), index().on(t.orgId)],
+);
+
+export const WEBHOOK_EVENTS = [
+  "message.received",
+  "message.status",
+  "conversation.started",
+  "contact.created",
+  "lead.created",
+  "order.created",
+  "order.paid",
+  "order.updated",
+  "appointment.booked",
+  "appointment.cancelled",
+] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+export const webhookEndpoints = pgTable(
+  "webhook_endpoints",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    secretEnc: text("secret_enc").notNull(),
+    events: text("events").array().$type<WebhookEvent[]>().notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orgId)],
+);
+
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: id(),
+    endpointId: uuid("endpoint_id")
+      .notNull()
+      .references(() => webhookEndpoints.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    event: text("event").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: text("status").$type<"pending" | "ok" | "failed">().notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    responseCode: integer("response_code"),
+    error: text("error"),
+    createdAt: createdAt(),
+    deliveredAt: ts("delivered_at"),
+  },
+  (t) => [index().on(t.endpointId, t.createdAt), index().on(t.orgId, t.createdAt)],
+);
+
+// ---------- uploaded files ----------
+
+export const files = pgTable(
+  "files",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    /** "local:<path>" in dev, or a Vercel Blob URL. */
+    storageKey: text("storage_key").notNull(),
+    uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orgId, t.createdAt)],
+);
+
+/** Who has a conversation open right now, for the inbox collision indicator. */
+export const presence = pgTable(
+  "presence",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    typing: boolean("typing").notNull().default(false),
+    seenAt: ts("seen_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.conversationId, t.userId] })],
 );

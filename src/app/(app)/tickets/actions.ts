@@ -6,6 +6,12 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { sendInConversation, SendError } from "@/lib/wa/outbound";
 
+async function ownOrderId(d: Awaited<ReturnType<typeof requireOrg>>["db"], orgId: string, id: string) {
+  if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+  const [o] = await d.select({ id: schema.orders.id }).from(schema.orders).where(and(eq(schema.orders.id, id), eq(schema.orders.orgId, orgId)));
+  return o?.id ?? null;
+}
+
 export async function updateTicket(form: FormData) {
   const ctx = await requireOrg();
   const id = String(form.get("id"));
@@ -22,6 +28,7 @@ export async function updateTicket(form: FormData) {
       subject: String(form.get("subject") ?? before.subject).trim() || before.subject,
       description: String(form.get("description") ?? "") || null,
       dueAt: due ? new Date(due) : null,
+      orderId: await ownOrderId(ctx.db, ctx.org.id, String(form.get("orderId") ?? "")),
       resolvedAt: status === "resolved" || status === "closed" ? (before.resolvedAt ?? new Date()) : null,
       updatedAt: new Date(),
     })

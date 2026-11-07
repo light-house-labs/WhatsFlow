@@ -1,10 +1,15 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 import type { FlowNode } from "@/db/schema";
 import { sendInConversation } from "@/lib/wa/outbound";
 import { matchOption, nextNode, triggerMatches, type Graph } from "./graph";
 import { nextTicketNumber } from "@/lib/crm";
+import { formatMoney } from "@/lib/plans";
+import { availableSlots, bookAppointment, BookingError, slotLabel } from "@/lib/booking";
+import { createOrder, OrderError, sendPaymentLink } from "@/lib/orders";
+import { PaymentError } from "@/lib/payments";
+import { emit } from "@/lib/events";
 
 const MAX_STEPS = 25;
 
@@ -76,15 +81,16 @@ async function execute(ctx: Ctx, start: FlowNode | null): Promise<StepResult> {
           .orderBy(asc(schema.pipelineStages.position))
           .limit(1);
         if (stage) {
-          await ctx.d.insert(schema.leads).values({
+          const [lead] = await ctx.d.insert(schema.leads).values({
             orgId: ctx.orgId,
             contactId: ctx.contactId,
             conversationId: ctx.conversationId,
             stageId: stage.id,
             title: interpolate(String(node.data.title || "New lead"), ctx.vars),
             source: "bot",
-            notes: Object.entries(ctx.vars).map(([k, v]) => `${k}: ${v}`).join("\n") || null,
-          });
+            notes: publicVars(ctx.vars).map(([k, v]) => `${k}: ${v}`).join("\n") || null,
+          }).returning();
+          await emit(ctx.d, ctx.orgId, "lead.created", { lead: { id: lead.id, title: lead.title, contactId: lead.contactId, source: lead.source } });
           await markEnquiry(ctx, "converted", "lead");
         }
         node = nextNode(ctx.graph, node.id);
@@ -97,9 +103,60 @@ async function execute(ctx: Ctx, start: FlowNode | null): Promise<StepResult> {
           contactId: ctx.contactId,
           conversationId: ctx.conversationId,
           subject: interpolate(String(node.data.subject || "Support request"), ctx.vars),
-          description: Object.entries(ctx.vars).map(([k, v]) => `${k}: ${v}`).join("\n") || null,
+          description: publicVars(ctx.vars).map(([k, v]) => `${k}: ${v}`).join("\n") || null,
         });
         await markEnquiry(ctx, "converted", "ticket");
+        node = nextNode(ctx.graph, node.id);
+        continue;
+      }
+      case "products": {
+        const products = await ctx.d
+          .select()
+          .from(schema.products)
+          .where(and(eq(schema.products.orgId, ctx.orgId), eq(schema.products.active, true)))
+          .orderBy(asc(schema.products.name))
+          .limit(10);
+        const available = products.filter((p) => p.stock === null || p.stock > 0);
+        if (!available.length) {
+          node = { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "Sorry, nothing is available to order right now. Someone from our team will help you." } };
+          continue;
+        }
+        ctx.vars.__options = JSON.stringify(available.map((p) => p.id));
+        await sendInConversation(
+          ctx.d,
+          ctx.conversationId,
+          { kind: "list", body: text || "What would you like to order?", button: "See products", rows: available.map((p) => `${p.name} ${formatMoney(p.priceMinor, p.currency)}`.slice(0, 24)) },
+          { senderKind: "bot" },
+        );
+        return { waitAt: node.id, handedOver: false };
+      }
+      case "booking": {
+        const [org] = await ctx.d.select({ tz: schema.orgs.timezone }).from(schema.orgs).where(eq(schema.orgs.id, ctx.orgId));
+        const slots = await availableSlots(ctx.d, ctx.orgId, String(node.data.serviceId ?? ""), 10);
+        if (!slots.length) {
+          node = { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "There are no free times online right now. Someone from our team will help you book." } };
+          continue;
+        }
+        ctx.vars.__options = JSON.stringify(slots.map((x) => x.toISOString()));
+        await sendInConversation(
+          ctx.d,
+          ctx.conversationId,
+          { kind: "list", body: text || "Pick a time that suits you:", button: "See times", rows: slots.map((x) => slotLabel(x, org.tz)) },
+          { senderKind: "bot" },
+        );
+        return { waitAt: node.id, handedOver: false };
+      }
+      case "order_status": {
+        const [o] = await ctx.d
+          .select()
+          .from(schema.orders)
+          .where(and(eq(schema.orders.orgId, ctx.orgId), eq(schema.orders.contactId, ctx.contactId)))
+          .orderBy(desc(schema.orders.createdAt))
+          .limit(1);
+        const reply = o
+          ? `Order #${o.number}: ${o.status.replaceAll("_", " ")}, payment ${o.paymentStatus.replaceAll("_", " ")}. Total ${formatMoney(o.totalMinor, o.currency)}.`
+          : "We couldn't find an order for this number.";
+        await sendInConversation(ctx.d, ctx.conversationId, { kind: "text", body: reply }, { senderKind: "bot" });
         node = nextNode(ctx.graph, node.id);
         continue;
       }
@@ -126,6 +183,50 @@ async function markEnquiry(ctx: Ctx, status: "needs_human" | "converted", conver
         sql`${schema.enquiries.status} in ('answered_by_bot','needs_human')`,
       ),
     );
+}
+
+/** Saved answers, without the engine's own bookkeeping keys. */
+function publicVars(vars: Record<string, string>) {
+  return Object.entries(vars).filter(([k]) => !k.startsWith("__"));
+}
+
+/** The customer picked a product or a time from a list the bot sent. */
+async function actOnPick(ctx: Ctx, at: FlowNode, picked: string): Promise<FlowNode | null> {
+  const fail = (text: string): FlowNode => ({ id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text } });
+  if (at.type === "products") {
+    try {
+      const order = await createOrder(ctx.d, { orgId: ctx.orgId, contactId: ctx.contactId, conversationId: ctx.conversationId, lines: [{ productId: picked, qty: 1 }], source: "bot" });
+      ctx.vars.order = `#${order.number}`;
+      await sendPaymentLink(ctx.d, order.id, { senderKind: "bot" });
+    } catch (e) {
+      if (e instanceof OrderError || e instanceof PaymentError) return fail(`${e.message} Someone from our team will help you.`);
+      throw e;
+    }
+    return nextNode(ctx.graph, at.id);
+  }
+  try {
+    const [org] = await ctx.d.select({ tz: schema.orgs.timezone, name: schema.orgs.name }).from(schema.orgs).where(eq(schema.orgs.id, ctx.orgId));
+    const { appt, service } = await bookAppointment(ctx.d, {
+      orgId: ctx.orgId,
+      serviceId: String(at.data.serviceId ?? ""),
+      contactId: ctx.contactId,
+      conversationId: ctx.conversationId,
+      startAt: new Date(picked),
+      source: "bot",
+      notes: publicVars(ctx.vars).map(([k, v]) => `${k}: ${v}`).join("\n") || null,
+    });
+    ctx.vars.booking = slotLabel(appt.startAt, org.tz);
+    await sendInConversation(
+      ctx.d,
+      ctx.conversationId,
+      { kind: "text", body: `You're booked: ${service.name} on ${ctx.vars.booking} at ${org.name}. We'll remind you before. Reply CANCEL or RESCHEDULE any time.` },
+      { senderKind: "bot" },
+    );
+  } catch (e) {
+    if (e instanceof BookingError) return fail(`${e.message} Someone from our team will help you.`);
+    throw e;
+  }
+  return nextNode(ctx.graph, at.id);
 }
 
 function interpolate(text: string, vars: Record<string, string>) {
@@ -171,6 +272,14 @@ export async function runBot(
     if (at?.type === "question") {
       ctx.vars[String(at.data.saveAs || "answer")] = args.text;
       next = nextNode(graph, at.id);
+    } else if (at && (at.type === "products" || at.type === "booking")) {
+      const ids = JSON.parse(ctx.vars.__options ?? "[]") as string[];
+      // options were sent as list rows; match by position, title, or typed number
+      const idx = args.replyId?.match(/^row:(\d+)$/) ? Number(args.replyId.slice(4)) : Number.isInteger(Number(args.text.trim())) ? Number(args.text.trim()) - 1 : -1;
+      delete ctx.vars.__options;
+      next = idx >= 0 && idx < ids.length
+        ? await actOnPick(ctx, at, ids[idx])
+        : { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "Let me get someone from our team to help you." } };
     } else if (at && (at.type === "buttons" || at.type === "list")) {
       const options = ((at.type === "buttons" ? at.data.buttons : at.data.rows) as string[]) ?? [];
       const idx = matchOption(options, { text: args.text, replyId: args.replyId });

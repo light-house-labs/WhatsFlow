@@ -38,6 +38,7 @@ export function validateGraph(g: Graph): string[] {
       const r = (n.data.rows as string[] | undefined) ?? [];
       if (r.length < 1 || r.length > 10) problems.push("List blocks need 1 to 10 options.");
     }
+    if (n.type === "booking" && !String(n.data.serviceId ?? "")) problems.push("Pick a service for the booking block.");
     if (n.type === "question" && !String(n.data.saveAs ?? "").trim()) problems.push("Question blocks need a field name to save the answer.");
   }
   // reachability: every node except trigger should be reachable
