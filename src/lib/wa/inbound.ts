@@ -150,6 +150,11 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     await d.update(schema.conversations).set({ waitingSince: null }).where(eq(schema.conversations.id, conv.id));
   }
 
+  if (!bot.handled) {
+    // nobody automated is answering: this is a person's job now
+    await d.update(schema.conversations).set({ handledBy: "human" }).where(eq(schema.conversations.id, conv.id));
+  }
+
   if (!bot.handled && isNewThread && settings && org) {
     const open = isOpen(settings.businessHours, org.timezone, now);
     const text = open ? (settings.welcomeEnabled ? settings.welcomeMessage : null) : settings.awayEnabled ? settings.awayMessage : null;

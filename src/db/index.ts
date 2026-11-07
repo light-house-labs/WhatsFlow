@@ -22,6 +22,7 @@ async function connect(): Promise<DB> {
   }
   const { PGlite } = await import("@electric-sql/pglite");
   const dir = process.env.PGLITE_DIR ?? path.join(process.cwd(), ".data", "pglite");
+  if (dir !== "memory") (await import("node:fs")).mkdirSync(dir, { recursive: true });
   const client = dir === "memory" ? new PGlite() : new PGlite(dir);
   const db = drizzlePglite(client, { schema });
   await migratePglite(db, { migrationsFolder: MIGRATIONS });
@@ -30,7 +31,10 @@ async function connect(): Promise<DB> {
 }
 
 export function db(): Promise<DB> {
-  g.__wfDb ??= connect();
+  g.__wfDb ??= connect().catch((e) => {
+    g.__wfDb = undefined; // retry on the next call instead of caching the failure
+    throw e;
+  });
   return g.__wfDb;
 }
 

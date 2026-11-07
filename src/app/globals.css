@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
+/* Tokens from replica/design/tokens.json. Components use the Tailwind names
+   (bg-surface, text-muted, …), never raw hex. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --wf-bg: #f7f7fb;
+  --wf-surface: #ffffff;
+  --wf-surface-2: #f1f2f7;
+  --wf-border: #e3e5ee;
+  --wf-border-input: #8b90a5;
+  --wf-text: #151827;
+  --wf-text-muted: #5b6078;
+  --wf-accent: #4537c9;
+  --wf-accent-soft: #ecebfd;
+  --wf-on-accent: #ffffff;
+  --wf-danger: #c22f3d;
+  --wf-success: #13795b;
+  --wf-warning: #9a5b00;
+  --wf-bubble-out: #e7e5ff;
+  --wf-bubble-in: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --wf-bg: #0f1120;
+    --wf-surface: #171a2c;
+    --wf-surface-2: #1f2338;
+    --wf-border: #2c3150;
+    --wf-border-input: #6c7294;
+    --wf-text: #eceefa;
+    --wf-text-muted: #a3a8c3;
+    --wf-accent: #8f86ff;
+    --wf-accent-soft: #262457;
+    --wf-on-accent: #0f1120;
+    --wf-danger: #ff7b86;
+    --wf-success: #4fd1a5;
+    --wf-warning: #f2b45a;
+    --wf-bubble-out: #2b2870;
+    --wf-bubble-in: #1f2338;
   }
 }
 
+@theme inline {
+  --color-bg: var(--wf-bg);
+  --color-surface: var(--wf-surface);
+  --color-surface-2: var(--wf-surface-2);
+  --color-line: var(--wf-border);
+  --color-line-input: var(--wf-border-input);
+  --color-ink: var(--wf-text);
+  --color-muted: var(--wf-text-muted);
+  --color-accent: var(--wf-accent);
+  --color-accent-soft: var(--wf-accent-soft);
+  --color-on-accent: var(--wf-on-accent);
+  --color-danger: var(--wf-danger);
+  --color-success: var(--wf-success);
+  --color-warning: var(--wf-warning);
+  --color-bubble-out: var(--wf-bubble-out);
+  --color-bubble-in: var(--wf-bubble-in);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--wf-bg);
+  color: var(--wf-text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 2px;
 }
