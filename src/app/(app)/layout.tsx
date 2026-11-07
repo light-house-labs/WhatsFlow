@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { eq, and, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
@@ -33,7 +34,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         numbers={numbers.map((n) => ({ id: n.id, label: n.displayPhone, provider: n.provider, status: n.status }))}
         trialDaysLeft={trialDaysLeft}
       />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="min-w-0 flex-1">
+        {org.billingStatus === "cancelled" && (
+          <div className="border-b border-line bg-surface-2 px-6 py-2 text-sm">
+            This workspace&apos;s plan has ended. Your data is safe and the inbox still works.{" "}
+            <Link href="/settings/billing" className="font-medium text-accent">
+              Choose a plan
+            </Link>{" "}
+            to switch broadcasts and bots back on.
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

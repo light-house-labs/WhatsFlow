@@ -5,6 +5,7 @@ import { applyStatus, sendInConversation } from "./wa/outbound";
 import { sandboxReview } from "./wa/sandbox";
 import { providerFor } from "./wa";
 import { placeholderCount, resolveVariables } from "./template-render";
+import { processPeriodEnds } from "./billing";
 
 // Sandbox: delivered, then read a moment later.
 registerJob("sandbox.status", async (d, p) => {
@@ -48,6 +49,11 @@ const BATCH = 50;
 registerJob("campaign.send", async (d, p) => {
   const [c] = await d.select().from(schema.campaigns).where(eq(schema.campaigns.id, p.campaignId)).limit(1);
   if (!c || c.status === "cancelled" || c.status === "sent") return;
+  const [org] = await d.select({ status: schema.orgs.billingStatus }).from(schema.orgs).where(eq(schema.orgs.id, c.orgId)).limit(1);
+  if (org?.status === "cancelled") {
+    await d.update(schema.campaigns).set({ status: "cancelled" }).where(eq(schema.campaigns.id, c.id));
+    return;
+  }
   const [tpl] = await d.select().from(schema.templates).where(eq(schema.templates.id, c.templateId)).limit(1);
   if (!tpl || tpl.status !== "approved") throw new Error("Template is not approved");
 
@@ -138,6 +144,10 @@ registerJob("lead.followups", async (d) => {
     }
     await d.update(schema.leads).set({ nextFollowUpAt: null }).where(eq(schema.leads.id, l.id));
   }
+});
+
+registerJob("billing.period_end", async (d) => {
+  await processPeriodEnds(d);
 });
 
 export {};

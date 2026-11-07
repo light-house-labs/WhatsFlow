@@ -35,6 +35,7 @@ export async function createWorkspace(d: DB, userId: string, name: string, indus
       welcomeMessage: `Hi! Thanks for messaging ${name}. How can we help you today?`,
       awayMessage: `Thanks for your message. We're closed right now and will reply when we open.`,
       businessHours: DEFAULT_HOURS,
+      optOutKeywords: ["STOP", "UNSUBSCRIBE", "Stop offers"],
     });
     await tx.insert(schema.pipelineStages).values(
       [

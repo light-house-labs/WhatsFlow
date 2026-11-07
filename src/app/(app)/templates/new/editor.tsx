@@ -1,0 +1,146 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { placeholderCount, render } from "@/lib/template-render";
+import { createTemplate, type TplState } from "../actions";
+
+type Btn = { type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER"; text: string; value: string };
+
+const STARTERS = [
+  { label: "Order shipped", category: "UTILITY", body: "Hi {{1}}, your order {{2}} is on its way. Track it here: {{3}}" },
+  { label: "Appointment reminder", category: "UTILITY", body: "Hi {{1}}, a reminder of your appointment on {{2}} at {{3}}. Reply 1 to confirm or 2 to reschedule." },
+  { label: "Payment reminder", category: "UTILITY", body: "Hi {{1}}, a payment of {{2}} for invoice {{3}} is due on {{4}}. Reply here if you have any questions." },
+  { label: "Festive offer", category: "MARKETING", body: "Hi {{1}}, our festive offer is here: {{2}} off everything this week. Reply to order." },
+];
+
+export function TemplateEditor() {
+  const [state, action, pending] = useActionState<TplState, FormData>(createTemplate, undefined);
+  const [body, setBody] = useState("");
+  const [header, setHeader] = useState("");
+  const [footer, setFooter] = useState("");
+  const [category, setCategory] = useState("UTILITY");
+  const [buttons, setButtons] = useState<Btn[]>([]);
+  const [samples, setSamples] = useState<string[]>([]);
+  const n = placeholderCount(body);
+
+  return (
+    <div className="grid gap-6 p-6 lg:grid-cols-[1fr_340px]">
+      <Card className="p-5">
+        <form action={action} className="space-y-4">
+          {state?.error && <Alert tone="danger">{state.error}</Alert>}
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-xs text-muted">Start from:</span>
+            {STARTERS.map((s) => (
+              <button
+                type="button"
+                key={s.label}
+                className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs"
+                onClick={() => {
+                  setBody(s.body);
+                  setCategory(s.category);
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Name" htmlFor="name" hint="Lowercase with underscores, e.g. order_shipped">
+              <Input id="name" name="name" required placeholder="order_shipped" />
+            </Field>
+            <Field label="Category" htmlFor="category" hint="Meta prices and reviews these differently.">
+              <Select id="category" name="category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="UTILITY">Utility (updates about an order or booking)</option>
+                <option value="MARKETING">Marketing (offers, news)</option>
+                <option value="AUTHENTICATION">Authentication (one-time codes)</option>
+              </Select>
+            </Field>
+            <Field label="Language" htmlFor="language">
+              <Select id="language" name="language" defaultValue="en">
+                <option value="en">English</option>
+                <option value="en_US">English (US)</option>
+                <option value="hi">Hindi</option>
+                <option value="ml">Malayalam</option>
+                <option value="ta">Tamil</option>
+                <option value="te">Telugu</option>
+                <option value="kn">Kannada</option>
+                <option value="mr">Marathi</option>
+                <option value="bn">Bengali</option>
+                <option value="ar">Arabic</option>
+              </Select>
+            </Field>
+          </div>
+          <Field label="Header (optional)" htmlFor="headerText">
+            <Input id="headerText" name="headerText" maxLength={60} value={header} onChange={(e) => setHeader(e.target.value)} />
+          </Field>
+          <Field label="Message" htmlFor="body" hint="Use {{1}}, {{2}}… for things that change per customer, like their name or order number.">
+            <Textarea id="body" name="body" required maxLength={1024} rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
+          </Field>
+          <div className="flex justify-between text-xs text-muted">
+            <button type="button" className="text-accent" onClick={() => setBody((b) => `${b}{{${n + 1}}}`)}>
+              + Add variable {`{{${n + 1}}}`}
+            </button>
+            <span>{body.length}/1024</span>
+          </div>
+          <Field label="Footer (optional)" htmlFor="footer">
+            <Input id="footer" name="footer" maxLength={60} value={footer} onChange={(e) => setFooter(e.target.value)} />
+          </Field>
+          <div className="space-y-2">
+            <div className="text-[13px] font-medium">Buttons (optional)</div>
+            {buttons.map((b, i) => (
+              <div key={i} className="flex gap-2">
+                <Select name="btnType" aria-label="Button type" value={b.type} onChange={(e) => setButtons(buttons.map((x, j) => (j === i ? { ...x, type: e.target.value as Btn["type"] } : x)))} className="w-40">
+                  <option value="QUICK_REPLY">Quick reply</option>
+                  <option value="URL">Open website</option>
+                  <option value="PHONE_NUMBER">Call number</option>
+                </Select>
+                <Input name="btnText" aria-label="Button text" placeholder="Button text" maxLength={25} value={b.text} onChange={(e) => setButtons(buttons.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
+                {b.type !== "QUICK_REPLY" ? (
+                  <Input name="btnValue" aria-label="Button link or number" placeholder={b.type === "URL" ? "https://" : "+91…"} value={b.value} onChange={(e) => setButtons(buttons.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
+                ) : (
+                  <input type="hidden" name="btnValue" value="" />
+                )}
+                <Button type="button" variant="ghost" size="sm" onClick={() => setButtons(buttons.filter((_, j) => j !== i))} aria-label="Remove button">
+                  ×
+                </Button>
+              </div>
+            ))}
+            {buttons.length < 3 && (
+              <button type="button" className="text-sm text-accent" onClick={() => setButtons([...buttons, { type: "QUICK_REPLY", text: "", value: "" }])}>
+                + Add button
+              </button>
+            )}
+            {category === "MARKETING" && <p className="text-xs text-muted">We add a “Stop offers” button to marketing templates so customers can opt out in one tap.</p>}
+          </div>
+          <div className="flex gap-2">
+            <Button name="submit" value="1" disabled={pending}>
+              {pending ? "Submitting…" : "Submit for approval"}
+            </Button>
+            <Button name="submit" value="0" variant="secondary" disabled={pending}>
+              Save draft
+            </Button>
+          </div>
+        </form>
+      </Card>
+      <div className="space-y-3">
+        <div className="text-[13px] font-medium">Preview</div>
+        {Array.from({ length: n }).map((_, i) => (
+          <Input key={i} aria-label={`Sample for {{${i + 1}}}`} placeholder={`Sample for {{${i + 1}}}`} value={samples[i] ?? ""} onChange={(e) => setSamples((s) => Object.assign([...s], { [i]: e.target.value }))} />
+        ))}
+        <div className="rounded-lg bg-surface-2 p-4">
+          <div className="rounded-lg bg-surface p-3 text-sm shadow-sm">
+            {header && <div className="mb-1 font-semibold">{header}</div>}
+            <div className="whitespace-pre-wrap">{render(body || "Your message appears here.", samples.map((s, i) => s || `{{${i + 1}}}`))}</div>
+            {footer && <div className="mt-1 text-xs text-muted">{footer}</div>}
+          </div>
+          {[...buttons.filter((b) => b.text), ...(category === "MARKETING" ? [{ text: "Stop offers" }] : [])].map((b, i) => (
+            <div key={i} className="mt-1 rounded-lg bg-surface py-1.5 text-center text-sm text-accent shadow-sm">
+              {b.text}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

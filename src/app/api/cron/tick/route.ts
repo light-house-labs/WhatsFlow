@@ -13,6 +13,7 @@ export async function GET(req: Request) {
   if (!secret && process.env.NODE_ENV === "production") return new NextResponse("CRON_SECRET not set", { status: 500 });
   const d = await db();
   await enqueue(d, "lead.followups", {});
+  await enqueue(d, "billing.period_end", {});
   let total = 0;
   for (let i = 0; i < 4; i++) {
     const n = await runDueJobs(d, 50);

@@ -132,7 +132,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     });
   }
 
-  const bot = await runBot(d, {
+  const bot = org?.billingStatus === "cancelled" ? { handled: false, handedOver: false } : await runBot(d, {
     orgId,
     conversationId: conv.id,
     contactId: contact.id,
