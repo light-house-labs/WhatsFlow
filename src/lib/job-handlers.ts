@@ -6,6 +6,7 @@ import { sandboxReview } from "./wa/sandbox";
 import { providerFor } from "./wa";
 import { placeholderCount, resolveVariables } from "./template-render";
 import { processPeriodEnds } from "./billing";
+import { pruneRateLimits } from "./rate-limit";
 import { decrypt } from "./crypto";
 import { signWebhook } from "./webhooks-out";
 import { assertPublicUrl } from "./net-guard";
@@ -176,6 +177,10 @@ registerJob("lead.followups", async (d) => {
 
 registerJob("billing.period_end", async (d) => {
   await processPeriodEnds(d);
+});
+
+registerJob("ratelimits.prune", async (d) => {
+  await pruneRateLimits(d);
 });
 
 const WEBHOOK_ATTEMPTS = 6;

@@ -24,6 +24,8 @@ Try the core loop:
 
 ```bash
 npm test            # unit + integration tests against in-memory Postgres
+npm run test:e2e    # Playwright smoke test: builds, starts on :3100 with a throwaway database
+E2E_URL=http://localhost:3000 npm run test:e2e   # or against a server you already run
 npm run lint
 npm run build
 ```
@@ -74,6 +76,8 @@ Create keys in **Settings → API & webhooks** and send `Authorization: Bearer w
 | GET | `/messages/:id` | delivery status |
 | GET | `/orders` | newest first |
 
+Each key can make 120 requests a minute (`API_RATE_PER_MINUTE`). Over that, the API answers `429` with `Retry-After`. Logins, sign-ups and password resets are throttled the same way, per email and per IP.
+
 Webhooks POST `{ id, event, createdAt, data }` with `X-WhatsFlow-Signature: sha256=<HMAC-SHA256 of "timestamp.body">` and `X-WhatsFlow-Timestamp`. Failed deliveries retry 6 times with backoff; the delivery log has a retry button. URLs that resolve to private addresses are refused in production.
 
 ## Deploy (Vercel)
@@ -90,7 +94,9 @@ See `replica/features.csv` (scored by `python3 .claude/skills/replica-diff/parit
 
 **Phase 2:** a product catalog with stock; orders from the inbox or a bot, with Razorpay or Stripe payment links, payment webhooks and status messages; appointments with services, capacity, hours, a day view, booking/rescheduling/cancelling inside WhatsApp and reminders; automations (when → wait → if → send/tag/assign) with an activity log; AI replies grounded in your business info, FAQs and catalog, with handover rules; analytics with date range, teammate and source breakdowns; the REST API and signed webhooks; file uploads; data export and workspace deletion; a “who's replying” indicator; tickets linked to orders; spreadsheet audiences for broadcasts; Embedded Signup (untested against Meta).
 
-**Not yet:** subscription billing through a real provider, Shopify/WooCommerce/Google Sheets/CRM integrations, Meta catalog sync and native product messages, template media headers, testing a bot flow before publishing, industry starter flows, rate limits on the API, and a Playwright suite.
+**Not yet:** subscription billing through a real provider, Shopify/WooCommerce/Google Sheets/CRM integrations, Meta catalog sync and native product messages, industry starter flows.
+
+**Since Phase 2:** templates with image, video or document headers (the sample is uploaded to Meta for review, which needs `META_APP_ID`); a **Test** button in the bot builder that runs a draft flow on the sandbox phone; rate limits on the API and on sign-in; a Playwright smoke test of sign-up → sandbox → inbox → bot test.
 
 **Phase 3:** white label, CRM connectors, audit log UI, Click-to-WhatsApp ads and a mobile app.
 

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { randomToken, sha256 } from "./crypto";
+import { hit, retryAfter } from "./rate-limit";
+
+/** Requests per minute per API key. */
+export const API_RATE_PER_MINUTE = Number(process.env.API_RATE_PER_MINUTE ?? 120);
 
 export function newApiKey() {
   const key = `wf_live_${randomToken(24)}`;
@@ -27,6 +31,14 @@ export async function apiAuth(req: Request, need: "read" | "full" = "read") {
   if (!row) return { error: apiError(401, "unauthorized", "Unknown or revoked API key.") } as const;
   if (need === "full" && row.k.scope !== "full") return { error: apiError(403, "forbidden", "This key is read-only.") } as const;
   if (row.org.billingStatus === "cancelled") return { error: apiError(402, "plan_cancelled", "This workspace's plan is cancelled.") } as const;
+  const rate = await hit(d, `api:${row.k.id}`, API_RATE_PER_MINUTE, 60);
+  if (!rate.ok) {
+    const res = apiError(429, "rate_limited", `Slow down: this key can make ${rate.limit} requests a minute.`);
+    res.headers.set("Retry-After", String(retryAfter(rate)));
+    res.headers.set("X-RateLimit-Limit", String(rate.limit));
+    res.headers.set("X-RateLimit-Remaining", "0");
+    return { error: res } as const;
+  }
   if (!row.k.lastUsedAt || Date.now() - row.k.lastUsedAt.getTime() > 60_000) {
     await d.update(schema.apiKeys).set({ lastUsedAt: new Date() }).where(eq(schema.apiKeys.id, row.k.id));
   }

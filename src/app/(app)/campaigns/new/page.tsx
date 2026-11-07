@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     <>
       <PageHeader title="New campaign" description="You'll see who it reaches and roughly what Meta will charge before anything is sent." />
       <Composer
-        templates={templates.map((t) => ({ id: t.id, name: t.name, body: t.body, category: t.category, headerText: t.headerText, footer: t.footer }))}
+        templates={templates.map((t) => ({ id: t.id, name: t.name, body: t.body, category: t.category, headerText: t.headerText, headerType: t.headerType, footer: t.footer }))}
         numbers={numbers.map((n) => ({ id: n.id, label: `${n.displayPhone} · ${n.displayName}${n.provider === "sandbox" ? " (sandbox)" : ""}`, quality: n.qualityRating, tier: n.messagingTier }))}
         tags={rows<{ tag: string; n: number }>(tagRows)}
         fields={rows<{ k: string }>(fieldRows).map((f) => f.k)}

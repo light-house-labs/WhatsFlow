@@ -17,7 +17,9 @@ const Tpl = z.object({
   name: z.string().trim().min(1, "Give the template a name").max(60),
   category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
   language: z.string().trim().min(2).max(10),
+  headerType: z.enum(["none", "text", "image", "video", "document"]),
   headerText: z.string().trim().max(60, "Headers can be up to 60 characters"),
+  headerMediaUrl: z.string().trim().max(2000),
   body: z.string().trim().min(1, "Write the message").max(1024, "The body can be up to 1024 characters"),
   footer: z.string().trim().max(60, "Footers can be up to 60 characters"),
 });
@@ -28,7 +30,9 @@ export async function createTemplate(_: TplState, form: FormData): Promise<TplSt
     name: form.get("name"),
     category: form.get("category"),
     language: form.get("language") || "en",
+    headerType: form.get("headerType") || (form.get("headerText") ? "text" : "none"),
     headerText: form.get("headerText") ?? "",
+    headerMediaUrl: form.get("headerMediaUrl") ?? "",
     body: form.get("body"),
     footer: form.get("footer") ?? "",
   });
@@ -37,6 +41,12 @@ export async function createTemplate(_: TplState, form: FormData): Promise<TplSt
   const ph = validatePlaceholders(v.body);
   if (ph) return { error: ph };
   if (/\{\{/.test(v.headerText)) return { error: "Keep variables in the body for now." };
+  const media = v.headerType === "image" || v.headerType === "video" || v.headerType === "document";
+  if (media && v.category === "AUTHENTICATION") return { error: "One-time code templates can't have an image, video or document header." };
+  if (media && !/^https:\/\/\S+$/.test(v.headerMediaUrl) && !v.headerMediaUrl.startsWith(`${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/api/files/`)) {
+    return { error: `Upload a sample ${v.headerType} for the header, or paste a public https:// link to one.` };
+  }
+  if (v.headerType === "text" && !v.headerText) return { error: "Write the header text, or choose no header." };
 
   const buttons: TemplateButton[] = [];
   const types = form.getAll("btnType").map(String);
@@ -64,7 +74,15 @@ export async function createTemplate(_: TplState, form: FormData): Promise<TplSt
 
   const [tpl] = await ctx.db
     .insert(schema.templates)
-    .values({ orgId: ctx.org.id, name, language: v.language, category: v.category, headerText: v.headerText || null, body: v.body, footer: v.footer || null, buttons, status: "draft" })
+    .values({
+      orgId: ctx.org.id,
+      name,
+      language: v.language,
+      category: v.category,
+      headerType: v.headerType === "none" ? null : v.headerType,
+      headerText: v.headerType === "text" ? v.headerText : null,
+      headerMediaUrl: media ? v.headerMediaUrl : null,
+      body: v.body, footer: v.footer || null, buttons, status: "draft" })
     .returning();
 
   if (form.get("submit") === "1") {

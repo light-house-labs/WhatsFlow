@@ -62,3 +62,13 @@ export function verifyFileSig(fileId: string, exp: string | null, sig: string | 
   const got = Buffer.from(sig);
   return expected.length === got.length && timingSafeEqual(expected, got);
 }
+
+/**
+ * Links to our own uploads expire. Anything that keeps a link for later (a
+ * template's header image) re-signs it right before handing it to WhatsApp.
+ */
+export function freshFileUrl(url: string) {
+  const base = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const m = url.startsWith(`${base}/api/files/`) ? url.slice(base.length).match(/^\/api\/files\/([0-9a-f-]{36})(?:\?|$)/i) : null;
+  return m ? signedFileUrl(m[1]) : url;
+}

@@ -9,6 +9,9 @@ import { hashPassword, randomToken, sha256, verifyPassword } from "@/lib/crypto"
 import { sendMail } from "@/lib/mail";
 import { createWorkspace } from "@/lib/org-setup";
 import { limitsFor } from "@/lib/plans";
+import { clientIp, hit } from "@/lib/rate-limit";
+
+const SLOW_DOWN = "Too many attempts. Wait a few minutes and try again.";
 
 export type FormState = { error?: string; fields?: Record<string, string> } | undefined;
 
@@ -25,11 +28,15 @@ const signupSchema = z.object({
 export async function signup(_: FormState, form: FormData): Promise<FormState> {
   const raw = Object.fromEntries(form) as Record<string, string>;
   const parsed = signupSchema.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0].message, fields: raw };
+  // never send the password back down in form state
+  const { password: _pw, ...keep } = raw;
+  void _pw;
+  if (!parsed.success) return { error: parsed.error.issues[0].message, fields: keep };
   const v = parsed.data;
   const d = await db();
+  if (!(await hit(d, `signup-ip:${await clientIp()}`, 10, 3600)).ok) return { error: SLOW_DOWN, fields: keep };
   const [exists] = await d.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, v.email)).limit(1);
-  if (exists) return { error: "An account with this email already exists. Log in instead.", fields: raw };
+  if (exists) return { error: "An account with this email already exists. Log in instead.", fields: keep };
   const [user] = await d
     .insert(schema.users)
     .values({ name: v.name, email: v.email, phone: v.phone || null, passwordHash: await hashPassword(v.password), marketingOptIn: v.marketing === "on" })
@@ -43,6 +50,9 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get("password") ?? "");
   const next = String(form.get("next") ?? "");
   const d = await db();
+  // per account and per network, so neither one guessed password list nor one busy office gets through
+  const [byEmail, byIp] = [await hit(d, `login:${email}`, 10, 900), await hit(d, `login-ip:${await clientIp()}`, 50, 900)];
+  if (!byEmail.ok || !byIp.ok) return { error: SLOW_DOWN, fields: { email } };
   const [user] = await d.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return { error: "That email and password don't match.", fields: { email } };
@@ -112,6 +122,8 @@ const RESET_MINUTES = 30;
 export async function requestReset(_: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const d = await db();
+  const [byEmail, byIp] = [await hit(d, `reset:${email}`, 3, 3600), await hit(d, `reset-ip:${await clientIp()}`, 20, 3600)];
+  if (!byEmail.ok || !byIp.ok) return { error: SLOW_DOWN };
   const [user] = await d.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
   if (user) {
     const token = randomToken(24);

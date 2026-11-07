@@ -53,7 +53,7 @@ Message templates library,templates,must,yes,yes,S26
 Template editor with header body footer buttons and variables,templates,must,yes,yes,S27
 Submit template to Meta and track approval status,templates,must,yes,yes,F10
 Template categories (marketing utility authentication),templates,must,yes,yes,S26
-Media headers (image document video logo),templates,should,yes,no,S27
+Media headers (image document video logo),templates,should,yes,yes,"S27; image/video/document, sample uploaded to Meta"
 Starter template library for orders bookings payments,templates,should,yes,yes,write our own
 Broadcast template to list or segment,campaigns,must,yes,yes,S24
 Audience by labels tags or spreadsheet upload,campaigns,must,yes,yes,S24; tags yes; spreadsheet = import with a tag then target it
@@ -159,3 +159,6 @@ Number-safety guardrails: quality tier warnings cold-audience warning auto-pause
 Campaign cost preview and visible wallet; unused credit refundable,billing,should,no,partial,fix F6; cost preview yes; no wallet (Meta bills directly)
 14-day trial on Meta test number without forced sales call,onboarding,should,no,yes,fix F7
 AI template checker before Meta submission,templates,could,no,no,fix F8 - thin
+Test a bot flow before publishing,bots,should,yes,yes,Test button runs a draft on the sandbox phone
+API and sign-in rate limits,platform,should,no,yes,DB fixed window; 429 + Retry-After
+End-to-end browser tests,platform,could,no,yes,Playwright smoke spec in e2e/

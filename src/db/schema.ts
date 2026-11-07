@@ -276,6 +276,8 @@ export type TemplateButton =
   | { type: "URL"; text: string; url: string }
   | { type: "PHONE_NUMBER"; text: string; phone: string };
 
+export type TemplateHeaderType = "text" | "image" | "video" | "document";
+
 export const templates = pgTable(
   "templates",
   {
@@ -286,7 +288,11 @@ export const templates = pgTable(
     name: text("name").notNull(),
     language: text("language").notNull().default("en"),
     category: text("category").$type<"MARKETING" | "UTILITY" | "AUTHENTICATION">().notNull(),
+    /** Null means no header, or a text header when headerText is set. */
+    headerType: text("header_type").$type<TemplateHeaderType>(),
     headerText: text("header_text"),
+    /** Default image, video or document for a media header; also Meta's review sample. */
+    headerMediaUrl: text("header_media_url"),
     body: text("body").notNull(),
     footer: text("footer"),
     buttons: jsonb("buttons").$type<TemplateButton[]>().notNull().default([]),
@@ -977,4 +983,15 @@ export const presence = pgTable(
     seenAt: ts("seen_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.conversationId, t.userId] })],
+);
+
+/** Fixed-window request counters, shared by every server instance. */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    bucket: text("bucket").notNull(),
+    windowStart: ts("window_start").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.bucket, t.windowStart] }), index().on(t.windowStart)],
 );

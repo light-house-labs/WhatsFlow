@@ -1,9 +1,11 @@
-import type { TemplateButton } from "@/db/schema";
+import type { TemplateButton, TemplateHeaderType } from "@/db/schema";
 
 export type TemplateRef = {
   name: string;
   language: string;
   headerText: string | null;
+  headerType?: TemplateHeaderType | null;
+  headerMediaUrl?: string | null;
   body: string;
   footer: string | null;
   buttons: TemplateButton[];
@@ -43,7 +45,8 @@ export function previewText(msg: Outbound): string {
       return msg.caption ? `[${msg.mediaType}] ${msg.caption}` : `[${msg.mediaType}] ${msg.filename ?? msg.link}`;
     case "template": {
       const body = msg.template.body.replace(/\{\{(\d+)\}\}/g, (_, n) => msg.variables[Number(n) - 1] ?? "");
-      return [msg.template.headerText, body, msg.template.footer].filter(Boolean).join("\n\n");
+      const media = isMediaHeader(msg.template) ? `[${msg.template.headerType}]` : null;
+      return [media ?? msg.template.headerText, body, msg.template.footer].filter(Boolean).join("\n\n");
     }
   }
 }
@@ -53,3 +56,7 @@ export const MAX_BUTTONS = 3;
 export const MAX_BUTTON_CHARS = 20;
 export const MAX_LIST_ROWS = 10;
 export const MAX_LIST_ROW_CHARS = 24;
+
+export function isMediaHeader(t: Pick<TemplateRef, "headerType">): t is { headerType: "image" | "video" | "document" } {
+  return t.headerType === "image" || t.headerType === "video" || t.headerType === "document";
+}

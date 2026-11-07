@@ -8,7 +8,7 @@ import { estimateCost } from "@/lib/meta-pricing";
 import { formatMoney } from "@/lib/plans";
 import { audienceSize, createCampaign, type CampaignState } from "../actions";
 
-type Tpl = { id: string; name: string; body: string; category: "MARKETING" | "UTILITY" | "AUTHENTICATION"; headerText: string | null; footer: string | null };
+type Tpl = { id: string; name: string; body: string; category: "MARKETING" | "UTILITY" | "AUTHENTICATION"; headerText: string | null; headerType: string | null; footer: string | null };
 
 export function Composer({
   templates,
@@ -158,7 +158,11 @@ export function Composer({
         </Card>
         <div className="rounded-lg bg-surface-2 p-4">
           <div className="rounded-lg bg-surface p-3 text-sm shadow-sm">
-            {tpl.headerText && <div className="mb-1 font-semibold">{tpl.headerText}</div>}
+            {tpl.headerType && tpl.headerType !== "text" ? (
+              <div className="mb-2 rounded bg-surface-2 py-6 text-center text-xs text-muted">{tpl.headerType} header</div>
+            ) : (
+              tpl.headerText && <div className="mb-1 font-semibold">{tpl.headerText}</div>
+            )}
             <div className="whitespace-pre-wrap">{render(tpl.body, sample)}</div>
             {tpl.footer && <div className="mt-1 text-xs text-muted">{tpl.footer}</div>}
           </div>

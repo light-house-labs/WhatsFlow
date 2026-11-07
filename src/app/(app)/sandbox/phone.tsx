@@ -1,15 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { Alert, Button, Field, Input, Select, cx } from "@/components/ui";
 
 type Msg = { id: string; direction: "in" | "out"; body: string | null; type: string; payload: Record<string, unknown>; createdAt: string; status: string };
 
-export function SandboxPhone({ numbers }: { numbers: { id: string; displayPhone: string; displayName: string }[] }) {
+export function SandboxPhone({
+  numbers,
+  test,
+}: {
+  numbers: { id: string; displayPhone: string; displayName: string }[];
+  /** A flow opened from the builder's Test button. */
+  test: { id: string; name: string } | null;
+}) {
   const [numberId, setNumberId] = useState(numbers[0].id);
-  const [from, setFrom] = useState("+91 98765 43210");
-  const [name, setName] = useState("Asha Kumar");
+  // tests use their own customer so they don't disturb real sandbox chats
+  const [from, setFrom] = useState(test ? "+91 90000 00001" : "+91 98765 43210");
+  const [name, setName] = useState(test ? "Test customer" : "Asha Kumar");
+  const [testing, setTesting] = useState(Boolean(test));
   const [text, setText] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -39,16 +49,39 @@ export function SandboxPhone({ numbers }: { numbers: { id: string; displayPhone:
     const r = await fetch("/api/sandbox/inbound", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ numberId, from, name, text: body, replyId }),
+      body: JSON.stringify({ numberId, from, name, text: body, replyId, ...(testing && test ? { testFlowId: test.id } : {}) }),
     });
     if (!r.ok) setError((await r.json().catch(() => ({}))).error ?? "Couldn't send");
-    else setText("");
+    else {
+      setText("");
+      setTesting(false);
+    }
     await load();
   }
 
   return (
     <div className="flex flex-wrap gap-8 p-6">
       <div className="w-72 space-y-4">
+        {test && (
+          <Alert tone={testing ? "accent" : "success"}>
+            {testing ? (
+              <>
+                Testing <strong>{test.name}</strong>. Your next message starts it, even if it&apos;s a draft or the keyword doesn&apos;t match.
+              </>
+            ) : (
+              <>
+                <strong>{test.name}</strong> is running. Reply to it here.{" "}
+                <button className="font-medium underline" onClick={() => setTesting(true)}>
+                  Restart test
+                </button>{" "}
+                ·{" "}
+                <Link className="font-medium underline" href={`/bots/${test.id}`}>
+                  Back to builder
+                </Link>
+              </>
+            )}
+          </Alert>
+        )}
         {numbers.length > 1 && (
           <Field label="Business number" htmlFor="num">
             <Select id="num" value={numberId} onChange={(e) => setNumberId(e.target.value)}>

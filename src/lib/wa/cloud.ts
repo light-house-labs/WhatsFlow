@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Meta webhook and Graph API bodies are untyped JSON, read defensively field by field */
-import type { HealthCheck, Outbound, SendResult, TemplateRef, WhatsAppProvider } from "./types";
+import { freshFileUrl } from "@/lib/storage";
+import { assertPublicUrl } from "@/lib/net-guard";
+import { isMediaHeader, type HealthCheck, type Outbound, type SendResult, type TemplateRef, type WhatsAppProvider } from "./types";
 
 type Cfg = { phoneNumberId: string; wabaId: string; accessToken: string; lastWebhookAt: Date | null };
 
@@ -60,19 +62,42 @@ function toCloudPayload(to: string, msg: Outbound): Record<string, unknown> {
           ...(msg.mediaType === "document" && msg.filename ? { filename: msg.filename } : {}),
         },
       };
-    case "template":
-      return {
-        ...base,
-        type: "template",
-        template: {
-          name: msg.template.name,
-          language: { code: msg.template.language },
-          components: msg.variables.length
-            ? [{ type: "body", parameters: msg.variables.map((text) => ({ type: "text", text })) }]
-            : [],
-        },
-      };
+    case "template": {
+      const components: Record<string, unknown>[] = [];
+      const t = msg.template;
+      if (isMediaHeader(t) && t.headerMediaUrl) {
+        const link = freshFileUrl(t.headerMediaUrl);
+        components.push({ type: "header", parameters: [{ type: t.headerType, [t.headerType]: { link } }] });
+      }
+      if (msg.variables.length) components.push({ type: "body", parameters: msg.variables.map((text) => ({ type: "text", text })) });
+      return { ...base, type: "template", template: { name: t.name, language: { code: t.language }, components } };
+    }
   }
+}
+
+/**
+ * Meta reviews media headers from a sample file sent through its Resumable
+ * Upload API, which belongs to the Meta app (META_APP_ID), not the WABA.
+ */
+async function uploadSample(url: string, token: string): Promise<string> {
+  const appId = process.env.META_APP_ID;
+  if (!appId) throw new Error("Set META_APP_ID to submit templates with an image, video or document header.");
+  const link = freshFileUrl(url);
+  await assertPublicUrl(link);
+  const file = await fetch(link, { cache: "no-store" });
+  if (!file.ok) throw new Error(`Couldn't download the header sample (${file.status}).`);
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const type = file.headers.get("content-type")?.split(";")[0] ?? "application/octet-stream";
+  const session = await graph(`${appId}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(type)}`, token, { method: "POST" });
+  const res = await fetch(`${GRAPH()}/${session.id}`, {
+    method: "POST",
+    headers: { Authorization: `OAuth ${token}`, file_offset: "0" },
+    body: bytes,
+    cache: "no-store",
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, any>;
+  if (!res.ok || !json.h) throw new Error(json?.error?.message ?? "Meta didn't accept the header sample.");
+  return String(json.h);
 }
 
 export function cloudProvider(cfg: Cfg): WhatsAppProvider {
@@ -91,7 +116,15 @@ export function cloudProvider(cfg: Cfg): WhatsAppProvider {
 
     async submitTemplate(t: TemplateRef) {
       const components: Record<string, unknown>[] = [];
-      if (t.headerText) components.push({ type: "HEADER", format: "TEXT", text: t.headerText });
+      if (isMediaHeader(t)) {
+        if (!t.headerMediaUrl) return { ok: false as const, error: "Add a sample file for the header." };
+        try {
+          const handle = await uploadSample(t.headerMediaUrl, cfg.accessToken);
+          components.push({ type: "HEADER", format: t.headerType.toUpperCase(), example: { header_handle: [handle] } });
+        } catch (e) {
+          return { ok: false as const, error: (e as Error).message };
+        }
+      } else if (t.headerText) components.push({ type: "HEADER", format: "TEXT", text: t.headerText });
       const sampleCount = [...t.body.matchAll(/\{\{(\d+)\}\}/g)].length;
       components.push({
         type: "BODY",

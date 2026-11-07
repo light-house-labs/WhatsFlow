@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   Background,
@@ -128,6 +129,7 @@ export function Builder(props: {
   const [problems, setProblems] = useState<string[]>([]);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   const onNodesChange = useCallback(
     (changes: NodeChange<Node<Data>>[]) => onNodesChangeRaw(changes.filter((c) => !(c.type === "remove" && c.id === "t"))),
@@ -150,13 +152,14 @@ export function Builder(props: {
     setSelectedId(id);
   }
 
-  function save(publish: "keep" | "live" | "draft") {
+  function save(publish: "keep" | "live" | "draft", then?: () => void) {
     setSaved(null);
     start(async () => {
       const r = await saveFlow(props.id, { name, trigger, nodes: nodes.map(fromRf), edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })) }, publish);
       setProblems(r.problems);
       if (r.status) setStatus(r.status);
       if (r.ok) setSaved(publish === "live" ? "Saved and live." : publish === "draft" ? "Paused." : "Saved.");
+      if (r.ok) then?.();
     });
   }
 
@@ -171,6 +174,9 @@ export function Builder(props: {
         <StatusBadge status={status} />
         <div className="ml-auto flex items-center gap-2">
           {saved && <span className="text-sm text-success">{saved}</span>}
+          <Button variant="secondary" size="sm" disabled={pending} onClick={() => save("keep", () => router.push(`/sandbox?test=${props.id}`))} title="Save, then try this flow on the sandbox phone. Works on drafts.">
+            <Play size={14} /> Test
+          </Button>
           <Button variant="secondary" size="sm" disabled={pending} onClick={() => save("keep")}>
             Save
           </Button>

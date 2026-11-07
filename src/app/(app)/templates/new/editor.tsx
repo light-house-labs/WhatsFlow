@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { FileText, Film, ImageIcon } from "lucide-react";
 import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { UploadField } from "@/components/upload-field";
 import { placeholderCount, render } from "@/lib/template-render";
 import { createTemplate, type TplState } from "../actions";
 
@@ -18,6 +20,7 @@ export function TemplateEditor() {
   const [state, action, pending] = useActionState<TplState, FormData>(createTemplate, undefined);
   const [body, setBody] = useState("");
   const [header, setHeader] = useState("");
+  const [headerType, setHeaderType] = useState<"none" | "text" | "image" | "video" | "document">("none");
   const [footer, setFooter] = useState("");
   const [category, setCategory] = useState("UTILITY");
   const [buttons, setButtons] = useState<Btn[]>([]);
@@ -71,9 +74,37 @@ export function TemplateEditor() {
               </Select>
             </Field>
           </div>
-          <Field label="Header (optional)" htmlFor="headerText">
-            <Input id="headerText" name="headerText" maxLength={60} value={header} onChange={(e) => setHeader(e.target.value)} />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
+            <Field label="Header" htmlFor="headerType">
+              <Select id="headerType" name="headerType" value={headerType} onChange={(e) => setHeaderType(e.target.value as typeof headerType)}>
+                <option value="none">None</option>
+                <option value="text">Text</option>
+                {category !== "AUTHENTICATION" && (
+                  <>
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                    <option value="document">Document</option>
+                  </>
+                )}
+              </Select>
+            </Field>
+            {headerType === "text" && (
+              <Field label="Header text" htmlFor="headerText">
+                <Input id="headerText" name="headerText" maxLength={60} value={header} onChange={(e) => setHeader(e.target.value)} />
+              </Field>
+            )}
+            {(headerType === "image" || headerType === "video" || headerType === "document") && (
+              <div>
+                <UploadField
+                  key={headerType}
+                  name="headerMediaUrl"
+                  label={`Header ${headerType}`}
+                  accept={headerType === "image" ? "image/jpeg,image/png" : headerType === "video" ? "video/mp4" : "application/pdf"}
+                />
+                <p className="mt-1 text-xs text-muted">Meta reviews the template with this file, and it&apos;s sent with every message unless you swap it later.</p>
+              </div>
+            )}
+          </div>
           <Field label="Message" htmlFor="body" hint="Use {{1}}, {{2}}… for things that change per customer, like their name or order number.">
             <Textarea id="body" name="body" required maxLength={1024} rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
           </Field>
@@ -130,7 +161,12 @@ export function TemplateEditor() {
         ))}
         <div className="rounded-lg bg-surface-2 p-4">
           <div className="rounded-lg bg-surface p-3 text-sm shadow-sm">
-            {header && <div className="mb-1 font-semibold">{header}</div>}
+            {headerType === "text" && header && <div className="mb-1 font-semibold">{header}</div>}
+            {(headerType === "image" || headerType === "video" || headerType === "document") && (
+              <div className="mb-2 flex h-28 items-center justify-center rounded bg-surface-2 text-muted" aria-label={`${headerType} header`}>
+                {headerType === "image" ? <ImageIcon size={28} /> : headerType === "video" ? <Film size={28} /> : <FileText size={28} />}
+              </div>
+            )}
             <div className="whitespace-pre-wrap">{render(body || "Your message appears here.", samples.map((s, i) => s || `{{${i + 1}}}`))}</div>
             {footer && <div className="mt-1 text-xs text-muted">{footer}</div>}
           </div>

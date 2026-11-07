@@ -26,7 +26,7 @@ export type InboundMessage = {
  * Everything that happens when a customer messages a connected number.
  * Idempotent on waMessageId: a retried webhook is a no-op.
  */
-export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) {
+export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, opts: { testFlowId?: string } = {}) {
   const [dupe] = await d
     .select({ id: schema.messages.id })
     .from(schema.messages)
@@ -145,7 +145,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     });
   }
 
-  if (org && org.billingStatus !== "cancelled") {
+  if (org && org.billingStatus !== "cancelled" && !opts.testFlowId) {
     const handled = await handleBookingReply(d, { orgId, timeZone: org.timezone, conversationId: conv.id, contactId: contact.id, text: m.text, replyId: m.replyId ?? null, pending: existing?.pending ?? null });
     if (handled) return { duplicate: false as const, conversationId: conv.id, optedOut: false };
   }
@@ -158,6 +158,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     replyId: m.replyId,
     isNewConversation: isNewThread,
     handledBy: existing?.status === "closed" ? "bot" : (conv.handledBy ?? "bot"),
+    forceFlowId: opts.testFlowId,
   });
 
   if (!bot.handled && org?.billingStatus !== "cancelled") {

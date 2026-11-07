@@ -247,8 +247,21 @@ export async function runBot(
     replyId?: string | null;
     isNewConversation: boolean;
     handledBy: "bot" | "human";
+    /** Test mode: start this flow now, live or draft, whatever its trigger. */
+    forceFlowId?: string;
   },
 ): Promise<{ handled: boolean; handedOver: boolean }> {
+  if (args.forceFlowId) {
+    const [flow] = await d
+      .select()
+      .from(schema.botFlows)
+      .where(and(eq(schema.botFlows.id, args.forceFlowId), eq(schema.botFlows.orgId, args.orgId)))
+      .limit(1);
+    if (!flow) return { handled: false, handedOver: false };
+    await stopBot(d, args.conversationId);
+    return startFlow(d, args, flow, { test: true });
+  }
+
   const [waiting] = await d
     .select({ run: schema.flowRuns, flow: schema.botFlows })
     .from(schema.flowRuns)
@@ -315,7 +328,15 @@ export async function runBot(
   const sorted = [...flows].sort((a, b) => (a.trigger.kind === "keyword" ? 0 : 1) - (b.trigger.kind === "keyword" ? 0 : 1));
   const flow = sorted.find((f) => triggerMatches(f.trigger, args.text, args.isNewConversation));
   if (!flow) return { handled: false, handedOver: false };
+  return startFlow(d, args, flow, { test: false });
+}
 
+async function startFlow(
+  d: DB,
+  args: { orgId: string; conversationId: string; contactId: string },
+  flow: typeof schema.botFlows.$inferSelect,
+  opts: { test: boolean },
+): Promise<{ handled: boolean; handedOver: boolean }> {
   const graph = flow.graph;
   const start = graph.nodes.find((n) => n.type === "trigger") ?? null;
   const ctx: Ctx = { d, orgId: args.orgId, conversationId: args.conversationId, contactId: args.contactId, flowId: flow.id, graph, vars: {} };
@@ -327,7 +348,8 @@ export async function runBot(
     vars: ctx.vars,
     status: res.waitAt ? "waiting" : res.handedOver ? "handed_over" : "done",
   });
-  await d.update(schema.botFlows).set({ runs: sql`${schema.botFlows.runs} + 1` }).where(eq(schema.botFlows.id, flow.id));
+  // test runs don't count towards the flow's stats
+  if (!opts.test) await d.update(schema.botFlows).set({ runs: sql`${schema.botFlows.runs} + 1` }).where(eq(schema.botFlows.id, flow.id));
   await d.update(schema.conversations).set({ handledBy: res.handedOver ? "human" : "bot" }).where(eq(schema.conversations.id, args.conversationId));
   return { handled: true, handedOver: res.handedOver };
 }
