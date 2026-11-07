@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
-import { createOrg, login, signup, type FormState } from "./actions";
+import { createOrg, login, requestReset, resetPassword, signup, type FormState } from "./actions";
 
 export function LoginForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(login, undefined);
@@ -17,6 +17,11 @@ export function LoginForm({ next }: { next?: string }) {
       <Field label="Password" htmlFor="password">
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </Field>
+      <div className="text-right text-xs">
+        <Link href="/forgot-password" className="text-accent">
+          Forgot password?
+        </Link>
+      </div>
       <Button className="w-full" disabled={pending}>
         {pending ? "Logging in…" : "Log in"}
       </Button>
@@ -91,6 +96,42 @@ export function WorkspaceForm({ industries }: { industries: readonly string[] })
       <p className="text-xs text-muted">
         We add a sandbox WhatsApp number so you can try everything right away. Connect your real number from Settings when you&apos;re ready.
       </p>
+    </form>
+  );
+}
+
+export function ForgotForm() {
+  const [state, action, pending] = useActionState<FormState, FormData>(requestReset, undefined);
+  if (state?.fields?.sent) return <Alert tone="success">If that email has an account, a reset link is on its way. It expires in 30 minutes.</Alert>;
+  return (
+    <form action={action} className="space-y-4">
+      <Field label="Email" htmlFor="email">
+        <Input id="email" name="email" type="email" autoComplete="email" required />
+      </Field>
+      <Button className="w-full" disabled={pending}>
+        Send reset link
+      </Button>
+      <p className="text-center text-sm">
+        <Link href="/login" className="text-accent">
+          Back to log in
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function ResetForm({ token }: { token: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(resetPassword, undefined);
+  return (
+    <form action={action} className="space-y-4">
+      {state?.error && <Alert tone="danger">{state.error}</Alert>}
+      <input type="hidden" name="token" value={token} />
+      <Field label="New password" htmlFor="password" hint="At least 8 characters.">
+        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
+      </Field>
+      <Button className="w-full" disabled={pending}>
+        Save and log in
+      </Button>
     </form>
   );
 }

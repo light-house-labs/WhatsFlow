@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, Check, CheckCheck, Clock, Lock, MessageSquare, Search, Send, StickyNote, X } from "lucide-react";
+import { AlertTriangle, Bot, Check, CheckCheck, Clock, Lock, MessageSquare, Paperclip, Search, Send, StickyNote, X } from "lucide-react";
 import { Alert, Badge, Button, Input, Select, Textarea, cx } from "@/components/ui";
 import { formatWaId } from "@/lib/phone";
-import { timeAgo, dateTime } from "@/lib/format";
+import { timeAgo, dateTime, nowMs } from "@/lib/format";
 import { placeholderCount, render } from "@/lib/template-render";
 import {
   addNote,
@@ -13,6 +13,7 @@ import {
   convertToLead,
   convertToTicket,
   markRead,
+  sendMedia,
   sendReply,
   sendTemplateReply,
   setLabels,
@@ -110,15 +111,21 @@ export function InboxApp({
   }, [selected]);
 
   useEffect(() => {
-    loadList();
+    const first = setTimeout(loadList, 0);
     const t = setInterval(loadList, 3000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [loadList]);
 
   useEffect(() => {
-    loadThread();
+    const first = setTimeout(loadThread, 0);
     const t = setInterval(loadThread, 2500);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [loadThread]);
 
   useEffect(() => {
@@ -175,7 +182,7 @@ export function InboxApp({
             </li>
           )}
           {list?.map((c) => {
-            const waitingMin = c.waitingSince ? (Date.now() - new Date(c.waitingSince).getTime()) / 60000 : 0;
+            const waitingMin = c.waitingSince ? (nowMs() - new Date(c.waitingSince).getTime()) / 60000 : 0;
             const late = c.handledBy === "human" && waitingMin >= waitAlert;
             return (
               <li key={c.id}>
@@ -281,7 +288,9 @@ function ThreadView({
   const { conversation: conv, contact } = thread;
   const id = conv.id;
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<"reply" | "note">("reply");
+  const [mode, setMode] = useState<"reply" | "note" | "media">("reply");
+  const [mediaType, setMediaType] = useState<"image" | "document" | "video" | "audio">("image");
+  const [mediaLink, setMediaLink] = useState("");
   const [pending, start] = useTransition();
   const [tplId, setTplId] = useState("");
   const [vars, setVars] = useState<string[]>([]);
@@ -308,6 +317,13 @@ function ThreadView({
     start(async () => {
       if (mode === "note") {
         if (await act(addNote(id, text))) setText("");
+        return;
+      }
+      if (mode === "media") {
+        if (await act(sendMedia(id, mediaType, mediaLink, text))) {
+          setText("");
+          setMediaLink("");
+        }
         return;
       }
       if (await act(sendReply(id, text))) setText("");
@@ -435,6 +451,9 @@ function ThreadView({
                 <button className={cx("rounded px-2 py-1", mode === "note" ? "bg-surface-2 text-warning" : "text-muted")} onClick={() => setMode("note")}>
                   Internal note
                 </button>
+                <button className={cx("inline-flex items-center gap-1 rounded px-2 py-1", mode === "media" ? "bg-accent-soft text-accent" : "text-muted")} onClick={() => setMode("media")}>
+                  <Paperclip size={12} /> File
+                </button>
                 <span className="ml-auto self-center text-muted">Type / for quick replies · Enter to send, Shift+Enter for a new line</span>
               </div>
               {slash.length > 0 && (
@@ -448,22 +467,33 @@ function ThreadView({
                   ))}
                 </ul>
               )}
+              {mode === "media" && (
+                <div className="mb-2 flex gap-2">
+                  <Select aria-label="File type" className="h-9 w-32 text-[13px]" value={mediaType} onChange={(e) => setMediaType(e.target.value as typeof mediaType)}>
+                    <option value="image">Image</option>
+                    <option value="document">Document</option>
+                    <option value="video">Video</option>
+                    <option value="audio">Audio</option>
+                  </Select>
+                  <Input aria-label="Link to file" className="h-9 text-[13px]" placeholder="https://… public link to the file" value={mediaLink} onChange={(e) => setMediaLink(e.target.value)} />
+                </div>
+              )}
               <div className="flex items-end gap-2">
                 <Textarea
                   aria-label={mode === "note" ? "Internal note" : "Reply"}
                   className={cx("min-h-11 flex-1 resize-none", mode === "note" && "border-warning")}
                   rows={2}
                   value={text}
-                  placeholder={mode === "note" ? "Only your team sees this" : `Message ${contact.name ?? "customer"}`}
+                  placeholder={mode === "note" ? "Only your team sees this" : mode === "media" ? "Caption (optional)" : `Message ${contact.name ?? "customer"}`}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      if (text.trim() && !pending) submit();
+                      if ((text.trim() || mode === "media") && !pending) submit();
                     }
                   }}
                 />
-                <Button disabled={!text.trim() || pending} onClick={submit} aria-label={mode === "note" ? "Add note" : "Send"}>
+                <Button disabled={(mode === "media" ? !mediaLink.trim() : !text.trim()) || pending} onClick={submit} aria-label={mode === "note" ? "Add note" : "Send"}>
                   {mode === "note" ? <StickyNote size={16} /> : <Send size={16} />}
                 </Button>
               </div>
@@ -484,6 +514,7 @@ function MessageBubble({ m, who }: { m: Message; who: string | null }) {
     <div className={cx("flex", out ? "justify-end" : "justify-start")}>
       <div className={cx("max-w-[70%] rounded-lg px-3 py-2 text-sm shadow-sm", out ? "bg-bubble-out" : "bg-bubble-in")}>
         {label && <div className="mb-0.5 text-[11px] font-medium text-accent">{label}</div>}
+        <MediaPreview m={m} />
         <div className="whitespace-pre-wrap break-words">{m.body}</div>
         {buttons && buttons.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
@@ -503,6 +534,31 @@ function MessageBubble({ m, who }: { m: Message; who: string | null }) {
       </div>
     </div>
   );
+}
+
+function MediaPreview({ m }: { m: Message }) {
+  const inbound = m.payload?.media as { id?: string; mimeType?: string } | undefined;
+  if (inbound?.id) {
+    const src = `/api/media/${m.id}`;
+    // eslint-disable-next-line @next/next/no-img-element -- authenticated proxy URL, not optimisable
+    if (inbound.mimeType?.startsWith("image/")) return <img src={src} alt="Photo from customer" className="mb-1 max-h-64 rounded" />;
+    return (
+      <a href={src} target="_blank" rel="noreferrer" className="mb-1 block text-xs text-accent underline">
+        Open attachment
+      </a>
+    );
+  }
+  const link = m.payload?.link as string | undefined;
+  if (link && m.payload?.mediaType === "image")
+    // eslint-disable-next-line @next/next/no-img-element -- external link the agent sent
+    return <img src={link} alt="Image sent" className="mb-1 max-h-64 rounded" />;
+  if (link)
+    return (
+      <a href={link} target="_blank" rel="noreferrer" className="mb-1 block text-xs text-accent underline">
+        {String(m.payload?.mediaType)} file
+      </a>
+    );
+  return null;
 }
 
 function ContactPanel({ thread, act }: { thread: Thread; act: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean> }) {

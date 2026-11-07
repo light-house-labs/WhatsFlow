@@ -22,9 +22,12 @@ export function SandboxPhone({ numbers }: { numbers: { id: string; displayPhone:
   }, [numberId, from]);
 
   useEffect(() => {
-    load();
+    const first = setTimeout(load, 0);
     const t = setInterval(load, 1500);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [load]);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });

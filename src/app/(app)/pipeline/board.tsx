@@ -41,7 +41,7 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
 
   return (
     <div className="flex gap-4 overflow-x-auto p-6">
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <DndContext id="pipeline-board" sensors={sensors} onDragEnd={onDragEnd}>
         {stages.map((s) => {
           const items = optimistic.filter((l) => l.stageId === s.id);
           return (

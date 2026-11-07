@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { asc, desc, eq, and } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { MessageCircle } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";

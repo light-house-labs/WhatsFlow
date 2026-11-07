@@ -4,7 +4,7 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { Alert, ButtonLink, Card, PageHeader, Stat } from "@/components/ui";
-import { duration } from "@/lib/format";
+import { duration, nowMs } from "@/lib/format";
 import { formatMoney } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Dashboard" };
 export default async function Page({ searchParams }: { searchParams: Promise<{ welcome?: string; denied?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg();
-  const since = new Date(Date.now() - 7 * 86400_000);
+  const since = new Date(nowMs() - 7 * 86400_000);
   const o = org.id;
   const [[enq], [convs], [leadsOpen], [won], [tix], [msgs], numbers, liveFlows, days] = await Promise.all([
     d

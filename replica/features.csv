@@ -1,79 +1,79 @@
 feature,area,priority,original,clone,notes
-Sign up with name email phone password,auth,must,yes,no,S01
-Terms and marketing opt-in checkboxes at sign up,auth,must,yes,no,S01
-Log in with email or username,auth,must,yes,no,S02
-Forgot and reset password,auth,must,yes,no,S03
+Sign up with name email phone password,auth,must,yes,yes,S01
+Terms and marketing opt-in checkboxes at sign up,auth,must,yes,yes,S01
+Log in with email or username,auth,must,yes,yes,S02
+Forgot and reset password,auth,must,yes,yes,S03
 Account update messages on WhatsApp after sign up,auth,could,yes,no,consent text on S01
-Connect WhatsApp Business number via Meta Embedded Signup,onboarding,must,yes,no,S04; needs Meta Tech Provider approval - manual WABA ID + token fallback first
-Number status card (pending verified connected failed),onboarding,must,yes,no,S04 S43
-Workspace setup with industry and team invites,onboarding,must,yes,no,S05
+Connect WhatsApp Business number via Meta Embedded Signup,onboarding,must,yes,partial,S04; needs Meta Tech Provider approval - manual WABA ID + token fallback first; manual WABA ID + token connect; Embedded Signup needs Meta Tech Provider approval
+Number status card (pending verified connected failed),onboarding,must,yes,yes,S04 S43
+Workspace setup with industry and team invites,onboarding,must,yes,yes,S05
 Start from industry template flow,onboarding,should,yes,no,write our own templates
-Shared team inbox for all WhatsApp chats,inbox,must,yes,no,S06
-Real-time new messages and status ticks,inbox,must,yes,no,sent delivered read failed
-Assign chats to teammates,inbox,must,yes,no,S06
+Shared team inbox for all WhatsApp chats,inbox,must,yes,yes,S06
+Real-time new messages and status ticks,inbox,must,yes,yes,sent delivered read failed
+Assign chats to teammates,inbox,must,yes,yes,S06
 See who is replying (collision indicator),inbox,should,yes,no,S06
-Labels on conversations,inbox,must,yes,no,S06
-Internal notes in chat,inbox,must,yes,no,S06
-Quick replies,inbox,must,yes,no,S06 S34
-Send media (image document audio video),inbox,must,yes,no,S06
-Template-only composer when 24h window closed,inbox,must,yes,no,Cloud API rule
-Waiting-too-long alert,inbox,should,yes,no,S06 S34
-Bot-to-human handover with full history,inbox,must,yes,no,F02
-Inbox filters and search,inbox,must,yes,no,S06
-Close and reopen conversations,inbox,must,yes,no,S06
-Mobile-friendly inbox,inbox,should,yes,no,desktop and mobile per src 3
-Welcome and away messages with business hours,inbox,must,yes,no,S34
+Labels on conversations,inbox,must,yes,yes,S06
+Internal notes in chat,inbox,must,yes,yes,S06
+Quick replies,inbox,must,yes,yes,S06 S34
+Send media (image document audio video),inbox,must,yes,partial,S06; send by public https link; inbound photos/files viewable; direct upload not built
+Template-only composer when 24h window closed,inbox,must,yes,yes,Cloud API rule
+Waiting-too-long alert,inbox,should,yes,yes,S06 S34
+Bot-to-human handover with full history,inbox,must,yes,yes,F02
+Inbox filters and search,inbox,must,yes,yes,S06
+Close and reopen conversations,inbox,must,yes,yes,S06
+Mobile-friendly inbox,inbox,should,yes,partial,"desktop and mobile per src 3; responsive layout, not tuned below tablet width"
+Welcome and away messages with business hours,inbox,must,yes,yes,S34
 Route chats by topic or language,inbox,should,yes,no,S34
-Contacts saved automatically on first message,contacts,must,yes,no,S08
-Tags notes and custom fields on contacts,contacts,must,yes,no,S09
+Contacts saved automatically on first message,contacts,must,yes,yes,S08
+Tags notes and custom fields on contacts,contacts,must,yes,yes,S09
 Contact profile with order count total last order birthday,contacts,should,yes,no,S09
-Contact activity timeline,contacts,should,yes,no,S09
-Import contacts from spreadsheet,contacts,must,yes,no,S10
+Contact activity timeline,contacts,should,yes,yes,S09
+Import contacts from spreadsheet,contacts,must,yes,yes,S10
 Import from existing CRM,contacts,could,yes,no,S10
-Segments for broadcasts and automations,contacts,should,yes,no,S11
-Contact owner,contacts,should,yes,no,S09
-Opt-out handling (one-tap stop),contacts,must,yes,no,W05; exclude from marketing
-Contact source tagging (ad website WhatsApp),contacts,should,yes,no,S09
-Enquiries log with source and status,enquiries,must,yes,no,S07
-Instant bot or AI answer to enquiries 24/7,enquiries,must,yes,no,F05
-Convert enquiry to lead or ticket,enquiries,should,yes,no,F05
-Convert chat to lead (one click),pipeline,must,yes,no,F04
-Auto-create lead from bot,pipeline,should,yes,no,F04
-Kanban pipeline with drag and drop,pipeline,must,yes,no,S12
-Customizable pipeline stages,pipeline,must,yes,no,S14
-Lead fields value owner notes next follow-up,pipeline,must,yes,no,S13
-Reminders for quiet leads,pipeline,should,yes,no,F04
+Segments for broadcasts and automations,contacts,should,yes,partial,S11; tag-based audiences; saved segment rules not built
+Contact owner,contacts,should,yes,yes,S09
+Opt-out handling (one-tap stop),contacts,must,yes,yes,W05; exclude from marketing
+Contact source tagging (ad website WhatsApp),contacts,should,yes,yes,S09
+Enquiries log with source and status,enquiries,must,yes,yes,S07
+Instant bot or AI answer to enquiries 24/7,enquiries,must,yes,partial,F05; keyword bots answer 24/7; AI agent is Phase 2
+Convert enquiry to lead or ticket,enquiries,should,yes,yes,F05
+Convert chat to lead (one click),pipeline,must,yes,yes,F04
+Auto-create lead from bot,pipeline,should,yes,yes,F04
+Kanban pipeline with drag and drop,pipeline,must,yes,yes,S12
+Customizable pipeline stages,pipeline,must,yes,yes,S14
+Lead fields value owner notes next follow-up,pipeline,must,yes,yes,S13
+Reminders for quiet leads,pipeline,should,yes,yes,F04
 Report by lead source and teammate,pipeline,should,yes,no,S39
-Support tickets with status and assignee,tickets,must,yes,no,S21
-Ticket detail with linked chat order and photo,tickets,must,yes,no,S22
-Create ticket from chat or bot,tickets,must,yes,no,F06
-Ticket SLA timers,tickets,should,yes,no,"src 1 ""close requests on time"""
-Notify customer on ticket resolve,tickets,should,yes,no,F06
-Message templates library,templates,must,yes,no,S26
-Template editor with header body footer buttons and variables,templates,must,yes,no,S27
-Submit template to Meta and track approval status,templates,must,yes,no,F10
-Template categories (marketing utility authentication),templates,must,yes,no,S26
+Support tickets with status and assignee,tickets,must,yes,yes,S21
+Ticket detail with linked chat order and photo,tickets,must,yes,partial,S22; linked chat + customer photos; orders are Phase 2
+Create ticket from chat or bot,tickets,must,yes,yes,F06
+Ticket SLA timers,tickets,should,yes,yes,"src 1 ""close requests on time"""
+Notify customer on ticket resolve,tickets,should,yes,yes,F06
+Message templates library,templates,must,yes,yes,S26
+Template editor with header body footer buttons and variables,templates,must,yes,yes,S27
+Submit template to Meta and track approval status,templates,must,yes,yes,F10
+Template categories (marketing utility authentication),templates,must,yes,yes,S26
 Media headers (image document video logo),templates,should,yes,no,S27
-Starter template library for orders bookings payments,templates,should,yes,no,write our own
-Broadcast template to list or segment,campaigns,must,yes,no,S24
-Audience by labels tags or spreadsheet upload,campaigns,must,yes,no,S24
-Personalize variables per recipient,campaigns,must,yes,no,S24
-Send now or schedule,campaigns,must,yes,no,S24
-Campaign metrics delivered read replied,campaigns,must,yes,no,S25
-Replies land in team inbox,campaigns,must,yes,no,F11
-Unlimited contacts and broadcasts,campaigns,must,yes,no,plan rule
-Respect Meta messaging tier limits,campaigns,must,yes,no,throttle sending
-Campaign cost estimate,campaigns,could,no,no,our addition - Meta per-message pricing
-Bot flows list with draft and live status,bots,must,yes,no,S28
-Drag-and-drop flow builder,bots,must,yes,no,S29
-Nodes: trigger message buttons list question,bots,must,yes,no,S29
-Node: assign to agent / handover,bots,must,yes,no,S29
-Node: condition and save answer to field,bots,should,yes,no,S29
+Starter template library for orders bookings payments,templates,should,yes,yes,write our own
+Broadcast template to list or segment,campaigns,must,yes,yes,S24
+Audience by labels tags or spreadsheet upload,campaigns,must,yes,partial,S24; tags yes; spreadsheet = import with a tag then target it
+Personalize variables per recipient,campaigns,must,yes,yes,S24
+Send now or schedule,campaigns,must,yes,yes,S24
+Campaign metrics delivered read replied,campaigns,must,yes,yes,S25
+Replies land in team inbox,campaigns,must,yes,yes,F11
+Unlimited contacts and broadcasts,campaigns,must,yes,yes,plan rule
+Respect Meta messaging tier limits,campaigns,must,yes,yes,throttle sending; daily distinct-recipient cap per number; resumes hourly
+Campaign cost estimate,campaigns,could,no,yes,our addition - Meta per-message pricing
+Bot flows list with draft and live status,bots,must,yes,yes,S28
+Drag-and-drop flow builder,bots,must,yes,yes,S29
+Nodes: trigger message buttons list question,bots,must,yes,yes,S29
+Node: assign to agent / handover,bots,must,yes,yes,S29
+Node: condition and save answer to field,bots,should,yes,yes,S29
 Node: look up data (order status catalog),bots,should,yes,no,S29
 Node: offer booking slots,bots,should,yes,no,S29 W02
 Test a flow before publishing,bots,should,yes,no,S29
-Lead capture in bot (name phone requirement),bots,must,yes,no,src 3
-Plan limit on number of flows,bots,must,yes,no,3 on Growth
+Lead capture in bot (name phone requirement),bots,must,yes,yes,src 3
+Plan limit on number of flows,bots,must,yes,yes,3 on Growth
 AI agent trained on business details,ai,should,yes,no,S30
 AI replies to text and media,ai,should,yes,no,"src 2 ""AI agent (text and media)"""
 AI handover rules,ai,should,yes,no,S30
@@ -128,15 +128,15 @@ Analytics: leads bookings sales from WhatsApp,analytics,should,yes,no,S39
 Teammate and source comparison,analytics,should,yes,no,S39
 Date range and team filters,analytics,should,yes,no,S39
 Report export,analytics,could,yes,no,S39
-Dashboard home KPIs,analytics,must,yes,no,S40
-Team members and invites with seat limits,team,must,yes,no,S41
-Roles and permissions,team,must,yes,no,S41
+Dashboard home KPIs,analytics,must,yes,yes,S40
+Team members and invites with seat limits,team,must,yes,yes,S41
+Roles and permissions,team,must,yes,yes,S41
 Audit log,team,could,yes,no,S42
 Data export contacts chats reports,team,could,yes,no,S46
-WhatsApp profile settings (about logo address),settings,should,yes,no,S43
-Quality rating and messaging tier display,settings,could,no,no,our addition from Cloud API
-Plans Growth Scale Enterprise with feature gates,billing,must,yes,no,S44
-Monthly and yearly billing,billing,must,yes,no,yearly saves 20%
+WhatsApp profile settings (about logo address),settings,should,yes,partial,S43; display name shown; editing profile not built
+Quality rating and messaging tier display,settings,could,no,yes,our addition from Cloud API
+Plans Growth Scale Enterprise with feature gates,billing,must,yes,yes,S44
+Monthly and yearly billing,billing,must,yes,yes,yearly saves 20%
 Usage and Meta message spend view,billing,could,yes,no,S44
 White label branding logo colours custom domain,white label,could,yes,no,S49
 Partner dashboard with clients and revenue,white label,could,yes,no,S47
@@ -149,13 +149,13 @@ Trustpilot rating and customer base,network,could,yes,skip,their network
 Partner sales kits and pitch decks,services,could,yes,skip,business collateral
 Free consultation and custom builds,services,could,yes,skip,human service
 Dedicated success manager and hand-held onboarding,services,could,yes,skip,human service
-One-click self-serve cancel with confirmation email and no charge after cancel,billing,must,no,no,fix F1 - cancel/billing 39 reviews
-Downgrade warns about over-limit items and auto-pauses them at period end,billing,must,no,no,fix F1
-Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,no,fix F2
-Talk to a person in-app (WhatsApp chat with WhatsFlow team) and ticket status,support,must,no,no,fix F3 - human support 51 reviews
+One-click self-serve cancel with confirmation email and no charge after cancel,billing,must,no,yes,fix F1 - cancel/billing 39 reviews
+Downgrade warns about over-limit items and auto-pauses them at period end,billing,must,no,yes,fix F1
+Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,partial,fix F2; disconnect deletes token; export not built
+Talk to a person in-app (WhatsApp chat with WhatsFlow team) and ticket status,support,must,no,yes,fix F3 - human support 51 reviews
 Public status page,support,should,no,no,fix F3
-Connection doctor: token webhook number and round-trip test with fix steps,onboarding,must,no,no,fix F4 - setup 17 reviews
-Number-safety guardrails: quality tier warnings cold-audience warning auto-pause,campaigns,should,no,no,fix F5 - bans 7 reviews
-Campaign cost preview and visible wallet; unused credit refundable,billing,should,no,no,fix F6
-14-day trial on Meta test number without forced sales call,onboarding,should,no,no,fix F7
+Connection doctor: token webhook number and round-trip test with fix steps,onboarding,must,no,partial,fix F4 - setup 17 reviews; token/number/quality/subscription/webhook checks with fixes; no automatic round-trip test message
+Number-safety guardrails: quality tier warnings cold-audience warning auto-pause,campaigns,should,no,partial,fix F5 - bans 7 reviews; quality warning in composer + opt-outs enforced; no cold-audience check or auto-pause
+Campaign cost preview and visible wallet; unused credit refundable,billing,should,no,partial,fix F6; cost preview yes; no wallet (Meta bills directly)
+14-day trial on Meta test number without forced sales call,onboarding,should,no,yes,fix F7
 AI template checker before Meta submission,templates,could,no,no,fix F8 - thin

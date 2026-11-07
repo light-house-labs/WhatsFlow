@@ -36,6 +36,21 @@ export async function sendReply(conversationId: string, text: string): Promise<R
   }
 }
 
+export async function sendMedia(conversationId: string, mediaType: "image" | "document" | "video" | "audio", link: string, caption: string): Promise<Result> {
+  if (!/^https:\/\/\S+$/.test(link.trim())) return { ok: false, error: "Paste a public https:// link to the file. WhatsApp downloads it from there." };
+  const { ctx } = await ownedConversation(conversationId);
+  try {
+    await stopBot(ctx.db, conversationId);
+    const filename = mediaType === "document" ? decodeURIComponent(link.split("/").pop()?.split("?")[0] ?? "file") : undefined;
+    const m = await sendInConversation(ctx.db, conversationId, { kind: "media", mediaType, link: link.trim(), caption: caption.trim() || undefined, filename }, { senderKind: "user", senderUserId: ctx.user.id });
+    if (m.status === "failed") return { ok: false, error: `WhatsApp didn't accept it: ${m.error}` };
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof SendError) return { ok: false, error: e.message };
+    throw e;
+  }
+}
+
 export async function sendTemplateReply(conversationId: string, templateId: string, variables: string[]): Promise<Result> {
   const { ctx } = await ownedConversation(conversationId);
   const [tpl] = await ctx.db

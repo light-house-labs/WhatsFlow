@@ -1,0 +1,6 @@
+{
+  "name": "WhatsFlow",
+  "avoid": ["Crawdle", "NIXRIX"],
+  "domains": ["crawdle.com", "app.crawdle.com"],
+  "colors": []
+}

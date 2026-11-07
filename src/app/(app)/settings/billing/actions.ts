@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireOrg } from "@/lib/auth";
 import { cancelSubscription, changePlan, resumeSubscription } from "@/lib/billing";
 import type { Plan } from "@/db/schema";
+import { sendMail } from "@/lib/mail";
 
 export async function choosePlan(form: FormData) {
   const ctx = await requireOrg("owner");
@@ -17,7 +18,12 @@ export async function choosePlan(form: FormData) {
 export async function cancel(form: FormData) {
   const ctx = await requireOrg("owner");
   const reason = String(form.get("reason") ?? "") || null;
-  await cancelSubscription(ctx.db, ctx.org.id, ctx.user.id, reason);
+  const { endsAt } = await cancelSubscription(ctx.db, ctx.org.id, ctx.user.id, reason);
+  await sendMail(
+    ctx.user.email,
+    "Your WhatsFlow subscription is cancelled",
+    `Hi ${ctx.user.name},\n\nThis confirms that the subscription for ${ctx.org.name} is cancelled. You will not be charged again.\n\n${endsAt && endsAt > new Date() ? `You keep access until ${endsAt.toUTCString()}.` : "Access to paid features has ended."} Your contacts and chats stay in your workspace and can be exported.\n\nChanged your mind? Resume any time from Plan & billing.`,
+  );
   redirect("/settings/billing?done=cancelled");
 }
 

@@ -5,6 +5,8 @@ import { requireOrg } from "@/lib/auth";
 import { validateGraph } from "@/lib/flows/graph";
 import { Builder } from "./builder";
 
+export const metadata = { title: "Edit flow" };
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db: d, org } = await requireOrg("admin");

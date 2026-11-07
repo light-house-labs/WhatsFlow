@@ -20,3 +20,8 @@ export function duration(seconds: number | null | undefined): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   return `${(seconds / 3600).toFixed(1)}h`;
 }
+
+/** Current time in ms. Server components read it once per request. */
+export function nowMs(): number {
+  return Date.now();
+}

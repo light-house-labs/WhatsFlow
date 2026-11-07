@@ -62,6 +62,10 @@
   --radius-lg: 14px;
 }
 
+html {
+  color-scheme: light dark;
+}
+
 html,
 body {
   background: var(--wf-bg);

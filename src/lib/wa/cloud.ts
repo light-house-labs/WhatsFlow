@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Meta webhook and Graph API bodies are untyped JSON, read defensively field by field */
 import type { HealthCheck, Outbound, SendResult, TemplateRef, WhatsAppProvider } from "./types";
 
 type Cfg = { phoneNumberId: string; wabaId: string; accessToken: string; lastWebhookAt: Date | null };
@@ -47,6 +48,16 @@ function toCloudPayload(to: string, msg: Outbound): Record<string, unknown> {
             button: msg.button,
             sections: [{ title: "Options", rows: msg.rows.map((title, i) => ({ id: `row:${i}`, title })) }],
           },
+        },
+      };
+    case "media":
+      return {
+        ...base,
+        type: msg.mediaType,
+        [msg.mediaType]: {
+          link: msg.link,
+          ...(msg.caption && msg.mediaType !== "audio" ? { caption: msg.caption } : {}),
+          ...(msg.mediaType === "document" && msg.filename ? { filename: msg.filename } : {}),
         },
       };
     case "template":
@@ -119,6 +130,17 @@ export function cloudProvider(cfg: Cfg): WhatsAppProvider {
         if (s === "approved") return { status: "approved" };
         if (s === "rejected") return { status: "rejected", reason: json.rejected_reason };
         return { status: "pending" };
+      } catch {
+        return null;
+      }
+    },
+
+    async fetchMedia(mediaId) {
+      try {
+        const meta = await graph(mediaId, cfg.accessToken);
+        const res = await fetch(String(meta.url), { headers: { Authorization: `Bearer ${cfg.accessToken}` }, cache: "no-store" });
+        if (!res.ok) return null;
+        return { body: await res.arrayBuffer(), contentType: String(meta.mime_type ?? res.headers.get("content-type") ?? "application/octet-stream") };
       } catch {
         return null;
       }

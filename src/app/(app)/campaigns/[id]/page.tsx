@@ -3,10 +3,12 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
-import { dateTime } from "@/lib/format";
+import { dateTime, nowMs } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Button, Card, PageHeader, Stat, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { cancelCampaign } from "../actions";
+
+export const metadata = { title: "Campaign" };
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,10 +39,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     d.select().from(schema.templates).where(eq(schema.templates.id, c.templateId)),
   ]);
   const live = c.status === "scheduled" || c.status === "sending";
+  const settling = live || (c.sentAt && nowMs() - c.sentAt.getTime() < 2 * 60_000);
   const pct = (a: number) => (Number(s.total) ? ` · ${Math.round((Number(a) / Number(s.total)) * 100)}%` : "");
   return (
     <>
-      {live && <AutoRefresh ms={3000} />}
+      {settling && <AutoRefresh ms={3000} />}
       <PageHeader
         title={c.name}
         description={`${tpl?.name} · ${c.audience.tags?.length ? `tags: ${c.audience.tags.join(", ")}` : "all contacts"} · ${c.scheduledAt ? `scheduled for ${dateTime(c.scheduledAt)}` : `started ${dateTime(c.sentAt ?? c.createdAt)}`}`}

@@ -1,6 +1,6 @@
 import type { BusinessHours } from "@/db/schema";
 
-const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+type Day = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
 
 export const DEFAULT_HOURS: BusinessHours = {
   mon: { open: "09:00", close: "18:00" },
@@ -13,7 +13,7 @@ export const DEFAULT_HOURS: BusinessHours = {
 };
 
 /** Local weekday and HH:MM for an instant in an IANA time zone. */
-export function localParts(at: Date, timeZone: string): { day: (typeof DAYS)[number]; hhmm: string } {
+export function localParts(at: Date, timeZone: string): { day: Day; hhmm: string } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     weekday: "short",
@@ -22,7 +22,7 @@ export function localParts(at: Date, timeZone: string): { day: (typeof DAYS)[num
     hourCycle: "h23",
   }).formatToParts(at);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  const day = get("weekday").toLowerCase().slice(0, 3) as (typeof DAYS)[number];
+  const day = get("weekday").toLowerCase().slice(0, 3) as Day;
   return { day, hhmm: `${get("hour")}:${get("minute")}` };
 }
 

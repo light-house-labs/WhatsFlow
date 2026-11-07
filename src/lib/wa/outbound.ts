@@ -56,7 +56,14 @@ export async function sendInConversation(d: DB, conversationId: string, msg: Out
       direction: "out",
       type: msg.kind,
       body,
-      payload: msg.kind === "buttons" ? { buttons: msg.buttons } : msg.kind === "list" ? { rows: msg.rows, button: msg.button } : {},
+      payload:
+        msg.kind === "buttons"
+          ? { buttons: msg.buttons }
+          : msg.kind === "list"
+            ? { rows: msg.rows, button: msg.button }
+            : msg.kind === "media"
+              ? { mediaType: msg.mediaType, link: msg.link, caption: msg.caption ?? null }
+              : {},
       status: "queued",
       senderKind: opts.senderKind,
       senderUserId: opts.senderUserId ?? null,

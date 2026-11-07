@@ -5,7 +5,7 @@ import { MessageCircleQuestion } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
-import { duration, timeAgo } from "@/lib/format";
+import { duration, nowMs, timeAgo } from "@/lib/format";
 import { Card, EmptyState, PageHeader, Stat, StatusBadge, Table, Td, Th } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Enquiries" };
@@ -23,7 +23,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const { db: d, org } = await requireOrg();
   const where = [eq(schema.enquiries.orgId, org.id)];
   if (status) where.push(eq(schema.enquiries.status, status as "needs_human"));
-  const since = new Date(Date.now() - 30 * 86400_000);
+  const since = new Date(nowMs() - 30 * 86400_000);
   const [rows, [s]] = await Promise.all([
     d
       .select({ e: schema.enquiries, name: schema.contacts.name, waId: schema.contacts.waId })

@@ -22,6 +22,7 @@ import { ArrowLeft, Bot, GitBranch, HelpCircle, List, MessageSquare, MousePointe
 import type { FlowEdge, FlowNode, FlowTrigger } from "@/db/schema";
 import { Alert, Button, Field, Input, Select, StatusBadge, Textarea, cx } from "@/components/ui";
 import { saveFlow } from "../actions";
+import { nowMs } from "@/lib/format";
 
 type Kind = FlowNode["type"];
 
@@ -127,7 +128,7 @@ export function Builder(props: {
   const onConnect = useCallback(
     (c: Connection) =>
       // one connection per output
-      setEdges((eds) => addEdge({ ...c, id: `e${Date.now()}` }, eds.filter((e) => !(e.source === c.source && (e.sourceHandle ?? null) === (c.sourceHandle ?? null))))),
+      setEdges((eds) => addEdge({ ...c, id: `e${nowMs()}` }, eds.filter((e) => !(e.source === c.source && (e.sourceHandle ?? null) === (c.sourceHandle ?? null))))),
     [setEdges],
   );
 
@@ -135,7 +136,7 @@ export function Builder(props: {
   const update = (patch: Record<string, unknown>) => setNodes((ns) => ns.map((n) => (n.id === selectedId ? { ...n, data: { ...n.data, ...patch } } : n)));
 
   function add(kind: Kind) {
-    const id = `${kind[0]}${Date.now().toString(36)}`;
+    const id = `${kind[0]}${nowMs().toString(36)}`;
     const last = nodes[nodes.length - 1];
     setNodes((ns) => [...ns, toRf({ id, type: kind, position: { x: (last?.position.x ?? 0) + 280, y: last?.position.y ?? 120 }, data: { ...(DEFAULTS[kind] ?? {}) } })]);
     setSelectedId(id);

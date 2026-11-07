@@ -15,6 +15,9 @@ export function sandboxProvider(): WhatsAppProvider {
     async submitTemplate() {
       return { ok: true, id: `sbx-tpl.${randomToken(8)}` };
     },
+    async fetchMedia() {
+      return null;
+    },
     async templateStatus() {
       return null; // reviewed by the sandbox.template_review job
     },

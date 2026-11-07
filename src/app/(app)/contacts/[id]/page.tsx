@@ -9,6 +9,8 @@ import { formatMoney } from "@/lib/plans";
 import { Badge, Button, ButtonLink, Card, Field, Input, PageHeader, Select, StatusBadge, Textarea } from "@/components/ui";
 import { deleteContact, setOptOut, updateContact } from "../actions";
 
+export const metadata = { title: "Contact" };
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db: d, org, role } = await requireOrg();

@@ -139,3 +139,20 @@ describe("campaigns", () => {
     expect(ravi).toBeTruthy();
   });
 });
+
+describe("messaging tier", () => {
+  it("stops a broadcast at the number's daily limit and resumes later", async () => {
+    const { d, org, number } = await makeOrg();
+    await d.update(schema.waNumbers).set({ messagingTier: "TIER_2" }).where(eq(schema.waNumbers.id, number.id));
+    const [tpl] = await d.insert(schema.templates).values({ orgId: org.id, name: "update", category: "UTILITY", body: "Your order is ready for pickup today.", status: "approved" }).returning();
+    await d.insert(schema.contacts).values([1, 2, 3, 4].map((i) => ({ orgId: org.id, waId: `91988888888${i}`, tags: ["all"] })));
+    const [c] = await d.insert(schema.campaigns).values({ orgId: org.id, name: "t", templateId: tpl.id, numberId: number.id, audience: { tags: ["all"] }, status: "scheduled" }).returning();
+    await enqueue(d, "campaign.send", { campaignId: c.id });
+    const { runDueJobs } = await import("@/lib/jobs");
+    for (let i = 0; i < 5; i++) await runDueJobs(d, 100);
+    const rec = await d.select().from(schema.campaignRecipients).where(eq(schema.campaignRecipients.campaignId, c.id));
+    expect(rec.filter((r) => r.status === "pending")).toHaveLength(2);
+    const [camp] = await d.select().from(schema.campaigns).where(eq(schema.campaigns.id, c.id));
+    expect(camp.status).toBe("sending");
+  });
+});

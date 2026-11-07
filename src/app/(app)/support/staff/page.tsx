@@ -7,6 +7,8 @@ import { Button, Card, PageHeader, StatusBadge, Textarea, cx } from "@/component
 import { reply } from "../actions";
 
 /** Support queue for WhatsFlow staff (users with is_staff). Customers never see this. */
+export const metadata = { title: "Support queue" };
+
 export default async function Page() {
   const s = await requireUser();
   if (!s.user.isStaff) notFound();

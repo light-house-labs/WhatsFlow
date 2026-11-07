@@ -3,6 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { Sidebar } from "./sidebar";
+import { nowMs } from "@/lib/format";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireOrg();
@@ -21,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const trialDaysLeft =
     org.billingStatus === "trialing" && org.currentPeriodEnd
-      ? Math.max(0, Math.ceil((org.currentPeriodEnd.getTime() - Date.now()) / 86400_000))
+      ? Math.max(0, Math.ceil((org.currentPeriodEnd.getTime() - nowMs()) / 86400_000))
       : null;
   return (
     <div className="flex min-h-screen">

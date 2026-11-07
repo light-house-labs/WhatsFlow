@@ -5,7 +5,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { createSession, destroySession, requireUser, setSessionOrg } from "@/lib/auth";
-import { hashPassword, sha256, verifyPassword } from "@/lib/crypto";
+import { hashPassword, randomToken, sha256, verifyPassword } from "@/lib/crypto";
+import { sendMail } from "@/lib/mail";
 import { createWorkspace } from "@/lib/org-setup";
 import { limitsFor } from "@/lib/plans";
 
@@ -103,4 +104,40 @@ export async function acceptInvite(form: FormData) {
   await d.update(schema.invites).set({ acceptedAt: new Date() }).where(eq(schema.invites.id, inv.id));
   await setSessionOrg(inv.orgId);
   redirect("/inbox");
+}
+
+const RESET_MINUTES = 30;
+
+/** Always answers the same way, so the form can't be used to find out who has an account. */
+export async function requestReset(_: FormState, form: FormData): Promise<FormState> {
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const d = await db();
+  const [user] = await d.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+  if (user) {
+    const token = randomToken(24);
+    await d.insert(schema.passwordResets).values({ userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_MINUTES * 60_000) });
+    const link = `${process.env.APP_URL ?? "http://localhost:3000"}/reset-password/${token}`;
+    await sendMail(user.email, "Reset your WhatsFlow password", `Hi ${user.name},\n\nUse this link to choose a new password. It works once and expires in ${RESET_MINUTES} minutes:\n\n${link}\n\nIf you didn't ask for this, you can ignore this email.`);
+  }
+  return { error: undefined, fields: { sent: "1" } };
+}
+
+export async function resetPassword(_: FormState, form: FormData): Promise<FormState> {
+  const token = String(form.get("token") ?? "");
+  const password = String(form.get("password") ?? "");
+  if (password.length < 8) return { error: "Use at least 8 characters." };
+  const d = await db();
+  const [row] = await d
+    .select()
+    .from(schema.passwordResets)
+    .where(and(eq(schema.passwordResets.tokenHash, sha256(token)), isNull(schema.passwordResets.usedAt)))
+    .limit(1);
+  if (!row || row.expiresAt < new Date()) return { error: "This link has expired or was already used. Ask for a new one." };
+  await d.update(schema.users).set({ passwordHash: await hashPassword(password) }).where(eq(schema.users.id, row.userId));
+  await d.update(schema.passwordResets).set({ usedAt: new Date() }).where(eq(schema.passwordResets.id, row.id));
+  // sign out everywhere else
+  await d.delete(schema.sessions).where(eq(schema.sessions.userId, row.userId));
+  const [m] = await d.select().from(schema.memberships).where(eq(schema.memberships.userId, row.userId)).limit(1);
+  await createSession(row.userId, m?.orgId ?? null);
+  redirect(m ? "/inbox" : "/onboarding");
 }

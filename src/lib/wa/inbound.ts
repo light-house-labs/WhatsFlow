@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Meta webhook and Graph API bodies are untyped JSON, read defensively field by field */
 import { and, eq, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
@@ -13,6 +14,7 @@ export type InboundMessage = {
   type: string;
   text: string;
   replyId?: string | null;
+  media?: { id: string; mimeType?: string; filename?: string } | null;
   timestamp: Date;
   referral?: Record<string, unknown> | null;
 };
@@ -75,7 +77,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage) 
     direction: "in",
     type: m.type,
     body: m.text,
-    payload: m.replyId ? { replyId: m.replyId } : {},
+    payload: { ...(m.replyId ? { replyId: m.replyId } : {}), ...(m.media ? { media: m.media } : {}) },
     waMessageId: m.waMessageId,
     status: "received",
     senderKind: "contact",
@@ -179,6 +181,7 @@ export function parseCloudWebhook(body: any) {
       const messages: InboundMessage[] = (v.messages ?? []).map((msg: any) => {
         let text = "";
         let replyId: string | null = null;
+        let media: InboundMessage["media"] = null;
         switch (msg.type) {
           case "text":
             text = msg.text?.body ?? "";
@@ -197,6 +200,7 @@ export function parseCloudWebhook(body: any) {
           case "audio":
           case "sticker":
             text = msg[msg.type]?.caption ?? `[${msg.type}]`;
+            media = msg[msg.type]?.id ? { id: msg[msg.type].id, mimeType: msg[msg.type].mime_type, filename: msg[msg.type].filename } : null;
             break;
           case "location":
             text = `[location] ${msg.location?.latitude},${msg.location?.longitude}`;
@@ -211,6 +215,7 @@ export function parseCloudWebhook(body: any) {
           type: msg.type,
           text,
           replyId,
+          media,
           timestamp: new Date(Number(msg.timestamp) * 1000),
           referral: msg.referral ?? null,
         };

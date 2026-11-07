@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- each handler reads its own payload shape
 export type JobHandler = (d: DB, payload: Record<string, any>) => Promise<void>;
 
 const handlers = new Map<string, JobHandler>();

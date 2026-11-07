@@ -45,6 +45,13 @@ registerJob("template.sync", async (d, p) => {
 
 const BATCH = 50;
 
+/** Meta's limit on new business-initiated conversations per 24h, e.g. TIER_1K → 1000. */
+export function tierLimit(tier: string | null): number {
+  if (!tier || tier === "TIER_UNLIMITED") return tier ? Infinity : 250;
+  const m = tier.match(/^TIER_(\d+)(K)?$/);
+  return m ? Number(m[1]) * (m[2] ? 1000 : 1) : 250;
+}
+
 // Campaign: resolve audience once, then send in batches so one bad number never stops the rest.
 registerJob("campaign.send", async (d, p) => {
   const [c] = await d.select().from(schema.campaigns).where(eq(schema.campaigns.id, p.campaignId)).limit(1);
@@ -78,12 +85,26 @@ registerJob("campaign.send", async (d, p) => {
     await d.update(schema.campaigns).set({ status: "sending", sentAt: new Date() }).where(eq(schema.campaigns.id, c.id));
   }
 
+  // Stay inside the number's daily messaging limit: count distinct people sent a
+  // template from this number in the last 24 hours, and wait an hour when full.
+  const [number] = await d.select().from(schema.waNumbers).where(eq(schema.waNumbers.id, c.numberId)).limit(1);
+  const [used] = await d
+    .select({ n: sql<number>`count(distinct ${schema.conversations.contactId})` })
+    .from(schema.messages)
+    .innerJoin(schema.conversations, eq(schema.conversations.id, schema.messages.conversationId))
+    .where(and(eq(schema.conversations.numberId, c.numberId), eq(schema.messages.type, "template"), sql`${schema.messages.createdAt} > now() - interval '24 hours'`, sql`${schema.messages.status} <> 'failed'`));
+  const room = tierLimit(number?.messagingTier ?? null) - Number(used?.n ?? 0);
+  if (room <= 0) {
+    await enqueue(d, "campaign.send", { campaignId: c.id }, 3600_000);
+    return;
+  }
+
   const pending = await d
     .select({ r: schema.campaignRecipients, contact: schema.contacts })
     .from(schema.campaignRecipients)
     .innerJoin(schema.contacts, eq(schema.contacts.id, schema.campaignRecipients.contactId))
     .where(and(eq(schema.campaignRecipients.campaignId, c.id), eq(schema.campaignRecipients.status, "pending")))
-    .limit(BATCH);
+    .limit(Math.min(BATCH, room));
 
   const count = placeholderCount(tpl.body);
   for (const { r, contact } of pending) {

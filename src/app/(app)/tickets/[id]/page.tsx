@@ -7,6 +7,8 @@ import { dateTime } from "@/lib/format";
 import { Button, ButtonLink, Card, Field, Input, PageHeader, Select, Textarea, cx } from "@/components/ui";
 import { updateTicket } from "../actions";
 
+export const metadata = { title: "Ticket" };
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db: d, org } = await requireOrg();
@@ -38,6 +40,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {messages.map((m) => (
               <div key={m.id} className={cx("flex", m.direction === "out" ? "justify-end" : "justify-start")}>
                 <div className={cx("max-w-[75%] rounded-lg px-3 py-2 text-sm", m.direction === "out" ? "bg-bubble-out" : "bg-surface-2")}>
+                  {(m.payload?.media as { id?: string; mimeType?: string } | undefined)?.mimeType?.startsWith("image/") && (
+                    // eslint-disable-next-line @next/next/no-img-element -- authenticated proxy URL
+                    <img src={`/api/media/${m.id}`} alt="Photo from customer" className="mb-1 max-h-56 rounded" />
+                  )}
                   <div className="whitespace-pre-wrap">{m.body}</div>
                   <div className="mt-0.5 text-right text-[10px] text-muted">{dateTime(m.createdAt)}</div>
                 </div>
