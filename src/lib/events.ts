@@ -4,7 +4,8 @@ import { schema } from "@/db";
 import type { AutomationTrigger, WebhookEvent } from "@/db/schema";
 import { enqueue, kickJobs } from "./jobs";
 
-type Subject = { contactId: string; conversationId?: string | null; key: string };
+/** vars are details the automation's messages can use, e.g. order_number. */
+type Subject = { contactId: string; conversationId?: string | null; key: string; vars?: Record<string, string> };
 
 /**
  * Something happened in a workspace. Queues outbound webhook deliveries and
@@ -48,6 +49,7 @@ const TRIGGERS: Partial<Record<WebhookEvent, AutomationTrigger>> = {
   "order.created": "order_created",
   "order.paid": "order_paid",
   "appointment.booked": "appointment_booked",
+  "cart.abandoned": "cart_abandoned",
 };
 
 /** Start a run of every live automation on this trigger. Each subject runs at most once per automation. */
@@ -65,6 +67,7 @@ export async function startAutomations(d: DB, orgId: string, trigger: Automation
         contactId: subject.contactId,
         conversationId: subject.conversationId ?? null,
         triggerKey: subject.key,
+        vars: subject.vars ?? {},
       })
       .onConflictDoNothing()
       .returning({ id: schema.automationRuns.id });

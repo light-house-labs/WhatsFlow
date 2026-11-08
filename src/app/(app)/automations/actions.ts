@@ -9,12 +9,12 @@ import type { AutomationStep, AutomationTrigger } from "@/db/schema";
 import { requireOrg } from "@/lib/auth";
 import { limitsFor } from "@/lib/plans";
 
-const TRIGGERS = ["conversation_started", "order_created", "order_paid", "appointment_booked", "lead_won", "no_reply"] as const;
+const TRIGGERS = ["conversation_started", "order_created", "order_paid", "appointment_booked", "lead_won", "no_reply", "cart_abandoned"] as const;
 
 const Step = z.discriminatedUnion("type", [
   z.object({ type: z.literal("wait"), minutes: z.number().int().min(1).max(60 * 24 * 30) }),
   z.object({ type: z.literal("send_text"), text: z.string().trim().min(1).max(4096) }),
-  z.object({ type: z.literal("send_template"), templateId: z.string().uuid() }),
+  z.object({ type: z.literal("send_template"), templateId: z.string().uuid(), variables: z.array(z.string().trim().regex(/^[a-z_]+$/, "Template variables are names like order_number")).max(10).optional() }),
   z.object({ type: z.literal("add_tag"), tag: z.string().trim().min(1).max(40) }),
   z.object({ type: z.literal("assign"), userId: z.string().uuid() }),
   z.object({ type: z.literal("if_tag"), tag: z.string().trim().min(1).max(40) }),

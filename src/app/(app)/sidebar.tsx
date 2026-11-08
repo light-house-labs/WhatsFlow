@@ -27,6 +27,9 @@ import {
   Smartphone,
   Ticket,
   Users,
+  Route,
+  History,
+  Plug,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cx } from "@/components/ui";
@@ -53,10 +56,13 @@ const SETTINGS = [
   { href: "/settings/whatsapp", label: "WhatsApp numbers", icon: Phone },
   { href: "/settings", label: "Inbox settings", icon: Settings, exact: true },
   { href: "/settings/team", label: "Team", icon: Users },
+  { href: "/settings/routing", label: "Chat routing", icon: Route },
   { href: "/settings/ai", label: "AI replies", icon: Sparkles },
   { href: "/settings/payments", label: "Payments", icon: Wallet },
+  { href: "/settings/integrations", label: "Connected apps", icon: Plug },
   { href: "/settings/developers", label: "API & webhooks", icon: Code2 },
   { href: "/settings/data", label: "Your data", icon: Database },
+  { href: "/settings/audit", label: "Audit log", icon: History },
   { href: "/settings/billing", label: "Plan & billing", icon: CreditCard },
 ];
 

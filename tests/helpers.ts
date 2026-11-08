@@ -7,14 +7,14 @@ import { runDueJobs } from "@/lib/jobs";
 
 let n = 0;
 
-export async function makeOrg(name = "Test Clinic") {
+export async function makeOrg(name = "Test Clinic", industry = "Other") {
   const d = await db();
   n++;
   const [user] = await d
     .insert(schema.users)
     .values({ email: `owner${n}-${Date.now()}@example.test`, name: "Owner", passwordHash: await hashPassword("pw-123456") })
     .returning();
-  const org = await createWorkspace(d, user.id, name, "Clinic or healthcare");
+  const org = await createWorkspace(d, user.id, name, industry);
   const [number] = await d.select().from(schema.waNumbers).where(eq(schema.waNumbers.orgId, org.id));
   return { d, user, org, number };
 }

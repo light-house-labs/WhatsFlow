@@ -4,7 +4,7 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { sandboxPaymentsAllowed } from "@/lib/payments";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
-import { removePaymentProvider, savePaymentProvider } from "./actions";
+import { removePaymentProvider, savePaymentProvider, saveReminder } from "./actions";
 
 export const metadata: Metadata = { title: "Payments" };
 
@@ -40,7 +40,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     <>
       <PageHeader title="Payments" description="Send payment links in chat. Money goes straight to your own Razorpay or Stripe account; we never touch it." />
       <div className="max-w-3xl space-y-6 p-6">
-        {sp.saved && <Alert tone="success">Connected. New payment links will use it.</Alert>}
+        {sp.saved === "1" && <Alert tone="success">Connected. New payment links will use it.</Alert>}
+        {sp.saved === "reminder" && <Alert tone="success">Reminder setting saved.</Alert>}
         {sp.error === "razorpay" && <Alert tone="danger">Check the Razorpay key ID (starts rzp_live_ or rzp_test_), key secret and webhook secret.</Alert>}
         {sp.error === "stripe" && <Alert tone="danger">Check the Stripe secret key (sk_ or rk_) and webhook signing secret (whsec_).</Alert>}
         {!rows.length && (
@@ -89,6 +90,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </Card>
           );
         })}
+        <Card className="p-5">
+          <form action={saveReminder} className="flex flex-wrap items-end gap-3">
+            <Field label="Remind unpaid customers after (hours)" htmlFor="reminderHours" hint="One reminder with the same link, sent in chat. 0 turns it off.">
+              <Input id="reminderHours" name="hours" type="number" min={0} max={168} defaultValue={org.paymentReminderHours} className="w-32" />
+            </Field>
+            <Button size="sm" variant="secondary">
+              Save
+            </Button>
+          </form>
+        </Card>
         <p className="text-xs text-muted">Keys are encrypted at rest. If both are connected, Razorpay is used.</p>
       </div>
     </>

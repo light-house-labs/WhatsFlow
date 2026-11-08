@@ -7,7 +7,8 @@ import { requireOrg } from "@/lib/auth";
 import { limitsFor } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
 import { Button, Card, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
-import { createFlow, toggleFlow } from "./actions";
+import { STARTERS } from "@/lib/starter-flows";
+import { createFlow, createFromStarter, toggleFlow } from "./actions";
 
 export const metadata: Metadata = { title: "Bot flows" };
 
@@ -31,6 +32,23 @@ export default async function Page() {
           )
         }
       />
+      {role !== "agent" && (
+        <details className="mx-6 mt-6 rounded-lg border border-line bg-surface" open={flows.length <= 1}>
+          <summary className="cursor-pointer px-5 py-3 text-sm font-medium">Start from a template</summary>
+          <div className="grid gap-3 px-5 pb-5 md:grid-cols-2 xl:grid-cols-4">
+            {Object.values(STARTERS).map((s) => (
+              <form key={s.key} action={createFromStarter} className="flex flex-col rounded-md border border-line p-3">
+                <input type="hidden" name="starter" value={s.key} />
+                <div className="text-sm font-medium">{s.name}</div>
+                <p className="mt-1 flex-1 text-xs text-muted">{s.description}</p>
+                <Button size="sm" variant="secondary" className="mt-3 self-start">
+                  Use this
+                </Button>
+              </form>
+            ))}
+          </div>
+        </details>
+      )}
       <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
         {flows.length === 0 && (
           <Card className="md:col-span-3">

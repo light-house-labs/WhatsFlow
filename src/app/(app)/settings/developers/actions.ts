@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { WEBHOOK_EVENTS, type WebhookEvent } from "@/db/schema";
+import { audit } from "@/lib/audit";
 import { requireOrg } from "@/lib/auth";
 import { encrypt, randomToken } from "@/lib/crypto";
 import { newApiKey } from "@/lib/api-auth";
@@ -48,6 +49,7 @@ export async function addWebhook(form: FormData) {
   if (!events.length) redirect("/settings/developers?error=Pick+at+least+one+event");
   const secret = `whsec_${randomToken(24)}`;
   await ctx.db.insert(schema.webhookEndpoints).values({ orgId: ctx.org.id, url, secretEnc: encrypt(secret), events });
+  await audit(ctx, "webhook.created", new URL(url).host, { events });
   await flashSecret(`Signing secret for ${new URL(url).host}`, secret);
   redirect("/settings/developers");
 }
@@ -64,6 +66,7 @@ export async function toggleWebhook(form: FormData) {
 export async function deleteWebhook(form: FormData) {
   const ctx = await requireOrg("admin");
   await ctx.db.delete(schema.webhookEndpoints).where(and(eq(schema.webhookEndpoints.id, String(form.get("id"))), eq(schema.webhookEndpoints.orgId, ctx.org.id)));
+  await audit(ctx, "webhook.deleted", String(form.get("id")));
   revalidatePath("/settings/developers");
 }
 

@@ -5,6 +5,7 @@ import { placeholderCount, render, resolveVariables, slugTemplateName, validateP
 import { toWaId } from "@/lib/phone";
 import { matchOption, triggerMatches, validateGraph } from "@/lib/flows/graph";
 import { starterFlow } from "@/lib/org-setup";
+import { STARTERS, starterFor } from "@/lib/starter-flows";
 import { overLimit } from "@/lib/plans";
 import { decrypt, encrypt, hashPassword, verifyPassword } from "@/lib/crypto";
 import { sandboxReview } from "@/lib/wa/sandbox";
@@ -46,12 +47,15 @@ describe("phone numbers", () => {
 });
 
 describe("flows", () => {
-  it("starter flow is valid", () => {
+  it("every industry starter flow is valid", () => {
     expect(validateGraph(starterFlow())).toEqual([]);
+    for (const s of Object.values(STARTERS)) expect(validateGraph(s.graph), s.key).toEqual([]);
+    expect(starterFor("Real estate").key).toBe("realestate");
+    expect(starterFor("Unknown").key).toBe("general");
   });
   it("catches broken graphs", () => {
     const g = starterFlow();
-    g.edges = g.edges.filter((e) => e.id !== "e5");
+    g.edges = g.edges.filter((e) => e.id !== "e-day-0");
     expect(validateGraph(g).join(" ")).toMatch(/never be reached/);
   });
   it("matches triggers and options", () => {

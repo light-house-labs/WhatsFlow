@@ -7,7 +7,7 @@ Account update messages on WhatsApp after sign up,auth,could,yes,no,consent text
 Connect WhatsApp Business number via Meta Embedded Signup,onboarding,must,yes,partial,S04; needs Meta Tech Provider approval - manual WABA ID + token fallback first; manual WABA ID + token connect; Embedded Signup needs Meta Tech Provider approval; phase 2: built behind META_APP_ID + META_ES_CONFIG_ID; needs Meta Tech Provider approval to test
 Number status card (pending verified connected failed),onboarding,must,yes,yes,S04 S43
 Workspace setup with industry and team invites,onboarding,must,yes,yes,S05
-Start from industry template flow,onboarding,should,yes,no,write our own templates
+Start from industry template flow,onboarding,should,yes,yes,write our own templates; our own 8 starters; picked by industry at sign-up
 Shared team inbox for all WhatsApp chats,inbox,must,yes,yes,S06
 Real-time new messages and status ticks,inbox,must,yes,yes,sent delivered read failed
 Assign chats to teammates,inbox,must,yes,yes,S06
@@ -23,7 +23,7 @@ Inbox filters and search,inbox,must,yes,yes,S06
 Close and reopen conversations,inbox,must,yes,yes,S06
 Mobile-friendly inbox,inbox,should,yes,partial,"desktop and mobile per src 3; responsive layout, not tuned below tablet width"
 Welcome and away messages with business hours,inbox,must,yes,yes,S34
-Route chats by topic or language,inbox,should,yes,no,S34
+Route chats by topic or language,inbox,should,yes,yes,S34; keyword or script-detected language; to a teammate or least busy; labels
 Contacts saved automatically on first message,contacts,must,yes,yes,S08
 Tags notes and custom fields on contacts,contacts,must,yes,yes,S09
 Contact profile with order count total last order birthday,contacts,should,yes,yes,S09
@@ -71,7 +71,7 @@ Node: assign to agent / handover,bots,must,yes,yes,S29
 Node: condition and save answer to field,bots,should,yes,yes,S29
 Node: look up data (order status catalog),bots,should,yes,yes,S29
 Node: offer booking slots,bots,should,yes,yes,S29 W02
-Test a flow before publishing,bots,should,yes,no,S29
+Test a flow before publishing,bots,should,yes,yes,S29
 Lead capture in bot (name phone requirement),bots,must,yes,yes,src 3
 Plan limit on number of flows,bots,must,yes,yes,3 on Growth
 AI agent trained on business details,ai,should,yes,yes,S30
@@ -90,7 +90,7 @@ Automatic order confirmation shipping delivery messages,orders,should,yes,yes,F0
 Order history on contact,orders,should,yes,yes,S09
 Payment links in chat (Stripe),payments,should,yes,yes,W04
 Razorpay payment links,payments,should,no,yes,our addition - India pricing in INR
-Payment reminders,payments,should,yes,partial,src 3; phase 2: build with an automation (order created -> wait -> if not paid); no dedicated reminder
+Payment reminders,payments,should,yes,yes,"src 3; phase 2: build with an automation (order created -> wait -> if not paid); no dedicated reminder; one reminder after N hours, per workspace"
 Payment status via webhook updates order,payments,should,yes,yes,F08
 Customers book reschedule cancel in WhatsApp,appointments,should,yes,yes,W02 F07
 Slots by service staff or branch,appointments,should,yes,yes,S20
@@ -101,11 +101,11 @@ Services hours team setup,appointments,should,yes,yes,S20
 Appointment limit per plan,appointments,should,yes,yes,250 single seat on Growth
 Automations list with run counter,automations,should,yes,yes,S31
 Automation builder When Then Wait If,automations,should,yes,yes,S32
-Triggers new chat new order payment sheet CRM,automations,should,yes,partial,"S32; phase 2: new chat, order created/paid, booking, lead won, no reply; no Google Sheets/CRM triggers"
+Triggers new chat new order payment sheet CRM,automations,should,yes,partial,"S32; phase 2: new chat, order created/paid, booking, lead won, no reply; no Google Sheets/CRM triggers; + store orders and abandoned carts; no Sheets/CRM"
 Follow-up for unanswered messages,automations,should,yes,yes,src 3
 Automation run activity log,automations,should,yes,yes,S33
-Shopify integration (orders customers abandoned carts),integrations,should,yes,no,S36
-WooCommerce integration,integrations,should,yes,no,S36
+Shopify integration (orders customers abandoned carts),integrations,should,yes,yes,"S36; signed webhooks; orders, customers, abandoned checkouts with consent"
+WooCommerce integration,integrations,should,yes,yes,S36; order created/updated webhooks
 Google Sheets sync for leads and bookings,integrations,should,yes,no,every minute per src 3
 Stripe integration,integrations,should,yes,yes,S36
 Meta Ads Click to WhatsApp tracking,integrations,could,yes,no,ad referral on inbound message
@@ -115,7 +115,7 @@ Pipedrive integration,integrations,could,yes,no,
 Salesforce integration,integrations,could,yes,no,
 monday.com integration,integrations,could,yes,no,
 Microsoft Dynamics 365 integration,integrations,could,yes,no,
-Connected apps counter and per-app sync settings,integrations,should,yes,no,S35 S36
+Connected apps counter and per-app sync settings,integrations,should,yes,yes,S35 S36; Settings → Connected apps
 Public REST API send template and session messages,api,should,yes,yes,S37
 API manage contacts and tags,api,should,yes,yes,S37
 API read conversations and message status,api,should,yes,yes,S37
@@ -131,9 +131,9 @@ Report export,analytics,could,yes,yes,S39
 Dashboard home KPIs,analytics,must,yes,yes,S40
 Team members and invites with seat limits,team,must,yes,yes,S41
 Roles and permissions,team,must,yes,yes,S41
-Audit log,team,could,yes,no,S42
+Audit log,team,could,yes,yes,S42; Settings → Audit log
 Data export contacts chats reports,team,could,yes,yes,S46
-WhatsApp profile settings (about logo address),settings,should,yes,partial,S43; display name shown; editing profile not built
+WhatsApp profile settings (about logo address),settings,should,yes,yes,"S43; display name shown; editing profile not built; about, description, address, email, website, category, photo"
 Quality rating and messaging tier display,settings,could,no,yes,our addition from Cloud API
 Plans Growth Scale Enterprise with feature gates,billing,must,yes,yes,S44
 Monthly and yearly billing,billing,must,yes,yes,yearly saves 20%
@@ -159,6 +159,5 @@ Number-safety guardrails: quality tier warnings cold-audience warning auto-pause
 Campaign cost preview and visible wallet; unused credit refundable,billing,should,no,partial,fix F6; cost preview yes; no wallet (Meta bills directly)
 14-day trial on Meta test number without forced sales call,onboarding,should,no,yes,fix F7
 AI template checker before Meta submission,templates,could,no,no,fix F8 - thin
-Test a bot flow before publishing,bots,should,yes,yes,Test button runs a draft on the sandbox phone
 API and sign-in rate limits,platform,should,no,yes,DB fixed window; 429 + Retry-After
 End-to-end browser tests,platform,could,no,yes,Playwright smoke spec in e2e/

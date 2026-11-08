@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireOrg } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 import { cancelSubscription, changePlan, resumeSubscription } from "@/lib/billing";
 import type { Plan } from "@/db/schema";
 import { sendMail } from "@/lib/mail";
@@ -12,6 +13,7 @@ export async function choosePlan(form: FormData) {
   const interval = form.get("interval") === "year" ? "year" : "month";
   if (plan !== "starter" && plan !== "team") redirect("/settings/billing");
   const r = await changePlan(ctx.db, ctx.org.id, ctx.user.id, plan, interval);
+  await audit(ctx, "plan.changed", plan, { interval, result: r.kind });
   redirect(`/settings/billing?done=${r.kind}`);
 }
 
@@ -19,6 +21,7 @@ export async function cancel(form: FormData) {
   const ctx = await requireOrg("owner");
   const reason = String(form.get("reason") ?? "") || null;
   const { endsAt } = await cancelSubscription(ctx.db, ctx.org.id, ctx.user.id, reason);
+  await audit(ctx, "plan.cancelled", ctx.org.plan);
   await sendMail(
     ctx.user.email,
     "Your WhatsFlow subscription is cancelled",
@@ -30,5 +33,6 @@ export async function cancel(form: FormData) {
 export async function resume() {
   const ctx = await requireOrg("owner");
   await resumeSubscription(ctx.db, ctx.org.id, ctx.user.id);
+  await audit(ctx, "plan.resumed", ctx.org.plan);
   redirect("/settings/billing?done=resumed");
 }

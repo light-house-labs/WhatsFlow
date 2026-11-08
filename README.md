@@ -94,9 +94,11 @@ See `replica/features.csv` (scored by `python3 .claude/skills/replica-diff/parit
 
 **Phase 2:** a product catalog with stock; orders from the inbox or a bot, with Razorpay or Stripe payment links, payment webhooks and status messages; appointments with services, capacity, hours, a day view, booking/rescheduling/cancelling inside WhatsApp and reminders; automations (when → wait → if → send/tag/assign) with an activity log; AI replies grounded in your business info, FAQs and catalog, with handover rules; analytics with date range, teammate and source breakdowns; the REST API and signed webhooks; file uploads; data export and workspace deletion; a “who's replying” indicator; tickets linked to orders; spreadsheet audiences for broadcasts; Embedded Signup (untested against Meta).
 
-**Not yet:** subscription billing through a real provider, Shopify/WooCommerce/Google Sheets/CRM integrations, Meta catalog sync and native product messages, industry starter flows.
+**Not yet:** subscription billing through a real provider, Google Sheets and CRM integrations (HubSpot, Zoho, Salesforce…), Meta catalog sync and native product messages, saved contact segments, white label.
 
 **Since Phase 2:** templates with image, video or document headers (the sample is uploaded to Meta for review, which needs `META_APP_ID`); a **Test** button in the bot builder that runs a draft flow on the sandbox phone; rate limits on the API and on sign-in; a Playwright smoke test of sign-up → sandbox → inbox → bot test.
+
+**Then:** a starter bot for each industry at sign-up, plus a template gallery in Bot flows; chat routing rules (by keyword or language, to a teammate or the least busy one, with labels); Shopify and WooCommerce order sync and Shopify abandoned-cart reminders through automations (Settings → Connected apps); a one-time reminder for unpaid payment links; WhatsApp business profile editing; an audit log of settings changes. Automation messages can use trigger details such as `{order_number}`, `{payment_link}` and `{cart_url}`.
 
 **Phase 3:** white label, CRM connectors, audit log UI, Click-to-WhatsApp ads and a mobile app.
 

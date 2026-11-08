@@ -8,6 +8,7 @@ import type { FlowEdge, FlowNode, FlowTrigger } from "@/db/schema";
 import { requireOrg } from "@/lib/auth";
 import { validateGraph } from "@/lib/flows/graph";
 import { limitsFor } from "@/lib/plans";
+import { STARTERS } from "@/lib/starter-flows";
 
 export async function createFlow() {
   const ctx = await requireOrg("admin");
@@ -25,6 +26,17 @@ export async function createFlow() {
         edges: [{ id: "e1", source: "t", target: "m1" }],
       },
     })
+    .returning();
+  redirect(`/bots/${f.id}`);
+}
+
+export async function createFromStarter(form: FormData) {
+  const ctx = await requireOrg("admin");
+  const starter = STARTERS[String(form.get("starter"))];
+  if (!starter) redirect("/bots");
+  const [f] = await ctx.db
+    .insert(schema.botFlows)
+    .values({ orgId: ctx.org.id, name: starter.name, status: "draft", trigger: starter.trigger, graph: structuredClone(starter.graph) })
     .returning();
   redirect(`/bots/${f.id}`);
 }

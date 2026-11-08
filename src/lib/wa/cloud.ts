@@ -76,16 +76,16 @@ function toCloudPayload(to: string, msg: Outbound): Record<string, unknown> {
 }
 
 /**
- * Meta reviews media headers from a sample file sent through its Resumable
+ * Template header samples and profile photos go through Meta's Resumable
  * Upload API, which belongs to the Meta app (META_APP_ID), not the WABA.
  */
 async function uploadSample(url: string, token: string): Promise<string> {
   const appId = process.env.META_APP_ID;
-  if (!appId) throw new Error("Set META_APP_ID to submit templates with an image, video or document header.");
+  if (!appId) throw new Error("Set META_APP_ID to upload images, videos or documents to Meta (template headers, profile photo).");
   const link = freshFileUrl(url);
   await assertPublicUrl(link);
   const file = await fetch(link, { cache: "no-store" });
-  if (!file.ok) throw new Error(`Couldn't download the header sample (${file.status}).`);
+  if (!file.ok) throw new Error(`Couldn't download the file for Meta (${file.status}).`);
   const bytes = Buffer.from(await file.arrayBuffer());
   const type = file.headers.get("content-type")?.split(";")[0] ?? "application/octet-stream";
   const session = await graph(`${appId}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(type)}`, token, { method: "POST" });
@@ -96,7 +96,7 @@ async function uploadSample(url: string, token: string): Promise<string> {
     cache: "no-store",
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, any>;
-  if (!res.ok || !json.h) throw new Error(json?.error?.message ?? "Meta didn't accept the header sample.");
+  if (!res.ok || !json.h) throw new Error(json?.error?.message ?? "Meta didn't accept the uploaded file.");
   return String(json.h);
 }
 
@@ -111,6 +111,19 @@ export function cloudProvider(cfg: Cfg): WhatsAppProvider {
         return { ok: true, waMessageId: json.messages?.[0]?.id };
       } catch (e) {
         return { ok: false, error: (e as Error).message };
+      }
+    },
+
+    async updateProfile(p) {
+      try {
+        const body: Record<string, unknown> = { messaging_product: "whatsapp" };
+        for (const k of ["about", "description", "address", "email", "vertical"] as const) if (p[k] !== undefined) body[k] = p[k];
+        if (p.website !== undefined) body.websites = p.website ? [p.website] : [];
+        if (p.photoUrl) body.profile_picture_handle = await uploadSample(p.photoUrl, cfg.accessToken);
+        await graph(`${cfg.phoneNumberId}/whatsapp_business_profile`, cfg.accessToken, { method: "POST", body });
+        return { ok: true as const };
+      } catch (e) {
+        return { ok: false as const, error: (e as Error).message };
       }
     },
 

@@ -1,9 +1,10 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 import type { OrderItem, OrderStatus } from "@/db/schema";
 import { formatMoney, limitsFor } from "./plans";
 import { emit } from "./events";
+import { enqueue } from "./jobs";
 import { createPaymentLink } from "./payments";
 import { sendInConversation, SendError } from "./wa/outbound";
 
@@ -75,8 +76,19 @@ export async function createOrder(
     return row;
   });
   await logOrder(d, order.id, "created", `${items.length} item(s), ${formatMoney(order.totalMinor, currency)}`, o.actorId);
-  await emit(d, o.orgId, "order.created", { order: orderJson(order) }, { contactId: order.contactId, conversationId: order.conversationId, key: `order:${order.id}` });
+  await emit(d, o.orgId, "order.created", { order: orderJson(order) }, { contactId: order.contactId, conversationId: order.conversationId, key: `order:${order.id}`, vars: orderVars(order) });
   return order;
+}
+
+export function orderVars(o: typeof schema.orders.$inferSelect): Record<string, string> {
+  // store orders keep the store's own number, e.g. Shopify's #1042, in their note
+  const storeOrder = o.externalId ? o.notes?.match(/ order (\S+)$/)?.[1] : undefined;
+  return {
+    order_number: String(o.number),
+    order_total: formatMoney(o.totalMinor, o.currency),
+    ...(o.paymentUrl ? { payment_link: o.paymentUrl } : {}),
+    ...(storeOrder ? { store_order: storeOrder } : {}),
+  };
 }
 
 export function orderJson(o: typeof schema.orders.$inferSelect) {
@@ -140,8 +152,28 @@ export async function sendPaymentLink(d: DB, orderId: string, opts: { senderKind
       { senderKind: opts.senderKind, senderUserId: opts.actorId ?? null },
     );
     await d.update(schema.orders).set({ paymentStatus: "link_sent", updatedAt: new Date() }).where(and(eq(schema.orders.id, order.id), eq(schema.orders.paymentStatus, "unpaid")));
+    const [org] = await d.select({ hours: schema.orgs.paymentReminderHours }).from(schema.orgs).where(eq(schema.orgs.id, order.orgId));
+    if (org?.hours) await enqueue(d, "order.payment_reminder", { orderId: order.id, sentAt: Date.now() }, org.hours * 3600_000);
   }
   return url;
+}
+
+/**
+ * One nudge for a payment link that is still unpaid. Skipped if the order was
+ * paid or cancelled, or the link was re-sent since (that send queued its own).
+ */
+export async function remindPayment(d: DB, orderId: string, sentAt: number) {
+  const [order] = await d.select().from(schema.orders).where(eq(schema.orders.id, orderId)).limit(1);
+  if (!order || order.paymentStatus === "paid" || order.status === "cancelled" || !order.paymentUrl) return false;
+  const [last] = await d
+    .select({ at: schema.orderEvents.createdAt })
+    .from(schema.orderEvents)
+    .where(and(eq(schema.orderEvents.orderId, orderId), eq(schema.orderEvents.kind, "payment_reminder")))
+    .orderBy(desc(schema.orderEvents.createdAt))
+    .limit(1);
+  if (last && last.at.getTime() > sentAt) return false;
+  await logOrder(d, order.id, "payment_reminder", "Reminder sent for the unpaid payment link");
+  return notify(d, order, `A gentle reminder: order #${order.number} (${formatMoney(order.totalMinor, order.currency)}) is waiting for payment.\n\nPay here: ${order.paymentUrl}\n\nReply here if you'd like to change anything.`);
 }
 
 /** Record a payment. Idempotent: a repeated webhook does nothing. */
@@ -159,7 +191,7 @@ export async function markPaid(d: DB, orderId: string, source: string) {
   if (!order) return false;
   await logOrder(d, order.id, "paid", `Payment received via ${source}`);
   await notify(d, order, `Payment received for order #${order.number}. Thank you! We'll let you know when it ships.`);
-  await emit(d, order.orgId, "order.paid", { order: orderJson(order) }, { contactId: order.contactId, conversationId: order.conversationId, key: `order-paid:${order.id}` });
+  await emit(d, order.orgId, "order.paid", { order: orderJson(order) }, { contactId: order.contactId, conversationId: order.conversationId, key: `order-paid:${order.id}`, vars: orderVars(order) });
   return true;
 }
 

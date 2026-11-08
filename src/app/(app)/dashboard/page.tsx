@@ -72,7 +72,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
             <h2 className="font-semibold">Get going in three steps</h2>
             <ol className="mt-3 space-y-2 text-sm">
               <li>
-                <span className={liveFlows.length ? "line-through text-muted" : ""}>1. Set your Welcome menu bot live</span> — <Link className="text-accent" href="/bots">Bot flows</Link>
+                <span className={liveFlows.length ? "line-through text-muted" : ""}>1. Set your starter bot live</span> — <Link className="text-accent" href="/bots">Bot flows</Link>
               </li>
               <li>
                 2. Message your business from the <Link className="text-accent" href="/sandbox">sandbox phone</Link> and reply from the <Link className="text-accent" href="/inbox">inbox</Link>

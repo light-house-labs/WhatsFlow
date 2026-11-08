@@ -17,7 +17,7 @@ export async function moveLead(leadId: string, stageId: string) {
     .where(and(eq(schema.leads.id, leadId), eq(schema.leads.orgId, ctx.org.id)))
     .returning();
   if (lead && stage.kind === "won") {
-    await startAutomations(ctx.db, ctx.org.id, "lead_won", { contactId: lead.contactId, conversationId: lead.conversationId, key: `lead-won:${lead.id}` });
+    await startAutomations(ctx.db, ctx.org.id, "lead_won", { contactId: lead.contactId, conversationId: lead.conversationId, key: `lead-won:${lead.id}`, vars: { lead_title: lead.title } });
     kickJobs(ctx.db);
   }
   revalidatePath("/pipeline");

@@ -4,16 +4,17 @@ import { eq } from "drizzle-orm";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { providerFor, type HealthCheck } from "@/lib/wa";
+import { PROFILE_VERTICALS, providerFor, type HealthCheck } from "@/lib/wa";
 import { timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, Card, PageHeader, StatusBadge } from "@/components/ui";
-import { disconnectNumber, fixSubscription } from "../actions";
+import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, StatusBadge, Textarea } from "@/components/ui";
+import { UploadField } from "@/components/upload-field";
+import { disconnectNumber, fixSubscription, saveProfile } from "../actions";
 import { ConnectForm } from "./connect-form";
 import { EmbeddedSignup } from "./embedded-signup";
 
 export const metadata: Metadata = { title: "WhatsApp numbers" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ n?: string; disconnected?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ n?: string; disconnected?: string; profileSaved?: string; profileError?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
   const numbers = await d.select().from(schema.waNumbers).where(eq(schema.waNumbers.orgId, org.id));
@@ -99,6 +100,46 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                   </div>
                 </>
               )}
+            </Card>
+          )}
+
+          {current && current.status !== "disconnected" && (
+            <Card id="profile" className="p-5">
+              <h2 className="font-semibold">Business profile · {current.displayPhone}</h2>
+              <p className="mb-4 text-sm text-muted">What customers see when they tap your name in WhatsApp.{current.provider === "sandbox" ? " Sandbox numbers just save it here." : ""}</p>
+              {sp.profileSaved && <Alert tone="success">Profile updated.</Alert>}
+              {sp.profileError && <Alert tone="danger">{sp.profileError}</Alert>}
+              <form action={saveProfile} className="mt-3 space-y-4">
+                <input type="hidden" name="id" value={current.id} />
+                <Field label="About" htmlFor="about" hint="Up to 139 characters, shown under your name.">
+                  <Input id="about" name="about" maxLength={139} defaultValue={current.profile.about ?? ""} required />
+                </Field>
+                <Field label="Description" htmlFor="description">
+                  <Textarea id="description" name="description" maxLength={512} rows={3} defaultValue={current.profile.description ?? ""} />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Address" htmlFor="address">
+                    <Input id="address" name="address" maxLength={256} defaultValue={current.profile.address ?? ""} />
+                  </Field>
+                  <Field label="Category" htmlFor="vertical">
+                    <Select id="vertical" name="vertical" defaultValue={current.profile.vertical ?? "OTHER"}>
+                      {Object.entries(PROFILE_VERTICALS).map(([k, label]) => (
+                        <option key={k} value={k}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="Email" htmlFor="pemail">
+                    <Input id="pemail" name="email" type="email" maxLength={128} defaultValue={current.profile.email ?? ""} />
+                  </Field>
+                  <Field label="Website" htmlFor="website">
+                    <Input id="website" name="website" maxLength={256} placeholder="https://" defaultValue={current.profile.website ?? ""} />
+                  </Field>
+                </div>
+                <UploadField name="photoUrl" label="Profile photo (square JPG or PNG, optional)" accept="image/jpeg,image/png" defaultValue={current.profile.photoUrl ?? ""} />
+                <Button>Save profile</Button>
+              </form>
             </Card>
           )}
         </div>

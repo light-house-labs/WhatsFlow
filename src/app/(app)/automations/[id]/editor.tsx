@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, X } from "lucide-react";
 import type { AutomationStep, AutomationTrigger } from "@/db/schema";
 import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { saveAutomation } from "../actions";
-import { TRIGGER_LABEL } from "../labels";
+import { TRIGGER_LABEL, TRIGGER_VARS } from "../labels";
 
 type State = { name: string; trigger: AutomationTrigger; minutes: number; steps: AutomationStep[]; live: boolean };
 
@@ -100,18 +100,27 @@ export function Editor({ id, initial, templates, team }: { id: string; initial: 
               rows={3}
               value={step.text}
               onChange={(e) => setStep(i, { ...step, text: e.target.value })}
-              placeholder="Use {name} for the customer's name. Free text only reaches people who messaged you in the last 24 hours; use a template for later."
+              placeholder={`Use ${TRIGGER_VARS[s.trigger].map((v) => `{${v}}`).join(", ")}. Free text only reaches people who messaged you in the last 24 hours; use a template for later.`}
             />
           )}
           {step.type === "send_template" && (
-            <Select aria-label="Template" value={step.templateId} onChange={(e) => setStep(i, { ...step, templateId: e.target.value })}>
-              <option value="">Choose an approved template…</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </Select>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Select aria-label="Template" value={step.templateId} onChange={(e) => setStep(i, { ...step, templateId: e.target.value })}>
+                <option value="">Choose an approved template…</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                aria-label="Template variables"
+                value={(step.variables ?? ["name"]).join(", ")}
+                onChange={(e) => setStep(i, { ...step, variables: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) })}
+                placeholder="name, order_number"
+                title={`Fills {{1}}, {{2}}… in order. Available: ${TRIGGER_VARS[s.trigger].join(", ")}`}
+              />
+            </div>
           )}
           {(step.type === "add_tag" || step.type === "if_tag") && (
             <Input aria-label="Tag" value={step.tag} onChange={(e) => setStep(i, { ...step, tag: e.target.value.toLowerCase() })} placeholder="vip" />

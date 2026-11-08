@@ -1,4 +1,4 @@
-import type { TemplateButton, TemplateHeaderType } from "@/db/schema";
+import type { BusinessProfile, TemplateButton, TemplateHeaderType } from "@/db/schema";
 
 export type TemplateRef = {
   name: string;
@@ -28,6 +28,8 @@ export interface WhatsAppProvider {
   submitTemplate(t: TemplateRef): Promise<{ ok: true; id: string } | { ok: false; error: string }>;
   templateStatus(id: string): Promise<{ status: "pending" | "approved" | "rejected"; reason?: string } | null>;
   health(): Promise<HealthCheck[]>;
+  /** Change the business profile customers see in WhatsApp. */
+  updateProfile(p: BusinessProfile): Promise<{ ok: true } | { ok: false; error: string }>;
   /** Download an inbound media file. Null if the provider has no media for this id. */
   fetchMedia(mediaId: string): Promise<{ body: ArrayBuffer; contentType: string } | null>;
 }
@@ -60,3 +62,23 @@ export const MAX_LIST_ROW_CHARS = 24;
 export function isMediaHeader(t: Pick<TemplateRef, "headerType">): t is { headerType: "image" | "video" | "document" } {
   return t.headerType === "image" || t.headerType === "video" || t.headerType === "document";
 }
+
+/** Business categories Meta accepts on a WhatsApp profile, with our labels. */
+export const PROFILE_VERTICALS: Record<string, string> = {
+  OTHER: "Other",
+  AUTO: "Automotive",
+  BEAUTY: "Beauty, spa and salon",
+  APPAREL: "Clothing",
+  EDU: "Education",
+  ENTERTAIN: "Entertainment",
+  EVENT_PLAN: "Event planning",
+  FINANCE: "Finance",
+  GROCERY: "Grocery",
+  HOTEL: "Hotel and lodging",
+  HEALTH: "Medical and health",
+  NONPROFIT: "Non-profit",
+  PROF_SERVICES: "Professional services",
+  RETAIL: "Shopping and retail",
+  TRAVEL: "Travel",
+  RESTAURANT: "Restaurant",
+};

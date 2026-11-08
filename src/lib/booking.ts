@@ -183,7 +183,12 @@ export async function bookAppointment(
     a.orgId,
     "appointment.booked",
     { appointment: { id: appt.id, service: svc.name, startAt: appt.startAt.toISOString(), endAt: appt.endAt.toISOString(), contactId: a.contactId } },
-    { contactId: a.contactId, conversationId: a.conversationId, key: `appointment:${appt.id}` },
+    {
+      contactId: a.contactId,
+      conversationId: a.conversationId,
+      key: `appointment:${appt.id}`,
+      vars: { service: svc.name, appointment_time: slotLabel(appt.startAt, (await d.select({ tz: schema.orgs.timezone }).from(schema.orgs).where(eq(schema.orgs.id, a.orgId)))[0]?.tz ?? "Asia/Kolkata") },
+    },
   );
   kickJobs(d);
   return { appt, service: svc };

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import type { BusinessHours, Role } from "@/db/schema";
+import { audit } from "@/lib/audit";
+import { PROFILE_VERTICALS, providerFor } from "@/lib/wa";
 import { requireOrg } from "@/lib/auth";
 import { encrypt, randomToken, sha256 } from "@/lib/crypto";
 import { limitsFor } from "@/lib/plans";
@@ -74,6 +76,7 @@ export async function invite(_: InviteState, form: FormData): Promise<InviteStat
   if (Number(members.n) >= seats) return { error: `Your plan includes ${seats} team members. Upgrade or remove someone first.` };
   const token = randomToken(24);
   await ctx.db.insert(schema.invites).values({ orgId: ctx.org.id, email, role, tokenHash: sha256(token), invitedBy: ctx.user.id });
+  await audit(ctx, "team.invited", email, { role });
   revalidatePath("/settings/team");
   return { link: `${process.env.APP_URL ?? "http://localhost:3000"}/invite/${token}` };
 }
@@ -87,6 +90,7 @@ export async function changeRole(form: FormData) {
   const [target] = await ctx.db.select().from(schema.memberships).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId))).limit(1);
   if (target?.role === "owner" && ctx.role !== "owner") redirect("/settings/team?error=owner");
   await ctx.db.update(schema.memberships).set({ role }).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId)));
+  await audit(ctx, "team.role_changed", userId, { from: target?.role, to: role });
   revalidatePath("/settings/team");
 }
 
@@ -100,6 +104,7 @@ export async function removeMember(form: FormData) {
   // their open chats go back to the unassigned queue
   await ctx.db.update(schema.conversations).set({ assigneeId: null }).where(and(eq(schema.conversations.orgId, ctx.org.id), eq(schema.conversations.assigneeId, userId)));
   await ctx.db.delete(schema.memberships).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId)));
+  await audit(ctx, "team.removed", userId, { role: target.role });
   revalidatePath("/settings/team");
 }
 
@@ -157,6 +162,7 @@ async function saveCloudNumber(ctx: Awaited<ReturnType<typeof requireOrg>>, phon
       qualityRating: checks.find((c) => c.id === "quality")?.detail.split(" ")[0] ?? null,
     })
     .returning();
+  await audit(ctx, "number.connected", n.displayPhone);
   redirect(`/settings/whatsapp?n=${n.id}`);
 }
 
@@ -206,4 +212,33 @@ export async function disconnectNumber(form: FormData) {
     .where(and(eq(schema.waNumbers.id, id), eq(schema.waNumbers.orgId, ctx.org.id), eq(schema.waNumbers.provider, "cloud")));
   await ctx.db.insert(schema.auditLog).values({ orgId: ctx.org.id, actorId: ctx.user.id, action: "number.disconnected", target: id });
   redirect("/settings/whatsapp?disconnected=1");
+}
+
+// ---------- business profile ----------
+
+export async function saveProfile(form: FormData) {
+  const ctx = await requireOrg("admin");
+  const id = String(form.get("id"));
+  const [n] = await ctx.db.select().from(schema.waNumbers).where(and(eq(schema.waNumbers.id, id), eq(schema.waNumbers.orgId, ctx.org.id))).limit(1);
+  if (!n) return;
+  const v = (k: string, max: number) => String(form.get(k) ?? "").trim().slice(0, max);
+  const back = (msg: string) => redirect(`/settings/whatsapp?n=${id}&profileError=${encodeURIComponent(msg)}`);
+  const profile = {
+    about: v("about", 139),
+    description: v("description", 512),
+    address: v("address", 256),
+    email: v("email", 128),
+    website: v("website", 256),
+    vertical: v("vertical", 20) in PROFILE_VERTICALS ? v("vertical", 20) : "OTHER",
+    photoUrl: v("photoUrl", 2000) || undefined,
+  };
+  if (profile.email && !/^\S+@\S+\.\S+$/.test(profile.email)) back("Enter a valid email, or leave it empty.");
+  if (profile.website && !/^https?:\/\/\S+$/.test(profile.website)) back("Websites need to start with https://");
+  if (!profile.about) back("Write a short About line. WhatsApp shows it under your name.");
+  // only send the photo to Meta when it changed
+  const r = await providerFor(n).updateProfile({ ...profile, photoUrl: profile.photoUrl !== n.profile.photoUrl ? profile.photoUrl : undefined });
+  if (!r.ok) back(`Meta didn't accept it: ${r.error}`);
+  await ctx.db.update(schema.waNumbers).set({ profile }).where(eq(schema.waNumbers.id, n.id));
+  await audit(ctx, "profile.updated", n.displayPhone);
+  redirect(`/settings/whatsapp?n=${id}&profileSaved=1`);
 }

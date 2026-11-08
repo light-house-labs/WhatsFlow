@@ -2,6 +2,7 @@ import type { DB } from "@/db";
 import { schema } from "@/db";
 import { DEFAULT_HOURS } from "./hours";
 import { randomToken } from "./crypto";
+import { STARTERS, starterFor } from "./starter-flows";
 
 export const INDUSTRIES = [
   "Clinic or healthcare",
@@ -66,43 +67,13 @@ export async function createWorkspace(d: DB, userId: string, name: string, indus
       { orgId: org.id, shortcut: "hours", body: "We're open Monday to Friday 9am–6pm and Saturday 10am–2pm." },
       { orgId: org.id, shortcut: "thanks", body: "Thank you! Is there anything else we can help with?" },
     ]);
-    await tx.insert(schema.botFlows).values({
-      orgId: org.id,
-      name: "Welcome menu",
-      status: "draft",
-      trigger: { kind: "keyword", keywords: ["hi", "hello", "menu"] },
-      graph: starterFlow(),
-    });
+    const starter = starterFor(industry);
+    await tx.insert(schema.botFlows).values({ orgId: org.id, name: starter.name, status: "draft", trigger: starter.trigger, graph: starter.graph });
     return org;
   });
 }
 
+/** The general-purpose starter, used when the industry has no flow of its own. */
 export function starterFlow() {
-  return {
-    nodes: [
-      { id: "t", type: "trigger" as const, position: { x: 40, y: 140 }, data: {} },
-      {
-        id: "m1",
-        type: "buttons" as const,
-        position: { x: 300, y: 120 },
-        data: { text: "Hi! What can we help you with?", buttons: ["Prices", "Book a visit", "Talk to us"] },
-      },
-      { id: "m2", type: "message" as const, position: { x: 620, y: 20 }, data: { text: "Our price list: …" } },
-      {
-        id: "q1",
-        type: "question" as const,
-        position: { x: 620, y: 160 },
-        data: { text: "Great! What day suits you?", saveAs: "preferred_day" },
-      },
-      { id: "l1", type: "lead" as const, position: { x: 900, y: 160 }, data: { title: "Visit request" } },
-      { id: "h1", type: "handover" as const, position: { x: 620, y: 300 }, data: { text: "Connecting you to our team now." } },
-    ],
-    edges: [
-      { id: "e1", source: "t", target: "m1" },
-      { id: "e2", source: "m1", target: "m2", sourceHandle: "0" },
-      { id: "e3", source: "m1", target: "q1", sourceHandle: "1" },
-      { id: "e4", source: "m1", target: "h1", sourceHandle: "2" },
-      { id: "e5", source: "q1", target: "l1" },
-    ],
-  };
+  return structuredClone(STARTERS.general.graph);
 }

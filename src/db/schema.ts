@@ -10,6 +10,7 @@ import {
   index,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
 const createdAt = () =>
@@ -82,6 +83,8 @@ export const orgs = pgTable("orgs", {
   cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
   pendingPlan: text("pending_plan").$type<Plan>(),
   timezone: text("timezone").notNull().default("Asia/Kolkata"),
+  /** Hours after a payment link is sent to remind an unpaid customer once. 0 turns it off. */
+  paymentReminderHours: integer("payment_reminder_hours").notNull().default(24),
   createdAt: createdAt(),
 });
 
@@ -119,6 +122,8 @@ export const invites = pgTable(
 
 // ---------- whatsapp ----------
 
+export type BusinessProfile = { about?: string; description?: string; address?: string; email?: string; website?: string; vertical?: string; photoUrl?: string };
+
 export const waNumbers = pgTable(
   "wa_numbers",
   {
@@ -142,6 +147,8 @@ export const waNumbers = pgTable(
     messagingTier: text("messaging_tier"),
     lastWebhookAt: ts("last_webhook_at"),
     lastCheckedAt: ts("last_checked_at"),
+    /** What customers see on the business's WhatsApp profile; mirrored to Meta for Cloud API numbers. */
+    profile: jsonb("profile").$type<BusinessProfile>().notNull().default({}),
     createdAt: createdAt(),
   },
   (t) => [index().on(t.orgId), index().on(t.phoneNumberId)],
@@ -684,6 +691,8 @@ export const orders = pgTable(
     paymentUrl: text("payment_url"),
     paidAt: ts("paid_at"),
     source: text("source").notNull().default("inbox"),
+    /** The order's id in Shopify or WooCommerce, for orders synced from a store. */
+    externalId: text("external_id"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -693,6 +702,7 @@ export const orders = pgTable(
     index().on(t.orgId, t.createdAt),
     index().on(t.contactId),
     index().on(t.paymentRef),
+    uniqueIndex("orders_org_source_external_idx").on(t.orgId, t.source, t.externalId).where(sql`${t.externalId} is not null`),
   ],
 );
 
@@ -712,6 +722,7 @@ export const orderEvents = pgTable(
 );
 
 export type PaymentProviderKind = "sandbox" | "razorpay" | "stripe";
+export type StoreKind = "shopify" | "woocommerce";
 
 /** Per-workspace credentials for third-party services. Secrets are encrypted at rest. */
 export const integrations = pgTable(
@@ -721,7 +732,7 @@ export const integrations = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<PaymentProviderKind | "google_sheets">().notNull(),
+    kind: text("kind").$type<PaymentProviderKind | StoreKind | "google_sheets">().notNull(),
     configEnc: text("config_enc").notNull(),
     /** Non-secret display info, e.g. the key id's last 4 characters. */
     label: text("label"),
@@ -800,12 +811,14 @@ export type AutomationTrigger =
   | "order_paid"
   | "appointment_booked"
   | "lead_won"
-  | "no_reply";
+  | "no_reply"
+  | "cart_abandoned";
 
 export type AutomationStep =
   | { type: "wait"; minutes: number }
   | { type: "send_text"; text: string }
-  | { type: "send_template"; templateId: string }
+  /** variables fill {{1}}, {{2}}…: "name", or a key from the trigger such as "order_number" or "cart_url" */
+  | { type: "send_template"; templateId: string; variables?: string[] }
   | { type: "add_tag"; tag: string }
   | { type: "assign"; userId: string }
   | { type: "if_tag"; tag: string };
@@ -851,6 +864,8 @@ export const automationRuns = pgTable(
     step: integer("step").notNull().default(0),
     status: text("status").$type<"running" | "waiting" | "done" | "stopped" | "failed">().notNull().default("running"),
     log: jsonb("log").$type<RunLogEntry[]>().notNull().default([]),
+    /** Details from the trigger, e.g. order_number or cart_url, for messages to use. */
+    vars: jsonb("vars").$type<Record<string, string>>().notNull().default({}),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -908,6 +923,7 @@ export const WEBHOOK_EVENTS = [
   "order.updated",
   "appointment.booked",
   "appointment.cancelled",
+  "cart.abandoned",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
@@ -994,4 +1010,52 @@ export const rateLimits = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.bucket, t.windowStart] }), index().on(t.windowStart)],
+);
+
+/** Sends new chats to the right person by what the customer wrote or the language they wrote in. */
+export const routingRules = pgTable(
+  "routing_rules",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    match: text("match").$type<"keyword" | "language">().notNull(),
+    /** Keywords, or language codes like "hi" and "ml". */
+    values: text("values").array().notNull(),
+    /** Who gets it: one teammate, or whichever eligible teammate has the fewest open chats. */
+    assignMode: text("assign_mode").$type<"user" | "least_busy" | "none">().notNull().default("none"),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    label: text("label"),
+    active: boolean("active").notNull().default(true),
+    hits: integer("hits").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orgId, t.position)],
+);
+
+
+/** Shopify checkouts that may become abandoned carts. */
+export const abandonedCarts = pgTable(
+  "abandoned_carts",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    source: text("source").$type<StoreKind>().notNull(),
+    /** The checkout token; the order that completes it carries the same token. */
+    externalId: text("external_id").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+    url: text("url"),
+    totalMinor: integer("total_minor").notNull().default(0),
+    currency: text("currency").notNull().default("INR"),
+    acceptsMarketing: boolean("accepts_marketing").notNull().default(false),
+    completedAt: ts("completed_at"),
+    remindedAt: ts("reminded_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("abandoned_carts_org_source_ext_idx").on(t.orgId, t.source, t.externalId)],
 );

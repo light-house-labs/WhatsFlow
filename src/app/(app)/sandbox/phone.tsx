@@ -106,7 +106,7 @@ export function SandboxPhone({
               {s}
             </button>
           ))}
-          <p className="pt-2 text-xs">“hi” runs the Welcome menu bot once you set it live in Bot flows.</p>
+          <p className="pt-2 text-xs">“hi” runs your starter bot once you set it live in Bot flows.</p>
         </div>
       </div>
 

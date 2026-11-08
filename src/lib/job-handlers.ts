@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, sql, arrayOverlaps } from "drizzle-orm";
-import { schema } from "@/db";
+import { schema, type DB } from "@/db";
 import { registerJob, enqueue } from "./jobs";
 import { applyStatus, sendInConversation } from "./wa/outbound";
 import { sandboxReview } from "./wa/sandbox";
@@ -7,6 +7,8 @@ import { providerFor } from "./wa";
 import { placeholderCount, resolveVariables } from "./template-render";
 import { processPeriodEnds } from "./billing";
 import { pruneRateLimits } from "./rate-limit";
+import { checkAbandonedCart } from "./stores";
+import { remindPayment } from "./orders";
 import { decrypt } from "./crypto";
 import { signWebhook } from "./webhooks-out";
 import { assertPublicUrl } from "./net-guard";
@@ -179,6 +181,14 @@ registerJob("billing.period_end", async (d) => {
   await processPeriodEnds(d);
 });
 
+registerJob("order.payment_reminder", async (d, p) => {
+  await remindPayment(d, p.orderId, Number(p.sentAt));
+});
+
+registerJob("store.cart_check", async (d, p) => {
+  await checkAbandonedCart(d, p.cartId);
+});
+
 registerJob("ratelimits.prune", async (d) => {
   await pruneRateLimits(d);
 });
@@ -295,16 +305,24 @@ registerJob("automation.step", async (d, p) => {
         note(i, true, "Assigned conversation");
         continue;
       }
+      // a template can open a chat with someone who came from a store; free text can't
+      if (!convId && s.type === "send_template" && contact) convId = await openConversation(d, run.orgId, contact.id);
       if (!convId) throw new SendError("No WhatsApp conversation with this contact yet");
+      // {name} in free text is the full name, as before; templates get the first name
+      const vars: Record<string, string> = { name: contact?.name || "there", ...run.vars };
       if (s.type === "send_text") {
-        const body = s.text.replace(/\{name\}/g, contact?.name ?? "there");
+        const body = s.text.replace(/\{(\w+)\}/g, (all, k: string) => vars[k] ?? all);
         const m = await sendInConversation(d, convId, { kind: "text", body }, { senderKind: "system" });
         if (m.status === "failed") throw new SendError(m.error ?? "Send failed");
         note(i, true, "Sent message");
       } else if (s.type === "send_template") {
         const [tpl] = await d.select().from(schema.templates).where(and(eq(schema.templates.id, s.templateId), eq(schema.templates.orgId, run.orgId), eq(schema.templates.status, "approved")));
         if (!tpl) throw new SendError("Template missing or not approved");
-        const m = await sendInConversation(d, convId, { kind: "template", template: tpl, variables: resolveVariables({ "1": "name" }, placeholderCount(tpl.body), contact) }, { senderKind: "system", templateId: tpl.id });
+        const names = s.variables?.length ? s.variables : ["name"];
+        const tplVars: Record<string, string> = { ...vars, name: contact?.name?.split(" ")[0] || "there" };
+        const variables = Array.from({ length: placeholderCount(tpl.body) }, (_, j) => tplVars[names[j] ?? ""] ?? "");
+        if (variables.some((v) => !v)) throw new SendError(`Template needs ${placeholderCount(tpl.body)} values; set them on this step (available: ${Object.keys(tplVars).join(", ")})`);
+        const m = await sendInConversation(d, convId, { kind: "template", template: tpl, variables }, { senderKind: "system", templateId: tpl.id });
         if (m.status === "failed") throw new SendError(m.error ?? "Send failed");
         note(i, true, `Sent template ${tpl.name}`);
       }
@@ -320,6 +338,21 @@ registerJob("automation.step", async (d, p) => {
     .set({ step: status === "waiting" ? i : i, status: status === "waiting" ? "waiting" : status, log, conversationId: convId, updatedAt: new Date() })
     .where(eq(schema.automationRuns.id, run.id));
 });
+
+/** Find or start a chat with a contact on the workspace's best number: a connected Cloud API number, else the sandbox. */
+async function openConversation(d: DB, orgId: string, contactId: string) {
+  const [existing] = await d.select({ id: schema.conversations.id }).from(schema.conversations).where(eq(schema.conversations.contactId, contactId)).limit(1);
+  if (existing) return existing.id;
+  const numbers = await d.select().from(schema.waNumbers).where(and(eq(schema.waNumbers.orgId, orgId), inArray(schema.waNumbers.status, ["connected", "pending"])));
+  const number = numbers.find((n) => n.provider === "cloud") ?? numbers.find((n) => n.provider === "sandbox");
+  if (!number) return null;
+  const [conv] = await d
+    .insert(schema.conversations)
+    .values({ orgId, contactId, numberId: number.id, handledBy: "human", status: "open" })
+    .onConflictDoNothing()
+    .returning({ id: schema.conversations.id });
+  return conv?.id ?? null;
+}
 
 // "No reply" automations: our last message went unanswered for N minutes.
 registerJob("automation.no_reply", async (d) => {

@@ -6,6 +6,7 @@ import { isOpen } from "@/lib/hours";
 import { runBot } from "@/lib/flows/engine";
 import { aiReply } from "@/lib/ai";
 import { emit } from "@/lib/events";
+import { routeConversation } from "@/lib/routing";
 import { availableSlots, bookAppointment, BookingError, cancelAppointment, nextAppointment, slotLabel } from "@/lib/booking";
 import { sendInConversation, windowOpen } from "./outbound";
 import type { WaNumber } from "./index";
@@ -131,6 +132,9 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, 
   if (m.text.trim().toUpperCase() === "START" && contact.optedOutAt) {
     await d.update(schema.contacts).set({ optedOutAt: null }).where(eq(schema.contacts.id, contact.id));
   }
+
+  // reopened chats were unassigned above, so they get routed again
+  if (isNewThread && (!existing?.assigneeId || existing.status === "closed")) await routeConversation(d, orgId, conv.id, m.text);
 
   if (isNewThread) {
     await emit(d, orgId, "conversation.started", { conversation: { id: conv.id, contactId: contact.id, from: m.from } }, { contactId: contact.id, conversationId: conv.id, key: `conv:${conv.id}:${now.getTime()}` });

@@ -18,6 +18,9 @@ export function sandboxProvider(): WhatsAppProvider {
     async fetchMedia() {
       return null;
     },
+    async updateProfile() {
+      return { ok: true as const }; // saved on the number; nothing to push
+    },
     async templateStatus() {
       return null; // reviewed by the sandbox.template_review job
     },

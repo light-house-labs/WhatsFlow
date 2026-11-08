@@ -38,3 +38,11 @@ export async function removePaymentProvider(form: FormData) {
   await ctx.db.insert(schema.auditLog).values({ orgId: ctx.org.id, actorId: ctx.user.id, action: "payments.removed", target: kind });
   revalidatePath("/settings/payments");
 }
+
+export async function saveReminder(form: FormData) {
+  const ctx = await requireOrg("admin");
+  const hours = Math.min(168, Math.max(0, Math.round(Number(form.get("hours")) || 0)));
+  await ctx.db.update(schema.orgs).set({ paymentReminderHours: hours }).where(eq(schema.orgs.id, ctx.org.id));
+  revalidatePath("/settings/payments");
+  redirect("/settings/payments?saved=reminder");
+}
