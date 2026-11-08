@@ -315,7 +315,7 @@ export const templates = pgTable(
   (t) => [uniqueIndex("templates_org_name_lang_idx").on(t.orgId, t.name, t.language)],
 );
 
-export type Audience = { tags?: string[]; contactIds?: string[]; all?: boolean };
+export type Audience = { tags?: string[]; contactIds?: string[]; segmentId?: string; all?: boolean };
 
 export const campaigns = pgTable(
   "campaigns",
@@ -415,6 +415,17 @@ export const leads = pgTable(
   (t) => [index().on(t.orgId, t.stageId), index().on(t.contactId)],
 );
 
+/** What Meta tells us about the ad or post a customer tapped to start the chat. */
+export type AdReferral = {
+  sourceId: string | null;
+  sourceType: string | null;
+  sourceUrl: string | null;
+  headline: string | null;
+  body: string | null;
+  /** Click id for Meta's Conversions API. */
+  ctwaClid: string | null;
+};
+
 export const enquiries = pgTable(
   "enquiries",
   {
@@ -434,6 +445,8 @@ export const enquiries = pgTable(
       .$type<"answered_by_bot" | "needs_human" | "answered" | "converted">()
       .notNull(),
     convertedTo: text("converted_to").$type<"lead" | "ticket">(),
+    /** Set when the customer came from a Click to WhatsApp ad or post. */
+    ad: jsonb("ad").$type<AdReferral>(),
     firstResponseSeconds: integer("first_response_seconds"),
     createdAt: createdAt(),
   },
@@ -812,7 +825,8 @@ export type AutomationTrigger =
   | "appointment_booked"
   | "lead_won"
   | "no_reply"
-  | "cart_abandoned";
+  | "cart_abandoned"
+  | "ad_clicked";
 
 export type AutomationStep =
   | { type: "wait"; minutes: number }
@@ -1058,4 +1072,76 @@ export const abandonedCarts = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("abandoned_carts_org_source_ext_idx").on(t.orgId, t.source, t.externalId)],
+);
+
+/** A saved filter over contacts, used as a live audience for broadcasts. */
+export type SegmentCondition =
+  | { field: "tag"; op: "has" | "lacks"; value: string }
+  | { field: "source"; op: "is" | "is_not"; value: string }
+  | { field: "custom"; op: "equals" | "contains" | "is_set" | "is_empty"; key: string; value?: string }
+  | { field: "last_message"; op: "within_days" | "older_than_days" | "never"; days?: number }
+  | { field: "created"; op: "within_days" | "older_than_days"; days: number }
+  | { field: "opted_out"; op: "yes" | "no" }
+  | { field: "paid_order"; op: "any" | "none" | "within_days"; days?: number };
+
+export type SegmentRules = { match: "all" | "any"; conditions: SegmentCondition[] };
+
+export const segments = pgTable(
+  "segments",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    rules: jsonb("rules").$type<SegmentRules>().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.orgId)],
+);
+
+export type SheetKind = "leads" | "appointments" | "orders" | "contacts" | "enquiries";
+
+/** Appends new rows of one kind to a tab in the customer's Google Sheet, every minute. */
+export const sheetSyncs = pgTable(
+  "sheet_syncs",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<SheetKind>().notNull(),
+    spreadsheetId: text("spreadsheet_id").notNull(),
+    tab: text("tab").notNull(),
+    /** The last row sent: rows created after (cursorAt, cursorId) go next. */
+    cursorAt: ts("cursor_at").notNull(),
+    cursorId: uuid("cursor_id"),
+    rowsSynced: integer("rows_synced").notNull().default(0),
+    lastSyncedAt: ts("last_synced_at"),
+    lastError: text("last_error"),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("sheet_syncs_org_kind_idx").on(t.orgId, t.kind)],
+);
+
+/** One row per developer API call, for the request log in Settings → Developers. */
+export const apiRequests = pgTable(
+  "api_requests",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    keyId: uuid("key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    method: text("method").notNull(),
+    path: text("path").notNull(),
+    status: integer("status").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    /** The error code we answered with, if any. */
+    error: text("error"),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.orgId, t.createdAt)],
 );

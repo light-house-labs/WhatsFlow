@@ -5,8 +5,11 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { randomToken } from "@/lib/crypto";
 import { storeConfigFor } from "@/lib/stores";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
-import { removeStore, saveStore } from "./actions";
+import { serviceAccount, SHEET_KINDS } from "@/lib/sheets";
+import type { SheetKind } from "@/db/schema";
+import { timeAgo } from "@/lib/format";
+import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { connectSheet, removeSheet, removeStore, saveStore, syncSheetNow } from "./actions";
 
 export const metadata: Metadata = { title: "Connected apps" };
 
@@ -17,24 +20,28 @@ const ERRORS: Record<string, string> = {
   "woocommerce-secret": "Use a secret of at least 16 characters, and the same one in WooCommerce.",
 };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; sheetError?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
-  const [rows, [keys], [hooks], [synced], [carts]] = await Promise.all([
+  const [rows, [keys], [hooks], [synced], [carts], sheets] = await Promise.all([
     d.select().from(schema.integrations).where(eq(schema.integrations.orgId, org.id)),
     d.select({ n: count() }).from(schema.apiKeys).where(and(eq(schema.apiKeys.orgId, org.id), isNull(schema.apiKeys.revokedAt))),
     d.select({ n: count() }).from(schema.webhookEndpoints).where(and(eq(schema.webhookEndpoints.orgId, org.id), eq(schema.webhookEndpoints.active, true))),
     d.select({ n: count() }).from(schema.orders).where(and(eq(schema.orders.orgId, org.id), isNotNull(schema.orders.externalId))),
     d.select({ n: count() }).from(schema.abandonedCarts).where(and(eq(schema.abandonedCarts.orgId, org.id), isNotNull(schema.abandonedCarts.remindedAt))),
+    d.select().from(schema.sheetSyncs).where(eq(schema.sheetSyncs.orgId, org.id)),
   ]);
+  const sa = serviceAccount();
+  const unsynced = (Object.keys(SHEET_KINDS) as SheetKind[]).filter((k) => !sheets.some((s) => s.kind === k));
   const [shopify, woo] = await Promise.all([storeConfigFor(d, org.id, "shopify"), storeConfigFor(d, org.id, "woocommerce")]);
   const base = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const connected = rows.filter((r) => r.active).length + (keys.n ? 1 : 0) + (hooks.n ? 1 : 0);
+  const connected = rows.filter((r) => r.active).length + (keys.n ? 1 : 0) + (hooks.n ? 1 : 0) + (sheets.length ? 1 : 0);
   const apps = [
     { name: "Razorpay", on: rows.some((r) => r.kind === "razorpay"), href: "/settings/payments" },
     { name: "Stripe", on: rows.some((r) => r.kind === "stripe"), href: "/settings/payments" },
     { name: "Shopify", on: Boolean(shopify), href: "#shopify" },
     { name: "WooCommerce", on: Boolean(woo), href: "#woocommerce" },
+    { name: `Google Sheets (${sheets.length})`, on: sheets.length > 0, href: "#sheets" },
     { name: `API keys (${keys.n})`, on: keys.n > 0, href: "/settings/developers" },
     { name: `Webhooks (${hooks.n})`, on: hooks.n > 0, href: "/settings/developers" },
   ];
@@ -42,7 +49,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     <>
       <PageHeader title="Connected apps" description={`${connected} connected. Orders from your store land in Orders and can trigger WhatsApp automations.`} />
       <div className="max-w-3xl space-y-6 p-6">
-        {sp.saved && <Alert tone="success">Connected. Send a test order to check it.</Alert>}
+        {sp.saved && sp.saved !== "sheets" && <Alert tone="success">Connected. Send a test order to check it.</Alert>}
         {sp.error && ERRORS[sp.error] && <Alert tone="danger">{ERRORS[sp.error]}</Alert>}
         <Card className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3">
           {apps.map((a) => (
@@ -138,6 +145,83 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </div>
             <Button>{woo ? "Save changes" : "Connect WooCommerce"}</Button>
           </form>
+        </Card>
+
+        <Card id="sheets" className="space-y-4 p-5">
+          <div>
+            <h2 className="font-semibold">Google Sheets</h2>
+            <p className="text-sm text-muted">New leads, bookings, orders, enquiries or contacts are added as rows to your sheet within a minute.</p>
+          </div>
+          {sp.saved === "sheets" && <Alert tone="success">Sheet connected. New rows appear within a minute.</Alert>}
+          {sp.sheetError && <Alert tone="danger">{sp.sheetError}</Alert>}
+          {!sa ? (
+            <Alert tone="warning">Google Sheets needs a Google service account on this server: set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_KEY.</Alert>
+          ) : (
+            <>
+              {sheets.length > 0 && (
+                <ul className="divide-y divide-line rounded-md border border-line">
+                  {sheets.map((s) => (
+                    <li key={s.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {SHEET_KINDS[s.kind].label} →{" "}
+                          <a className="text-accent" href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit`} target="_blank" rel="noreferrer noopener">
+                            {s.tab}
+                          </a>
+                        </div>
+                        <div className={s.lastError ? "text-danger" : "text-muted"}>
+                          {s.lastError ?? `${s.rowsSynced} rows sent${s.lastSyncedAt ? ` · last ${timeAgo(s.lastSyncedAt)}` : ""}`}
+                        </div>
+                      </div>
+                      <form action={syncSheetNow}>
+                        <input type="hidden" name="kind" value={s.kind} />
+                        <Button size="sm" variant="secondary">
+                          Sync now
+                        </Button>
+                      </form>
+                      <form action={removeSheet}>
+                        <input type="hidden" name="kind" value={s.kind} />
+                        <Button size="sm" variant="ghost" className="text-danger">
+                          Stop
+                        </Button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {unsynced.length > 0 && (
+                <form action={connectSheet} className="space-y-3">
+                  <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
+                    <li>
+                      In your sheet, click Share and add <code className="rounded bg-surface-2 px-1 text-xs text-ink">{sa.email}</code> as an Editor.
+                    </li>
+                    <li>Paste the sheet&apos;s link and pick what to send. We add a tab for it with a header row.</li>
+                  </ol>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+                    <Field label="Sheet link" htmlFor="sheet">
+                      <Input id="sheet" name="sheet" required placeholder="https://docs.google.com/spreadsheets/d/…" />
+                    </Field>
+                    <Field label="Send" htmlFor="sheetKind">
+                      <Select id="sheetKind" name="kind">
+                        {unsynced.map((k) => (
+                          <option key={k} value={k}>
+                            {SHEET_KINDS[k].label}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                  <Field label="Tab name (optional)" htmlFor="tab" hint="Leave blank for a tab named like “WhatsFlow leads”.">
+                    <Input id="tab" name="tab" maxLength={80} />
+                  </Field>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="backfill" /> Also send everything from before today
+                  </label>
+                  <Button>Connect sheet</Button>
+                </form>
+              )}
+            </>
+          )}
         </Card>
       </div>
     </>

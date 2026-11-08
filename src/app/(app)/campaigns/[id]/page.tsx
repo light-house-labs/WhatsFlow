@@ -38,6 +38,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       .limit(300),
     d.select().from(schema.templates).where(eq(schema.templates.id, c.templateId)),
   ]);
+  const [segment] = c.audience.segmentId
+    ? await d.select({ name: schema.segments.name }).from(schema.segments).where(and(eq(schema.segments.id, c.audience.segmentId), eq(schema.segments.orgId, org.id)))
+    : [];
+  const audienceLabel = c.audience.segmentId ? `segment: ${segment?.name ?? "deleted"}` : c.audience.tags?.length ? `tags: ${c.audience.tags.join(", ")}` : "all contacts";
   const live = c.status === "scheduled" || c.status === "sending";
   const settling = live || (c.sentAt && nowMs() - c.sentAt.getTime() < 2 * 60_000);
   const pct = (a: number) => (Number(s.total) ? ` · ${Math.round((Number(a) / Number(s.total)) * 100)}%` : "");
@@ -46,7 +50,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {settling && <AutoRefresh ms={3000} />}
       <PageHeader
         title={c.name}
-        description={`${tpl?.name} · ${c.audience.tags?.length ? `tags: ${c.audience.tags.join(", ")}` : "all contacts"} · ${c.scheduledAt ? `scheduled for ${dateTime(c.scheduledAt)}` : `started ${dateTime(c.sentAt ?? c.createdAt)}`}`}
+        description={`${tpl?.name} · ${audienceLabel} · ${c.scheduledAt ? `scheduled for ${dateTime(c.scheduledAt)}` : `started ${dateTime(c.sentAt ?? c.createdAt)}`}`}
         actions={
           <>
             <StatusBadge status={c.status} />

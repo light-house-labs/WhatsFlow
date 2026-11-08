@@ -2,21 +2,27 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, arrayOverlaps, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import type { Audience } from "@/db/schema";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { enqueue, kickJobs } from "@/lib/jobs";
 import { placeholderCount } from "@/lib/template-render";
+import { audienceWhere } from "@/lib/segments";
 
 export type CampaignState = { error?: string } | undefined;
 
-export async function audienceSize(tags: string[], templateCategory: string): Promise<{ total: number; reachable: number }> {
+function toAudience(tags: string[], segmentId: string | null): Audience {
+  if (segmentId) return { segmentId };
+  return tags.length ? { tags } : { all: true };
+}
+
+export async function audienceSize(tags: string[], templateCategory: string, segmentId: string | null = null): Promise<{ total: number; reachable: number }> {
   const ctx = await requireOrg();
-  const where = [eq(schema.contacts.orgId, ctx.org.id)];
-  if (tags.length) where.push(arrayOverlaps(schema.contacts.tags, tags));
-  const [all] = await ctx.db.select({ n: sql<number>`count(*)` }).from(schema.contacts).where(and(...where));
+  const where = await audienceWhere(ctx.db, ctx.org.id, toAudience(tags, segmentId));
+  const [all] = await ctx.db.select({ n: sql<number>`count(*)` }).from(schema.contacts).where(where);
   if (templateCategory !== "MARKETING") return { total: Number(all.n), reachable: Number(all.n) };
-  const [ok] = await ctx.db.select({ n: sql<number>`count(*)` }).from(schema.contacts).where(and(...where, isNull(schema.contacts.optedOutAt)));
+  const [ok] = await ctx.db.select({ n: sql<number>`count(*)` }).from(schema.contacts).where(and(where, isNull(schema.contacts.optedOutAt)));
   return { total: Number(all.n), reachable: Number(ok.n) };
 }
 
@@ -25,7 +31,8 @@ export async function createCampaign(_: CampaignState, form: FormData): Promise<
   const name = String(form.get("name") ?? "").trim();
   const templateId = String(form.get("templateId") ?? "");
   const numberId = String(form.get("numberId") ?? "");
-  const tags = form.getAll("tags").map(String).filter(Boolean);
+  const segmentId = String(form.get("segmentId") ?? "") || null;
+  const tags = segmentId ? [] : form.getAll("tags").map(String).filter(Boolean);
   const when = String(form.get("when") ?? "now");
   const at = String(form.get("scheduledAt") ?? "");
   if (ctx.org.billingStatus === "cancelled") return { error: "Your plan has ended. Choose a plan in Billing to send broadcasts." };
@@ -47,7 +54,7 @@ export async function createCampaign(_: CampaignState, form: FormData): Promise<
   }
   const scheduledAt = when === "later" ? new Date(at) : null;
   if (when === "later" && (!at || Number.isNaN(scheduledAt!.getTime()) || scheduledAt! < new Date())) return { error: "Pick a time in the future." };
-  const size = await audienceSize(tags, tpl.category);
+  const size = await audienceSize(tags, tpl.category, segmentId);
   if (size.reachable === 0) return { error: "Nobody in this audience can receive it." };
 
   const [c] = await ctx.db
@@ -57,7 +64,7 @@ export async function createCampaign(_: CampaignState, form: FormData): Promise<
       name,
       templateId: tpl.id,
       numberId: number.id,
-      audience: tags.length ? { tags } : { all: true },
+      audience: toAudience(tags, segmentId),
       variableMap,
       scheduledAt,
       status: "scheduled",

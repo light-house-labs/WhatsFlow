@@ -78,5 +78,5 @@ export function kickJobs(d: DB) {
 
 /** Housekeeping jobs queued by cron (prod) or the in-process timer (dev). */
 export async function enqueuePeriodic(d: DB) {
-  for (const kind of ["lead.followups", "billing.period_end", "automation.no_reply", "ratelimits.prune"]) await enqueue(d, kind, {});
+  for (const kind of ["lead.followups", "billing.period_end", "automation.no_reply", "ratelimits.prune", "sheets.sync"]) await enqueue(d, kind, {});
 }

@@ -9,7 +9,7 @@ import type { AutomationStep, AutomationTrigger } from "@/db/schema";
 import { requireOrg } from "@/lib/auth";
 import { limitsFor } from "@/lib/plans";
 
-const TRIGGERS = ["conversation_started", "order_created", "order_paid", "appointment_booked", "lead_won", "no_reply", "cart_abandoned"] as const;
+const TRIGGERS = ["conversation_started", "order_created", "order_paid", "appointment_booked", "lead_won", "no_reply", "cart_abandoned", "ad_clicked"] as const;
 
 const Step = z.discriminatedUnion("type", [
   z.object({ type: z.literal("wait"), minutes: z.number().int().min(1).max(60 * 24 * 30) }),

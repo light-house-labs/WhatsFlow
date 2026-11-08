@@ -8,6 +8,7 @@ export const TRIGGER_LABEL: Record<AutomationTrigger, string> = {
   lead_won: "A lead is moved to a won stage",
   no_reply: "The customer hasn't replied to us",
   cart_abandoned: "A store checkout is abandoned",
+  ad_clicked: "Someone messages from a Click to WhatsApp ad",
 };
 
 /** What each trigger can fill into messages, as {key} in text or a template variable. */
@@ -19,4 +20,5 @@ export const TRIGGER_VARS: Record<AutomationTrigger, string[]> = {
   lead_won: ["name", "lead_title"],
   no_reply: ["name"],
   cart_abandoned: ["name", "cart_url", "cart_total"],
+  ad_clicked: ["name", "ad_headline"],
 };

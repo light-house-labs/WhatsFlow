@@ -30,7 +30,7 @@ Contact profile with order count total last order birthday,contacts,should,yes,y
 Contact activity timeline,contacts,should,yes,yes,S09
 Import contacts from spreadsheet,contacts,must,yes,yes,S10
 Import from existing CRM,contacts,could,yes,no,S10
-Segments for broadcasts and automations,contacts,should,yes,partial,S11; tag-based audiences; saved segment rules not built
+Segments for broadcasts and automations,contacts,should,yes,yes,S11; saved segment rules as live broadcast audiences
 Contact owner,contacts,should,yes,yes,S09
 Opt-out handling (one-tap stop),contacts,must,yes,yes,W05; exclude from marketing
 Contact source tagging (ad website WhatsApp),contacts,should,yes,yes,S09
@@ -106,9 +106,9 @@ Follow-up for unanswered messages,automations,should,yes,yes,src 3
 Automation run activity log,automations,should,yes,yes,S33
 Shopify integration (orders customers abandoned carts),integrations,should,yes,yes,"S36; signed webhooks; orders, customers, abandoned checkouts with consent"
 WooCommerce integration,integrations,should,yes,yes,S36; order created/updated webhooks
-Google Sheets sync for leads and bookings,integrations,should,yes,no,every minute per src 3
+Google Sheets sync for leads and bookings,integrations,should,yes,yes,"service account; leads, bookings, orders, enquiries, contacts appended every minute"
 Stripe integration,integrations,should,yes,yes,S36
-Meta Ads Click to WhatsApp tracking,integrations,could,yes,no,ad referral on inbound message
+Meta Ads Click to WhatsApp tracking,integrations,could,yes,yes,referral stored on enquiry; By ad analytics; ad_clicked trigger
 Zoho CRM integration,integrations,could,yes,no,
 HubSpot integration,integrations,could,yes,no,
 Pipedrive integration,integrations,could,yes,no,
@@ -120,7 +120,7 @@ Public REST API send template and session messages,api,should,yes,yes,S37
 API manage contacts and tags,api,should,yes,yes,S37
 API read conversations and message status,api,should,yes,yes,S37
 API keys with roles,api,should,yes,yes,S37
-API usage and error monitoring,api,could,yes,no,S37
+API usage and error monitoring,api,could,yes,yes,request log 30 days + 24h summary in Settings > Developers
 Outbound webhooks with event selection,api,should,yes,yes,S38
 Webhook retries and delivery log,api,should,yes,yes,S38
 Analytics: first reply time resolution time chats handled,analytics,should,yes,yes,S39
@@ -151,9 +151,9 @@ Free consultation and custom builds,services,could,yes,skip,human service
 Dedicated success manager and hand-held onboarding,services,could,yes,skip,human service
 One-click self-serve cancel with confirmation email and no charge after cancel,billing,must,no,yes,fix F1 - cancel/billing 39 reviews
 Downgrade warns about over-limit items and auto-pauses them at period end,billing,must,no,yes,fix F1
-Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,yes,fix F2; disconnect deletes token; export not built
+Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,yes,"fix F2; CSV/JSON export, delete deletes token, Meta revoke steps shown"
 Talk to a person in-app (WhatsApp chat with WhatsFlow team) and ticket status,support,must,no,yes,fix F3 - human support 51 reviews
-Public status page,support,should,no,no,fix F3
+Public status page,support,should,no,yes,fix F3; /status from live checks + /api/health; STATUS_NOTICE banner
 Connection doctor: token webhook number and round-trip test with fix steps,onboarding,must,no,partial,fix F4 - setup 17 reviews; token/number/quality/subscription/webhook checks with fixes; no automatic round-trip test message
 Number-safety guardrails: quality tier warnings cold-audience warning auto-pause,campaigns,should,no,partial,fix F5 - bans 7 reviews; quality warning in composer + opt-outs enforced; no cold-audience check or auto-pause
 Campaign cost preview and visible wallet; unused credit refundable,billing,should,no,partial,fix F6; cost preview yes; no wallet (Meta bills directly)

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { schema } from "@/db";
-import { apiAuth } from "@/lib/api-auth";
+import { logged, apiAuth } from "@/lib/api-auth";
 import { conversationJson } from "@/lib/api-v1";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const auth = await apiAuth(req);
   if ("error" in auth) return auth.error;
   const url = new URL(req.url);
@@ -21,3 +21,5 @@ export async function GET(req: Request) {
   const rows = await auth.d.select().from(schema.conversations).where(and(...where)).orderBy(desc(schema.conversations.lastMessageAt)).limit(limit);
   return NextResponse.json({ data: rows.map(conversationJson), next: rows.length === limit ? rows[rows.length - 1].lastMessageAt.toISOString() : null });
 }
+
+export const GET = logged(handleGET);

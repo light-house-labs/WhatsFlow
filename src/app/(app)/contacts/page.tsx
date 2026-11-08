@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { Upload, Users } from "lucide-react";
+import { Filter, Upload, Users } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
+import { describeRules, segmentWhere } from "@/lib/segments";
 import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Table, Td, Th } from "@/components/ui";
 import { bulkTag, createContact } from "./actions";
 
@@ -13,12 +14,15 @@ export const metadata: Metadata = { title: "Contacts" };
 
 const ERR: Record<string, string> = { phone: "That doesn't look like a phone number.", exists: "A contact with that number already exists." };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; error?: string; deleted?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; segment?: string; error?: string; deleted?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg();
   const where = [eq(schema.contacts.orgId, org.id)];
   if (sp.q) where.push(or(ilike(schema.contacts.name, `%${sp.q}%`), ilike(schema.contacts.waId, `%${sp.q.replace(/\D/g, "") || sp.q}%`))!);
   if (sp.tag) where.push(sql`${sp.tag} = any(${schema.contacts.tags})`);
+  const segments = await d.select().from(schema.segments).where(eq(schema.segments.orgId, org.id)).orderBy(schema.segments.name);
+  const segment = segments.find((x) => x.id === sp.segment);
+  if (segment) where.push(segmentWhere(org.id, segment.rules));
   const [rows, tagRows, [count]] = await Promise.all([
     d.select().from(schema.contacts).where(and(...where)).orderBy(desc(schema.contacts.createdAt)).limit(200),
     d.execute(sql`select t as tag, count(*)::int as n from contacts, unnest(tags) t where org_id = ${org.id} group by t order by n desc limit 30`),
@@ -31,9 +35,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
         title="Contacts"
         description={`${Number(count.n)} people. Everyone who messages you is saved automatically.`}
         actions={
+          <>
+          <ButtonLink variant="secondary" href="/contacts/segments">
+            <Filter size={16} /> Segments
+          </ButtonLink>
           <ButtonLink variant="secondary" href="/contacts/import">
             <Upload size={16} /> Import CSV
           </ButtonLink>
+          </>
         }
       />
       <div className="space-y-4 p-6">
@@ -43,6 +52,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
           <form className="flex gap-2">
             <Input name="q" placeholder="Search name or number" defaultValue={sp.q} aria-label="Search contacts" className="w-64" />
             {sp.tag && <input type="hidden" name="tag" value={sp.tag} />}
+            {segment && <input type="hidden" name="segment" value={segment.id} />}
             <Button variant="secondary">Search</Button>
           </form>
           <details className="ml-auto">
@@ -55,6 +65,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
             </form>
           </details>
         </div>
+        {segments.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted">Segments:</span>
+            {segments.map((x) => (
+              <Link key={x.id} href={segment?.id === x.id ? "/contacts" : `/contacts?segment=${x.id}`} className={`rounded-full px-2.5 py-1 text-xs ${segment?.id === x.id ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+                {x.name}
+              </Link>
+            ))}
+          </div>
+        )}
+        {segment && <p className="text-sm text-muted">Showing contacts matching: {describeRules(segment.rules)}.</p>}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             <Link href="/contacts" className={`rounded-full px-2.5 py-1 text-xs ${!sp.tag ? "bg-accent text-on-accent" : "bg-surface-2"}`}>

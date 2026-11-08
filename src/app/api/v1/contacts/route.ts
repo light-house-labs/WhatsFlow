@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { and, arrayContains, desc, eq, ilike, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { schema } from "@/db";
-import { apiAuth, apiError } from "@/lib/api-auth";
+import { logged, apiAuth, apiError } from "@/lib/api-auth";
 import { contactJson, pageParams } from "@/lib/api-v1";
 import { emit } from "@/lib/events";
 import { toWaId } from "@/lib/phone";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const auth = await apiAuth(req);
   if ("error" in auth) return auth.error;
   const url = new URL(req.url);
@@ -33,7 +33,7 @@ const Body = z.object({
 });
 
 /** Create or update a contact by phone number. */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const auth = await apiAuth(req, "full");
   if ("error" in auth) return auth.error;
   const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -59,3 +59,6 @@ export async function POST(req: Request) {
   if (c.inserted) await emit(auth.d, auth.orgId, "contact.created", { contact: contactJson(row) });
   return NextResponse.json({ data: contactJson(row) }, { status: c.inserted ? 201 : 200 });
 }
+
+export const GET = logged(handleGET);
+export const POST = logged(handlePOST);

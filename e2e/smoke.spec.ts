@@ -68,7 +68,7 @@ test("a draft bot flow can be tested on the sandbox phone", async () => {
 });
 
 test("admin pages open without errors", async () => {
-  for (const path of ["/dashboard", "/contacts", "/campaigns", "/templates/new", "/orders", "/catalog", "/appointments", "/automations", "/analytics", "/settings/developers", "/settings/routing", "/settings/integrations", "/settings/audit", "/settings/whatsapp", "/settings/payments"]) {
+  for (const path of ["/dashboard", "/contacts", "/campaigns", "/templates/new", "/orders", "/catalog", "/appointments", "/automations", "/analytics", "/settings/developers", "/settings/routing", "/settings/integrations", "/settings/audit", "/settings/whatsapp", "/settings/payments", "/contacts/segments", "/contacts/segments?new=1", "/status"]) {
     const res = await page.goto(path);
     expect(res?.status(), path).toBeLessThan(400);
     await expect(page.locator("main, body").first()).not.toContainText("Application error");

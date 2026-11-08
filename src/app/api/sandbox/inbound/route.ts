@@ -16,6 +16,8 @@ const Body = z.object({
   replyId: z.string().max(20).optional(),
   /** Test mode from the bot builder: start this flow with this message. */
   testFlowId: z.string().uuid().optional(),
+  /** Pretend the customer tapped a Click to WhatsApp ad with this headline. */
+  adHeadline: z.string().trim().min(1).max(120).optional(),
 });
 
 /** The sandbox phone posts here as if it were a customer. */
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
   if (!ctx) return NextResponse.json({ error: "unauthorised" }, { status: 401 });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  const { numberId, from, name, text, replyId, testFlowId } = parsed.data;
+  const { numberId, from, name, text, replyId, testFlowId, adHeadline } = parsed.data;
   const [number] = await ctx.db
     .select()
     .from(schema.waNumbers)
@@ -41,6 +43,7 @@ export async function POST(req: Request) {
     text,
     replyId: replyId ?? null,
     timestamp: new Date(),
+    referral: adHeadline ? { source_type: "ad", source_id: `sandbox-${adHeadline.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`, headline: adHeadline } : null,
   }, { testFlowId });
   kickJobs(ctx.db);
   return NextResponse.json(r);

@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, arrayOverlaps } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { schema, type DB } from "@/db";
 import { registerJob, enqueue } from "./jobs";
 import { applyStatus, sendInConversation } from "./wa/outbound";
@@ -8,6 +8,8 @@ import { placeholderCount, resolveVariables } from "./template-render";
 import { processPeriodEnds } from "./billing";
 import { pruneRateLimits } from "./rate-limit";
 import { checkAbandonedCart } from "./stores";
+import { audienceWhere } from "./segments";
+import { syncAllSheets } from "./sheets";
 import { remindPayment } from "./orders";
 import { decrypt } from "./crypto";
 import { signWebhook } from "./webhooks-out";
@@ -75,10 +77,8 @@ registerJob("campaign.send", async (d, p) => {
   if (!tpl || tpl.status !== "approved") throw new Error("Template is not approved");
 
   if (c.status !== "sending") {
-    const where = [eq(schema.contacts.orgId, c.orgId)];
-    if (c.audience.tags?.length) where.push(arrayOverlaps(schema.contacts.tags, c.audience.tags));
-    if (c.audience.contactIds?.length) where.push(inArray(schema.contacts.id, c.audience.contactIds));
-    const audience = await d.select({ id: schema.contacts.id, optedOutAt: schema.contacts.optedOutAt }).from(schema.contacts).where(and(...where));
+    const where = await audienceWhere(d, c.orgId, c.audience);
+    const audience = await d.select({ id: schema.contacts.id, optedOutAt: schema.contacts.optedOutAt }).from(schema.contacts).where(where);
     if (audience.length) {
       await d
         .insert(schema.campaignRecipients)
@@ -189,8 +189,15 @@ registerJob("store.cart_check", async (d, p) => {
   await checkAbandonedCart(d, p.cartId);
 });
 
+// Google Sheets: append new leads, bookings, orders… to each connected sheet.
+registerJob("sheets.sync", async (d) => {
+  await syncAllSheets(d);
+});
+
+// Housekeeping: old rate-limit windows, and API request logs past 30 days.
 registerJob("ratelimits.prune", async (d) => {
   await pruneRateLimits(d);
+  await d.delete(schema.apiRequests).where(sql`${schema.apiRequests.createdAt} < now() - interval '30 days'`);
 });
 
 const WEBHOOK_ATTEMPTS = 6;

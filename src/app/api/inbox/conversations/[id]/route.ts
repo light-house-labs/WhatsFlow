@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, asc, desc, eq, gt, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, ne } from "drizzle-orm";
 import { schema } from "@/db";
 import { orgOrNull } from "@/lib/auth";
 import { windowOpen } from "@/lib/wa/outbound";
@@ -23,7 +23,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .insert(schema.presence)
     .values({ conversationId: id, userId: ctx.user.id, typing, seenAt: new Date() })
     .onConflictDoUpdate({ target: [schema.presence.conversationId, schema.presence.userId], set: { typing, seenAt: new Date() } });
-  const [messages, notes, leads, tickets, orders, [appointment], viewers] = await Promise.all([
+  const [messages, notes, leads, tickets, orders, [appointment], viewers, [fromAd]] = await Promise.all([
     ctx.db.select().from(schema.messages).where(eq(schema.messages.conversationId, id)).orderBy(asc(schema.messages.createdAt)).limit(500),
     ctx.db.select().from(schema.notes).where(eq(schema.notes.conversationId, id)).orderBy(asc(schema.notes.createdAt)),
     ctx.db.select({ id: schema.leads.id, title: schema.leads.title, stageId: schema.leads.stageId }).from(schema.leads).where(eq(schema.leads.contactId, row.contact.id)).orderBy(desc(schema.leads.createdAt)).limit(5),
@@ -46,6 +46,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       .from(schema.presence)
       .innerJoin(schema.users, eq(schema.users.id, schema.presence.userId))
       .where(and(eq(schema.presence.conversationId, id), ne(schema.presence.userId, ctx.user.id), gt(schema.presence.seenAt, new Date(Date.now() - 10_000)))),
+    ctx.db
+      .select({ ad: schema.enquiries.ad })
+      .from(schema.enquiries)
+      .where(and(eq(schema.enquiries.conversationId, id), isNotNull(schema.enquiries.ad)))
+      .orderBy(desc(schema.enquiries.createdAt))
+      .limit(1),
   ]);
   return NextResponse.json({
     conversation: row.conv,
@@ -59,5 +65,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     orders,
     appointment: appointment ?? null,
     viewers,
+    ad: fromAd?.ad ? { headline: fromAd.ad.headline, sourceUrl: fromAd.ad.sourceUrl, sourceType: fromAd.ad.sourceType } : null,
   });
 }

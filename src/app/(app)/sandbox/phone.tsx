@@ -21,6 +21,7 @@ export function SandboxPhone({
   const [name, setName] = useState(test ? "Test customer" : "Asha Kumar");
   const [testing, setTesting] = useState(Boolean(test));
   const [text, setText] = useState("");
+  const [adHeadline, setAdHeadline] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -49,12 +50,13 @@ export function SandboxPhone({
     const r = await fetch("/api/sandbox/inbound", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ numberId, from, name, text: body, replyId, ...(testing && test ? { testFlowId: test.id } : {}) }),
+      body: JSON.stringify({ numberId, from, name, text: body, replyId, ...(adHeadline.trim() ? { adHeadline: adHeadline.trim() } : {}), ...(testing && test ? { testFlowId: test.id } : {}) }),
     });
     if (!r.ok) setError((await r.json().catch(() => ({}))).error ?? "Couldn't send");
     else {
       setText("");
       setTesting(false);
+      setAdHeadline("");
     }
     await load();
   }
@@ -98,6 +100,9 @@ export function SandboxPhone({
         </Field>
         <Field label="Customer's WhatsApp name" htmlFor="name">
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Came from an ad (optional)" htmlFor="adHeadline" hint="The next message arrives as if the customer tapped a Click to WhatsApp ad with this headline.">
+          <Input id="adHeadline" value={adHeadline} maxLength={120} placeholder="Diwali sale: 20% off" onChange={(e) => setAdHeadline(e.target.value)} />
         </Field>
         <div className="space-y-1 text-sm text-muted">
           <p>Try:</p>

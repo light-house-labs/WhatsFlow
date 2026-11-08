@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { schema } from "@/db";
-import { apiAuth, apiError } from "@/lib/api-auth";
+import { logged, apiAuth, apiError } from "@/lib/api-auth";
 import { conversationFor, messageJson } from "@/lib/api-v1";
 import { toWaId } from "@/lib/phone";
 import { sendInConversation, SendError } from "@/lib/wa/outbound";
@@ -22,7 +22,7 @@ const Body = z
  * Send a WhatsApp message. Free text needs the customer to have messaged in the
  * last 24 hours; otherwise send an approved template.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const auth = await apiAuth(req, "full");
   if ("error" in auth) return auth.error;
   const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -55,3 +55,5 @@ export async function POST(req: Request) {
     throw e;
   }
 }
+
+export const POST = logged(handlePOST);

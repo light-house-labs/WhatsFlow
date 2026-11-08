@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { schema } from "@/db";
-import { apiAuth, apiError } from "@/lib/api-auth";
+import { logged, apiAuth, apiError } from "@/lib/api-auth";
 import { contactJson } from "@/lib/api-v1";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 const uuid = z.string().uuid();
 
-export async function GET(req: Request, { params }: Ctx) {
+async function handleGET(req: Request, { params }: Ctx) {
   const auth = await apiAuth(req);
   if ("error" in auth) return auth.error;
   const { id } = await params;
@@ -28,7 +28,7 @@ const Patch = z.object({
   customFields: z.record(z.string().max(60), z.string().max(500)).optional(),
 });
 
-export async function PATCH(req: Request, { params }: Ctx) {
+async function handlePATCH(req: Request, { params }: Ctx) {
   const auth = await apiAuth(req, "full");
   if ("error" in auth) return auth.error;
   const { id } = await params;
@@ -52,3 +52,6 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!c) return apiError(404, "not_found", "No such contact.");
   return NextResponse.json({ data: contactJson(c) });
 }
+
+export const GET = logged(handleGET);
+export const PATCH = logged(handlePATCH);

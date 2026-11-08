@@ -16,16 +16,21 @@ export function Composer({
   tags,
   fields,
   initialTags = [],
+  segments,
+  initialSegment,
 }: {
   templates: Tpl[];
   numbers: { id: string; label: string; quality: string | null; tier: string | null }[];
   tags: { tag: string; n: number }[];
   fields: string[];
   initialTags?: string[];
+  segments: { id: string; name: string }[];
+  initialSegment?: string;
 }) {
   const [state, action, pending] = useActionState<CampaignState, FormData>(createCampaign, undefined);
   const [tplId, setTplId] = useState(templates[0].id);
   const [chosen, setChosen] = useState<string[]>(initialTags);
+  const [segmentId, setSegmentId] = useState(initialSegment ?? "");
   const [when, setWhen] = useState("now");
   const [vars, setVars] = useState<Record<number, { src: string; text: string }>>({});
   const [size, setSize] = useState<{ total: number; reachable: number } | null>(null);
@@ -35,11 +40,11 @@ export function Composer({
 
   useEffect(() => {
     let live = true;
-    audienceSize(chosen, tpl.category).then((s) => live && setSize(s));
+    audienceSize(chosen, tpl.category, segmentId || null).then((s) => live && setSize(s));
     return () => {
       live = false;
     };
-  }, [chosen, tpl.category]);
+  }, [chosen, tpl.category, segmentId]);
 
   const sample = Array.from({ length: n }, (_, i) => {
     const v = vars[i + 1];
@@ -81,6 +86,25 @@ export function Composer({
           </div>
           <fieldset>
             <legend className="mb-1.5 text-[13px] font-medium">Audience</legend>
+            {segments.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                <label htmlFor="segmentId">Send to a saved segment</label>
+                <Select id="segmentId" name="segmentId" value={segmentId} onChange={(e) => setSegmentId(e.target.value)} className="w-64">
+                  <option value="">No, pick by tag</option>
+                  {segments.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {segmentId ? (
+              <p className="text-xs text-muted">
+                Everyone who matches the segment when the campaign sends. <Link className="text-accent" href={`/contacts/segments/${segmentId}`}>Edit segment</Link>
+              </p>
+            ) : (
+            <>
             <p className="mb-2 text-xs text-muted">
               Leave all unticked to send to every contact. Tick tags to send to anyone with at least one of them. Have a spreadsheet?{" "}
               <Link className="text-accent" href={`/contacts/import?for=campaign&tag=list-${new Date().toISOString().slice(0, 10)}`}>
@@ -97,6 +121,8 @@ export function Composer({
                 </label>
               ))}
             </div>
+            </>
+            )}
           </fieldset>
           {n > 0 && (
             <fieldset className="space-y-2">

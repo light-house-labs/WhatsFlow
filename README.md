@@ -49,6 +49,8 @@ Copy `.env.example` to `.env.local`.
 | `BLOB_READ_WRITE_TOKEN` | Stores uploads in Vercel Blob. Without it, uploads go to `.data/uploads` (fine locally, not on serverless). |
 | `META_APP_ID`, `META_ES_CONFIG_ID` | Turn on the “Connect with Facebook” Embedded Signup button. |
 | `PAYMENTS_SANDBOX` | `1` allows the test checkout page in production. Off by default; it's always on in development. |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_KEY` | A Google Cloud service account (with the Sheets API enabled) for Google Sheets sync. Customers share their sheet with this email. The key is the PEM private key; `\n` escapes are fine. |
+| `STATUS_NOTICE` | Optional message shown at the top of the public `/status` page during an incident. |
 
 ## Connect a real WhatsApp number
 
@@ -76,7 +78,7 @@ Create keys in **Settings → API & webhooks** and send `Authorization: Bearer w
 | GET | `/messages/:id` | delivery status |
 | GET | `/orders` | newest first |
 
-Each key can make 120 requests a minute (`API_RATE_PER_MINUTE`). Over that, the API answers `429` with `Retry-After`. Logins, sign-ups and password resets are throttled the same way, per email and per IP.
+Every call made with a key is logged for 30 days, with its status, error code and timing, in **Settings → Developers**. Each key can make 120 requests a minute (`API_RATE_PER_MINUTE`). Over that, the API answers `429` with `Retry-After`. Logins, sign-ups and password resets are throttled the same way, per email and per IP.
 
 Webhooks POST `{ id, event, createdAt, data }` with `X-WhatsFlow-Signature: sha256=<HMAC-SHA256 of "timestamp.body">` and `X-WhatsFlow-Timestamp`. Failed deliveries retry 6 times with backoff; the delivery log has a retry button. URLs that resolve to private addresses are refused in production.
 
@@ -94,13 +96,15 @@ See `replica/features.csv` (scored by `python3 .claude/skills/replica-diff/parit
 
 **Phase 2:** a product catalog with stock; orders from the inbox or a bot, with Razorpay or Stripe payment links, payment webhooks and status messages; appointments with services, capacity, hours, a day view, booking/rescheduling/cancelling inside WhatsApp and reminders; automations (when → wait → if → send/tag/assign) with an activity log; AI replies grounded in your business info, FAQs and catalog, with handover rules; analytics with date range, teammate and source breakdowns; the REST API and signed webhooks; file uploads; data export and workspace deletion; a “who's replying” indicator; tickets linked to orders; spreadsheet audiences for broadcasts; Embedded Signup (untested against Meta).
 
-**Not yet:** subscription billing through a real provider, Google Sheets and CRM integrations (HubSpot, Zoho, Salesforce…), Meta catalog sync and native product messages, saved contact segments, white label.
+**Not yet:** subscription billing through a real provider, CRM integrations (HubSpot, Zoho, Salesforce…), Meta catalog sync and native product messages, white label.
 
 **Since Phase 2:** templates with image, video or document headers (the sample is uploaded to Meta for review, which needs `META_APP_ID`); a **Test** button in the bot builder that runs a draft flow on the sandbox phone; rate limits on the API and on sign-in; a Playwright smoke test of sign-up → sandbox → inbox → bot test.
 
 **Then:** a starter bot for each industry at sign-up, plus a template gallery in Bot flows; chat routing rules (by keyword or language, to a teammate or the least busy one, with labels); Shopify and WooCommerce order sync and Shopify abandoned-cart reminders through automations (Settings → Connected apps); a one-time reminder for unpaid payment links; WhatsApp business profile editing; an audit log of settings changes. Automation messages can use trigger details such as `{order_number}`, `{payment_link}` and `{cart_url}`.
 
-**Phase 3:** white label, CRM connectors, audit log UI, Click-to-WhatsApp ads and a mobile app.
+**Latest:** saved contact segments (tags, last message, orders, custom fields, opt-out, source) that work as live broadcast audiences; Google Sheets sync of new leads, bookings, orders, enquiries or contacts every minute, through a service account the customer shares the sheet with; Click to WhatsApp ad tracking (the ad shows on the chat, a “By ad” table in Analytics, and an “ad clicked” automation trigger; the sandbox phone can fake an ad click); a log of developer API calls; a public `/status` page and `/api/health` for uptime monitors.
+
+**Later:** white label, CRM connectors and a mobile app.
 
 ## Layout
 

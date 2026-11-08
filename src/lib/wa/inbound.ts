@@ -5,11 +5,19 @@ import { schema } from "@/db";
 import { isOpen } from "@/lib/hours";
 import { runBot } from "@/lib/flows/engine";
 import { aiReply } from "@/lib/ai";
-import { emit } from "@/lib/events";
+import { emit, startAutomations } from "@/lib/events";
 import { routeConversation } from "@/lib/routing";
 import { availableSlots, bookAppointment, BookingError, cancelAppointment, nextAppointment, slotLabel } from "@/lib/booking";
 import { sendInConversation, windowOpen } from "./outbound";
 import type { WaNumber } from "./index";
+import type { AdReferral } from "@/db/schema";
+
+/** Meta's referral object, sent on the first message after someone taps a Click to WhatsApp ad or post. */
+export function adFrom(referral: Record<string, unknown> | null | undefined): AdReferral | null {
+  if (!referral || typeof referral !== "object") return null;
+  const str = (k: string) => (typeof referral[k] === "string" && referral[k] ? String(referral[k]).slice(0, 500) : null);
+  return { sourceId: str("source_id"), sourceType: str("source_type"), sourceUrl: str("source_url"), headline: str("headline"), body: str("body"), ctwaClid: str("ctwa_clid") };
+}
 
 export type InboundMessage = {
   waMessageId: string;
@@ -37,6 +45,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, 
 
   const orgId = number.orgId;
   const now = m.timestamp;
+  const ad = adFrom(m.referral);
 
   const [contact] = await d
     .insert(schema.contacts)
@@ -44,7 +53,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, 
       orgId,
       waId: m.from,
       name: m.profileName ?? null,
-      source: m.referral ? "ad" : "whatsapp",
+      source: ad ? "ad" : "whatsapp",
       lastInboundAt: now,
     })
     .onConflictDoUpdate({
@@ -84,7 +93,7 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, 
     direction: "in",
     type: m.type,
     body: m.text,
-    payload: { ...(m.replyId ? { replyId: m.replyId } : {}), ...(m.media ? { media: m.media } : {}) },
+    payload: { ...(m.replyId ? { replyId: m.replyId } : {}), ...(m.media ? { media: m.media } : {}), ...(ad ? { ad } : {}) },
     waMessageId: m.waMessageId,
     status: "received",
     senderKind: "contact",
@@ -143,9 +152,23 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, 
       contactId: contact.id,
       conversationId: conv.id,
       topic: m.text.slice(0, 140) || `(${m.type})`,
-      source: m.referral ? "ad" : "whatsapp",
+      source: ad ? "ad" : "whatsapp",
+      ad,
       status: "needs_human",
       createdAt: now,
+    });
+  } else if (ad) {
+    // tapped an ad while a chat was already going: credit the ad on the current enquiry
+    await d.execute(sql`
+      update enquiries set source = 'ad', ad = ${JSON.stringify(ad)}::jsonb
+      where id = (select id from enquiries where conversation_id = ${conv.id} order by created_at desc limit 1) and ad is null`);
+  }
+  if (ad && !opts.testFlowId) {
+    await startAutomations(d, orgId, "ad_clicked", {
+      contactId: contact.id,
+      conversationId: conv.id,
+      key: `ad:${ad.sourceId ?? "unknown"}:${contact.id}`,
+      vars: { name: contact.name ?? "", ad_headline: ad.headline ?? "" },
     });
   }
 

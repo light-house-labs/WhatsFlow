@@ -68,6 +68,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
            where l.org_id = ${o} and l.owner_id = u.id and ps.kind = 'won' and l.updated_at >= ${since}::timestamptz)::bigint as won_value
       from memberships mb join users u on u.id = mb.user_id where mb.org_id = ${o} order by replies desc`).then(rowsOf<Mate>),
   ]);
+  // Click to WhatsApp ads: chats each ad started, and what those people went on to buy.
+  type AdRow = { ad_id: string; headline: string | null; url: string | null; chats: number; leads: number; paid_orders: number; revenue: number };
+  const ads = await d
+    .execute<AdRow>(sql`
+      with e as (
+        select distinct on (contact_id, ad->>'sourceId') contact_id, ad->>'sourceId' as ad_id, ad->>'headline' as headline, ad->>'sourceUrl' as url, created_at
+        from enquiries where org_id = ${o} and ad is not null and created_at >= ${since}::timestamptz
+        order by contact_id, ad->>'sourceId', created_at
+      )
+      select coalesce(e.ad_id, 'unknown') as ad_id, max(e.headline) as headline, max(e.url) as url, count(*)::int as chats,
+        count(*) filter (where exists (select 1 from leads l where l.contact_id = e.contact_id and l.created_at >= e.created_at))::int as leads,
+        coalesce(sum((select count(*) from orders x where x.contact_id = e.contact_id and x.payment_status = 'paid' and x.created_at >= e.created_at)),0)::int as paid_orders,
+        coalesce(sum((select sum(x.total_minor) from orders x where x.contact_id = e.contact_id and x.payment_status = 'paid' and x.created_at >= e.created_at)),0)::bigint as revenue
+      from e group by coalesce(e.ad_id, 'unknown') order by chats desc limit 20`)
+    .then(rowsOf<AdRow>);
   const total = Number(chats.total);
   const link = (q: Record<string, string | number | null>) => {
     const p = new URLSearchParams();
@@ -136,6 +151,43 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
             </tbody>
           </Table>
         </Card>
+        {ads.length > 0 && (
+          <Card>
+            <div className="px-5 pt-4 text-sm font-semibold">Click to WhatsApp ads</div>
+            <p className="px-5 text-xs text-muted">People who tapped an ad and messaged you, and what they did next.</p>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Ad</Th>
+                  <Th>Chats</Th>
+                  <Th>Became leads</Th>
+                  <Th>Paid orders</Th>
+                  <Th>Sales</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {ads.map((a) => (
+                  <tr key={a.ad_id}>
+                    <Td>
+                      {a.url?.startsWith("https://") ? (
+                        <a href={a.url} target="_blank" rel="noreferrer noopener" className="font-medium text-ink hover:text-accent">
+                          {a.headline ?? `Ad ${a.ad_id}`}
+                        </a>
+                      ) : (
+                        <span className="font-medium">{a.headline ?? `Ad ${a.ad_id}`}</span>
+                      )}
+                      <div className="text-xs text-muted">ID {a.ad_id}</div>
+                    </Td>
+                    <Td>{Number(a.chats)}</Td>
+                    <Td>{Number(a.leads)}</Td>
+                    <Td>{Number(a.paid_orders)}</Td>
+                    <Td>{formatMoney(Number(a.revenue))}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </Card>
+        )}
         <Card>
           <div className="px-5 pt-4 text-sm font-semibold">Team</div>
           <Table>

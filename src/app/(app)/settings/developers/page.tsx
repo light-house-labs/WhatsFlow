@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { WEBHOOK_EVENTS } from "@/db/schema";
 import { requireOrg } from "@/lib/auth";
@@ -10,12 +10,13 @@ import { addWebhook, createApiKey, deleteWebhook, retryDelivery, revokeApiKey, s
 
 export const metadata: Metadata = { title: "Developers" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string; tested?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string; tested?: string; failed?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
   const flashRaw = (await cookies()).get("wf_flash_secret")?.value;
   const flash = flashRaw ? (JSON.parse(flashRaw) as { label: string; value: string }) : null;
-  const [keys, hooks, deliveries] = await Promise.all([
+  const r = schema.apiRequests;
+  const [keys, hooks, deliveries, requests, [usage]] = await Promise.all([
     d.select().from(schema.apiKeys).where(eq(schema.apiKeys.orgId, org.id)).orderBy(desc(schema.apiKeys.createdAt)),
     d.select().from(schema.webhookEndpoints).where(eq(schema.webhookEndpoints.orgId, org.id)).orderBy(desc(schema.webhookEndpoints.createdAt)),
     d
@@ -25,6 +26,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       .where(eq(schema.webhookDeliveries.orgId, org.id))
       .orderBy(desc(schema.webhookDeliveries.createdAt))
       .limit(30),
+    d
+      .select({ r, key: schema.apiKeys.name })
+      .from(r)
+      .leftJoin(schema.apiKeys, eq(schema.apiKeys.id, r.keyId))
+      .where(and(eq(r.orgId, org.id), sp.failed ? sql`${r.status} >= 400` : undefined))
+      .orderBy(desc(r.createdAt))
+      .limit(50),
+    d
+      .select({
+        total: sql<number>`count(*)`,
+        failed: sql<number>`count(*) filter (where ${r.status} >= 400)`,
+        limited: sql<number>`count(*) filter (where ${r.status} = 429)`,
+        p95: sql<number | null>`percentile_cont(0.95) within group (order by ${r.durationMs})`,
+      })
+      .from(r)
+      .where(and(eq(r.orgId, org.id), sql`${r.createdAt} > now() - interval '24 hours'`)),
   ]);
   const base = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return (
@@ -142,6 +159,51 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
           </form>
         </Card>
 
+        <Card className="p-5">
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h2 className="font-semibold">API requests</h2>
+            <span className="text-sm text-muted">
+              Last 24 hours: {Number(usage.total)} calls · {Number(usage.failed)} failed{Number(usage.limited) ? ` (${Number(usage.limited)} rate limited)` : ""}
+              {usage.p95 != null && ` · 95% answered within ${Math.round(Number(usage.p95))} ms`}
+            </span>
+            <a href={sp.failed ? "/settings/developers" : "/settings/developers?failed=1"} className="ml-auto text-sm text-accent">
+              {sp.failed ? "Show all" : "Only failures"}
+            </a>
+          </div>
+          {requests.length === 0 ? (
+            <p className="text-sm text-muted">{sp.failed ? "No failed calls in the last 30 days." : "Calls made with your API keys show up here for 30 days."}</p>
+          ) : (
+            <Table>
+              <thead>
+                <tr>
+                  <Th>When</Th>
+                  <Th>Request</Th>
+                  <Th>Result</Th>
+                  <Th>Time</Th>
+                  <Th>Key</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map(({ r: q, key }) => (
+                  <tr key={q.id}>
+                    <Td className="text-muted">{timeAgo(q.createdAt)}</Td>
+                    <Td>
+                      <code className="text-xs">
+                        {q.method} {q.path}
+                      </code>
+                    </Td>
+                    <Td>
+                      <Badge tone={q.status >= 500 ? "danger" : q.status >= 400 ? "warning" : "success"}>{q.status}</Badge>
+                      {q.error && <span className="ml-2 text-xs text-muted">{q.error}</span>}
+                    </Td>
+                    <Td className="text-muted">{q.durationMs} ms</Td>
+                    <Td className="text-muted">{key ?? "deleted key"}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Card>
         <Card className="p-5">
           <h2 className="mb-3 font-semibold">Recent deliveries</h2>
           {deliveries.length === 0 ? (

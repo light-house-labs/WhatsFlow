@@ -65,6 +65,7 @@ type Thread = {
   orders: { id: string; number: number; totalMinor: number; currency: string; status: string; paymentStatus: string }[];
   appointment: { startAt: string; service: string } | null;
   viewers: { name: string; typing: boolean }[];
+  ad?: { headline: string | null; sourceUrl: string | null; sourceType: string | null } | null;
 };
 
 // Whether this browser's agent is mid-reply; sent with each poll for the collision indicator.
@@ -623,6 +624,18 @@ function ContactPanel({ thread, act }: { thread: Thread; act: (p: Promise<{ ok: 
           {contact.optedOutAt && <Badge tone="warning">opted out of offers</Badge>}
           <Badge>source: {contact.source}</Badge>
         </div>
+        {thread.ad && (
+          <div className="mt-2 rounded-md bg-surface-2 p-2 text-xs">
+            <div className="text-muted">Came from {thread.ad.sourceType === "post" ? "a Facebook or Instagram post" : "a Click to WhatsApp ad"}</div>
+            {thread.ad.sourceUrl?.startsWith("https://") ? (
+              <a href={thread.ad.sourceUrl} target="_blank" rel="noreferrer noopener" className="font-medium text-accent">
+                {thread.ad.headline ?? "View the ad"}
+              </a>
+            ) : (
+              thread.ad.headline && <div className="font-medium">{thread.ad.headline}</div>
+            )}
+          </div>
+        )}
         <Link className="mt-2 inline-block text-xs text-accent" href={`/contacts/${contact.id}`}>
           Open contact →
         </Link>

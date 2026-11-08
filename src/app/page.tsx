@@ -120,6 +120,9 @@ export default function Home() {
         <span className="flex items-center gap-2">
           <LifeBuoy size={14} aria-hidden /> Help from real people, on WhatsApp
         </span>
+        <Link href="/status" className="hover:text-ink">
+          System status
+        </Link>
       </footer>
     </div>
   );
