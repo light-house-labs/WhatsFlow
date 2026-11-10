@@ -26,6 +26,9 @@ async function main() {
       .insert(schema.users)
       .values({ email: DEV_ACCOUNT.email, name: DEV_ACCOUNT.name, passwordHash: await hashPassword(DEV_ACCOUNT.password), isStaff: true })
       .returning();
+  } else {
+    // keep the stored hash in step with scripts/dev-account.ts if that file was edited after the first seed
+    await d.update(schema.users).set({ passwordHash: await hashPassword(DEV_ACCOUNT.password) }).where(eq(schema.users.id, user.id));
   }
   const [existing] = await d
     .select({ org: schema.orgs })
