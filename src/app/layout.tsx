@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter_Tight } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+// Display face: logo and landing page only.
+const display = Inter_Tight({ variable: "--font-display-face", subsets: ["latin"], weight: ["800", "900"] });
 
 export const metadata: Metadata = {
   title: { default: "WhatsFlow", template: "%s · WhatsFlow" },
@@ -11,8 +14,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} antialiased`}>{children}</body>
+    // Browser extensions (e.g. ColorZilla's cz-shortcut-listen) write attributes onto
+    // <html>/<body> before React hydrates; this only silences those two elements.
+    <html lang="en" className={`${GeistSans.variable} ${display.variable}`} suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

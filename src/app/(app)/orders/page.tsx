@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { ShoppingBag } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { formatMoney } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
-import { Alert, ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Alert, ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Orders" };
 
@@ -19,10 +19,13 @@ const FILTERS = {
   shipped: ["status", ["shipped"]],
 } as const;
 
+const ORDER_COLS = ["#", "Customer", "Items", "Total", "Payment", "Status", "Placed"];
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ f?: keyof typeof FILTERS; error?: string }> }) {
   const sp = await searchParams;
   const f = sp.f && sp.f in FILTERS ? sp.f : "all";
-  const { db: d, org } = await requireOrg();
+  const { db: d, org, role } = await requireOrg();
+  const [{ n: productCount }] = await d.select({ n: count() }).from(schema.products).where(eq(schema.products.orgId, org.id));
   const rows = await d
     .select({ o: schema.orders, name: schema.contacts.name, waId: schema.contacts.waId })
     .from(schema.orders)
@@ -33,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
   const rule = FILTERS[f];
   const list = rule ? rows.filter(({ o }) => (rule[1] as readonly string[]).includes(o[rule[0]])) : rows;
   const tab = (key: keyof typeof FILTERS, label: string) => (
-    <Link key={key} href={key === "all" ? "/orders" : `/orders?f=${key}`} className={`rounded-full px-3 py-1 text-xs ${f === key ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+    <Link key={key} href={key === "all" ? "/orders" : `/orders?f=${key}`} className={filterChip(f === key)}>
       {label}
     </Link>
   );
@@ -42,17 +45,41 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
       <PageHeader title="Orders" description="Orders taken in chat, with payment and delivery status." actions={<ButtonLink href="/orders/new">New order</ButtonLink>} />
       <div className="space-y-4 p-6">
         {sp.error && <Alert tone="danger">{sp.error}</Alert>}
-        <div className="flex flex-wrap gap-1.5">
+        <div className={segmentedTrack}>
           {tab("all", "All")}
           {tab("unpaid", "Awaiting payment")}
           {tab("paid", "Paid")}
           {tab("to_ship", "To ship")}
           {tab("shipped", "Shipped")}
         </div>
-        <Card>
-          {list.length === 0 ? (
-            <EmptyState icon={<ShoppingBag />} title="No orders here" body="Create one from the inbox, or add a “Take an order” block to a bot flow." />
+        {list.length === 0 ? (
+rows.length > 0 ? (
+            <EmptyState variant="filtered" columns={ORDER_COLS} primary={{ href: "/orders" }} />
+          ) : productCount === 0 ? (
+            <EmptyState
+              icon={<ShoppingBag />}
+              columns={ORDER_COLS}
+              title="No orders yet"
+              description="Add the products you sell first, then orders can be taken in chat."
+              primary={{ label: "Add products first", href: "/catalog?new=1", allow: role !== "agent" }}
+              askAdmin="add products"
+            />
           ) : (
+            <EmptyState
+              icon={<ShoppingBag />}
+              columns={ORDER_COLS}
+              title="No orders yet"
+              description="Orders taken in chat appear here with payment and delivery status."
+              primary={{ label: "New order", href: "/orders/new" }}
+              hint={
+                <>
+                  Or add a “Take an order” block to a <Link href="/bots">bot flow</Link>.
+                </>
+              }
+            />
+          )
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -67,9 +94,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
               </thead>
               <tbody>
                 {list.map(({ o, name, waId }) => (
-                  <tr key={o.id} className="hover:bg-surface-2">
+                  <tr key={o.id} className="hover:bg-hover">
                     <Td>
-                      <Link href={`/orders/${o.id}`} className="font-medium hover:text-accent">
+                      <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
                         #{o.number}
                       </Link>
                     </Td>
@@ -87,8 +114,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

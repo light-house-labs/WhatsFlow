@@ -7,14 +7,14 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
 import { describeRules, segmentWhere } from "@/lib/segments";
-import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Table, Td, Th } from "@/components/ui";
+import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 import { bulkTag, createContact } from "./actions";
 
 export const metadata: Metadata = { title: "Contacts" };
 
 const ERR: Record<string, string> = { phone: "That doesn't look like a phone number.", exists: "A contact with that number already exists." };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; segment?: string; error?: string; deleted?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; segment?: string; error?: string; deleted?: string; new?: string; name?: string; phone?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg();
   const where = [eq(schema.contacts.orgId, org.id)];
@@ -50,51 +50,64 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
         {sp.deleted && <Alert tone="success">Contact deleted.</Alert>}
         <div className="flex flex-wrap items-end gap-3">
           <form className="flex gap-2">
-            <Input name="q" placeholder="Search name or number" defaultValue={sp.q} aria-label="Search contacts" className="w-64" />
+            <Input data-bare name="q" placeholder="Search name or number" defaultValue={sp.q} aria-label="Search contacts" className="w-64" />
             {sp.tag && <input type="hidden" name="tag" value={sp.tag} />}
             {segment && <input type="hidden" name="segment" value={segment.id} />}
             <Button variant="secondary">Search</Button>
           </form>
-          <details className="ml-auto">
-            <summary className="cursor-pointer text-sm text-accent">+ Add a contact</summary>
+          <details className="ml-auto" open={Boolean(sp.new)}>
+            <summary className="section-label cursor-pointer text-faint">+ Add a contact</summary>
             <form action={createContact} className="mt-2 flex flex-wrap gap-2">
-              <Input name="name" placeholder="Name" aria-label="Name" className="w-40" />
-              <Input name="phone" placeholder="Phone with country code" aria-label="Phone" required className="w-48" />
+              <Input name="name" placeholder="Name" aria-label="Name" defaultValue={sp.name} autoFocus={Boolean(sp.new) && !sp.phone} className="w-40" />
+              <Input name="phone" placeholder="Phone with country code" aria-label="Phone" defaultValue={sp.phone} autoFocus={Boolean(sp.phone)} required className="w-48" />
               <Input name="tags" placeholder="tags, comma separated" aria-label="Tags" className="w-48" />
               <Button>Add</Button>
             </form>
           </details>
         </div>
         {segments.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted">Segments:</span>
+            <div className={segmentedTrack}>
             {segments.map((x) => (
-              <Link key={x.id} href={segment?.id === x.id ? "/contacts" : `/contacts?segment=${x.id}`} className={`rounded-full px-2.5 py-1 text-xs ${segment?.id === x.id ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+              <Link key={x.id} href={segment?.id === x.id ? "/contacts" : `/contacts?segment=${x.id}`} className={filterChip(segment?.id === x.id)}>
                 {x.name}
               </Link>
             ))}
+            </div>
           </div>
         )}
         {segment && <p className="text-sm text-muted">Showing contacts matching: {describeRules(segment.rules)}.</p>}
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <Link href="/contacts" className={`rounded-full px-2.5 py-1 text-xs ${!sp.tag ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+          <div className={segmentedTrack}>
+            <Link href="/contacts" className={filterChip(!sp.tag)}>
               All
             </Link>
             {tags.map((t) => (
-              <Link key={t.tag} href={`/contacts?tag=${encodeURIComponent(t.tag)}`} className={`rounded-full px-2.5 py-1 text-xs ${sp.tag === t.tag ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+              <Link key={t.tag} href={`/contacts?tag=${encodeURIComponent(t.tag)}`} className={filterChip(sp.tag === t.tag)}>
                 {t.tag} · {t.n}
               </Link>
             ))}
           </div>
         )}
-        <Card>
-          {rows.length === 0 ? (
-            <EmptyState icon={<Users />} title="No contacts yet" body="They appear here as soon as someone messages your number, or import a spreadsheet." action={<ButtonLink href="/contacts/import">Import CSV</ButtonLink>} />
+        {rows.length === 0 ? (
+sp.q || sp.tag || segment ? (
+            <EmptyState variant="filtered" columns={["Name", "Phone", "Tags", "Source", "Last message"]} primary={{ href: "/contacts" }} />
           ) : (
+            <EmptyState
+              icon={<Users />}
+              columns={["Name", "Phone", "Tags", "Source", "Last message"]}
+              title="No contacts yet"
+              description="People appear here as soon as they message your number. You can also add or import them."
+              primary={{ label: "Add contact", href: "/contacts?new=1" }}
+              secondary={{ label: "Import CSV", href: "/contacts/import" }}
+            />
+          )
+) : (
+<Card>
             <form action={bulkTag}>
               <div className="flex items-center gap-2 border-b border-line px-4 py-2">
-                <Input name="tag" placeholder="Tag selected as…" aria-label="Tag to add" className="h-8 w-48 text-[13px]" />
+                <Input name="tag" placeholder="Tag selected as…" aria-label="Tag to add" className="h-8 w-48 text-13" />
                 <Button size="sm" variant="secondary">
                   Add tag
                 </Button>
@@ -114,12 +127,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
                 </thead>
                 <tbody>
                   {rows.map((c) => (
-                    <tr key={c.id} className="hover:bg-surface-2">
+                    <tr key={c.id} className="hover:bg-hover">
                       <Td>
                         <input type="checkbox" name="ids" value={c.id} aria-label={`Select ${c.name ?? c.waId}`} />
                       </Td>
                       <Td>
-                        <Link href={`/contacts/${c.id}`} className="font-medium text-ink hover:text-accent">
+                        <Link href={`/contacts/${c.id}`} className="font-medium text-ink hover:underline">
                           {c.name ?? "—"}
                         </Link>
                         {c.optedOutAt && (
@@ -143,8 +156,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
                 </tbody>
               </Table>
             </form>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

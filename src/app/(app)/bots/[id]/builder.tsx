@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   Handle,
   Position,
@@ -19,9 +20,11 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Bot, CalendarClock, GitBranch, PackageSearch, ShoppingBag, HelpCircle, List, MessageSquare, MousePointerClick, Play, Tag, Ticket, Trash2, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Bot, CalendarClock, GitBranch, PackageSearch, Plus, ShoppingBag, HelpCircle, List, MessageSquare, MousePointerClick, Play, Tag, Ticket, Trash2, UserRound, Users, X } from "lucide-react";
 import type { FlowEdge, FlowNode, FlowTrigger } from "@/db/schema";
-import { Alert, Button, Field, Input, Select, StatusBadge, Textarea, cx } from "@/components/ui";
+import { Button, Field, Input, SectionLabel, Select, StatusBadge, Textarea, cx } from "@/components/ui";
+import { HelpButton } from "@/components/help-drawer";
+import { Tour, type TourStep } from "@/components/tour";
 import { saveFlow } from "../actions";
 import { nowMs } from "@/lib/format";
 
@@ -42,6 +45,14 @@ const META: Record<Kind, { label: string; icon: typeof Bot; hint: string }> = {
   order_status: { label: "Order status", icon: PackageSearch, hint: "Tells the customer about their last order" },
   handover: { label: "Hand over to team", icon: UserRound, hint: "Stops the bot, alerts the inbox" },
 };
+
+const TOUR: TourStep[] = [
+  { target: ['[data-tour="palette"]'], side: "right", title: "Your blocks", body: "Everything a flow can do: send messages, ask questions, take orders, book times and hand over to your team." },
+  { target: ['[data-tour="add-block"]'], side: "right", title: "Add a block", body: "Click any block to drop it on the canvas, to the right of the last one. You can drag it anywhere after." },
+  { target: ['.react-flow__node[data-id="t"]', '[data-tour="canvas"]'], side: "right", title: "Connect blocks", body: "Drag from the dot on the right of a block to the left edge of the next. Each button or option gets its own dot." },
+  { target: ['[data-tour="settings"]'], side: "left", title: "Edit its settings", body: "Click a block to change its message, buttons or saved answer here. With nothing selected, this sets when the flow starts." },
+  { target: ['[data-tour="test"]'], side: "bottom", title: "Test it", body: "Saves the flow and opens the sandbox phone so you can chat with it. Drafts work too, so test before setting it live." },
+];
 
 const ServicesCtx = createContext<{ id: string; name: string }[]>([]);
 
@@ -68,35 +79,50 @@ function BlockNode({ data, selected }: NodeProps<Node<Data>>) {
   const options = kind === "buttons" ? ((data.buttons as string[]) ?? []) : kind === "list" ? ((data.rows as string[]) ?? []) : [];
   const preview =
     kind === "tag" ? `#${data.tag || "…"}` : kind === "lead" ? String(data.title ?? "") : kind === "ticket" ? String(data.subject ?? "") : kind === "condition" ? `${data.variable || "?"} = “${data.equals ?? ""}”` : String(data.text ?? "");
-  return (
-    <div className={cx("w-56 rounded-lg border bg-surface text-ink shadow-sm", selected ? "border-accent ring-2 ring-accent-soft" : "border-line")}>
-      {kind !== "trigger" && <Handle type="target" position={Position.Left} className="!h-3 !w-3 !bg-accent" />}
-      <div className={cx("flex items-center gap-2 rounded-t-lg px-3 py-2 text-xs font-semibold", kind === "trigger" ? "bg-accent text-on-accent" : kind === "handover" ? "bg-surface-2 text-warning" : "bg-surface-2")}>
-        <Icon size={14} aria-hidden /> {m.label}
+  const ring = selected ? "outline-2 outline-accent" : "";
+  // Start/trigger: solid green pill
+  if (kind === "trigger") {
+    return (
+      <div className={cx("relative inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-on-accent outline-offset-2", ring)}>
+        <Icon size={13} strokeWidth={1.75} aria-hidden />
+        <span className="text-13 font-semibold">{m.label}</span>
+        <Handle type="source" position={Position.Right} />
       </div>
-      {kind !== "trigger" && <div className="line-clamp-3 px-3 py-2 text-xs text-muted">{preview || <em>Click to edit</em>}</div>}
+    );
+  }
+  // Messages get a green tint header; logic and actions a neutral fill
+  const messaging = kind === "message" || kind === "buttons" || kind === "list" || kind === "question" || kind === "products" || kind === "booking" || kind === "order_status";
+  return (
+    <div className={cx("w-60 overflow-hidden rounded-lg border border-line bg-surface text-ink outline-offset-2 transition-[outline-color] duration-150", ring)}>
+      <Handle type="target" position={Position.Left} />
+      <div className={cx("flex items-center gap-2 px-3 py-2", messaging ? "bg-accent-soft" : "bg-fill")}>
+        <Icon size={13} strokeWidth={1.75} aria-hidden className={messaging ? "text-accent-text" : "text-muted"} />
+        <span className={cx("section-label flex-1 truncate", messaging ? "text-accent-text" : "text-muted")}>{m.label}</span>
+        {kind === "handover" && <span className="section-label text-xs text-muted">End</span>}
+      </div>
+      <div className={cx("line-clamp-3 px-3 py-2.5 text-13 leading-snug", preview ? "font-semibold" : "text-muted")}>{preview || "Click to edit"}</div>
       {options.length > 0 ? (
-        <div className="border-t border-line">
+        <div className="pb-1">
           {options.map((o, i) => (
-            <div key={i} className="relative px-3 py-1.5 text-xs">
-              {o || <em className="text-muted">empty</em>}
-              <Handle id={String(i)} type="source" position={Position.Right} className="!h-3 !w-3 !bg-accent" />
+            <div key={i} className="relative mx-1 rounded-lg bg-fill px-3 py-1.5 text-xs [&:not(:first-child)]:mt-1">
+              {o || <span className="section-label text-muted">Empty</span>}
+              <Handle id={String(i)} type="source" position={Position.Right} />
             </div>
           ))}
         </div>
       ) : kind === "condition" ? (
-        <div className="border-t border-line text-xs">
-          <div className="relative px-3 py-1.5 text-success">
+        <div className="space-y-1 px-1 pb-1">
+          <div className="section-label relative rounded-lg bg-fill px-3 py-1.5 text-accent-text">
             Yes
-            <Handle id="yes" type="source" position={Position.Right} className="!h-3 !w-3 !bg-success" />
+            <Handle id="yes" type="source" position={Position.Right} />
           </div>
-          <div className="relative px-3 py-1.5 text-danger">
+          <div className="section-label relative rounded-lg bg-fill px-3 py-1.5 text-muted">
             No
-            <Handle id="no" type="source" position={Position.Right} className="!h-3 !w-3 !bg-danger" />
+            <Handle id="no" type="source" position={Position.Right} className="wf-handle-no" />
           </div>
         </div>
       ) : kind !== "handover" ? (
-        <Handle type="source" position={Position.Right} className="!h-3 !w-3 !bg-accent" />
+        <Handle type="source" position={Position.Right} />
       ) : null}
     </div>
   );
@@ -143,6 +169,11 @@ export function Builder(props: {
   );
 
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId]);
+  // Display only: edges in and out of the selected block read as the active path.
+  const shownEdges = useMemo(
+    () => (selectedId ? edges.map((e) => (e.source === selectedId || e.target === selectedId ? { ...e, className: "wf-path" } : e)) : edges),
+    [edges, selectedId],
+  );
   const update = (patch: Record<string, unknown>) => setNodes((ns) => ns.map((n) => (n.id === selectedId ? { ...n, data: { ...n.data, ...patch } } : n)));
 
   function add(kind: Kind) {
@@ -166,15 +197,25 @@ export function Builder(props: {
   return (
     <ServicesCtx.Provider value={props.services}>
       <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-3">
-        <Link href="/bots" aria-label="Back to flows" className="text-muted">
-          <ArrowLeft size={18} />
+      <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5">
+        <Link href="/bots" aria-label="Back to flows" className="grid size-8 place-items-center rounded-xs text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink">
+          <ArrowLeft size={16} strokeWidth={1.75} />
         </Link>
-        <Input aria-label="Flow name" value={name} onChange={(e) => setName(e.target.value)} className="h-9 w-64 font-medium" />
+        <div className="h-6 w-px bg-line" aria-hidden />
+        <Input
+          aria-label="Flow name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="h-9 w-72 border-transparent bg-transparent px-2 text-base font-semibold hover:border-line"
+        />
         <StatusBadge status={status} />
         <div className="ml-auto flex items-center gap-2">
-          {saved && <span className="text-sm text-success">{saved}</span>}
-          <Button variant="secondary" size="sm" disabled={pending} onClick={() => save("keep", () => router.push(`/sandbox?test=${props.id}`))} title="Save, then try this flow on the sandbox phone. Works on drafts.">
+          {saved && (
+            <span role="status" className="section-label mr-1 text-accent-text">
+              {saved}
+            </span>
+          )}
+          <Button data-tour="test" variant="secondary" size="sm" disabled={pending} onClick={() => save("keep", () => router.push(`/settings/sandbox?test=${props.id}`))} title="Save, then try this flow on the sandbox phone. Works on drafts.">
             <Play size={14} /> Test
           </Button>
           <Button variant="secondary" size="sm" disabled={pending} onClick={() => save("keep")}>
@@ -189,43 +230,58 @@ export function Builder(props: {
               Save and set live
             </Button>
           )}
+          <div className="h-6 w-px bg-line" aria-hidden />
+          <HelpButton />
         </div>
       </header>
       {(problems.length > 0 || (props.initialProblems.length > 0 && status === "draft" && problems.length === 0 && !saved)) && (
-        <div className="border-b border-line bg-surface px-4 py-2">
-          <Alert tone="warning">
+        <div role="alert" className="flex gap-4 bg-danger-soft text-danger px-4 py-2.5">
+          <div className="section-label shrink-0 pt-px text-danger">
             {problems.length ? "Fix these before going live:" : "Before this can go live:"}
-            <ul className="ml-4 list-disc">
-              {(problems.length ? problems : props.initialProblems).map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-          </Alert>
+          </div>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1 text-13 text-ink">
+            {(problems.length ? problems : props.initialProblems).map((p) => (
+              <li key={p} className="flex items-baseline gap-2">
+                <span aria-hidden className="inline-block size-1.5 shrink-0 translate-y-[-1px] bg-danger" />
+                {p}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <div className="flex min-h-0 flex-1">
-        <aside className="w-56 shrink-0 space-y-1 overflow-y-auto border-r border-line bg-surface p-3" aria-label="Blocks">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Add a block</div>
-          {(Object.keys(META) as Kind[])
-            .filter((k) => k !== "trigger")
-            .map((k) => {
-              const Icon = META[k].icon;
-              return (
-                <button key={k} onClick={() => add(k)} className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-surface-2">
-                  <Icon size={16} className="mt-0.5 text-accent" aria-hidden />
-                  <span>
-                    <span className="block text-sm">{META[k].label}</span>
-                    <span className="block text-[11px] text-muted">{META[k].hint}</span>
-                  </span>
-                </button>
-              );
-            })}
-          <p className="pt-3 text-[11px] text-muted">Drag from a dot on the right of a block to the left of another to connect them. Select a block and press Backspace to delete it.</p>
+        <aside data-tour="palette" className="w-60 shrink-0 overflow-y-auto border-r border-line bg-surface" aria-label="Blocks">
+          <SectionLabel as="div" className="px-4 pb-2 pt-4">
+            Add a block
+          </SectionLabel>
+          <div className="border-t border-line">
+            {(Object.keys(META) as Kind[])
+              .filter((k) => k !== "trigger")
+              .map((k, i) => {
+                const Icon = META[k].icon;
+                return (
+                  <button
+                    key={k}
+                    data-tour={i === 0 ? "add-block" : undefined}
+                    onClick={() => add(k)}
+                    className="group flex w-full items-start gap-2.5 border-b border-line px-4 py-2.5 text-left transition-colors duration-150 hover:bg-surface-2"
+                  >
+                    <Icon size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-muted transition-colors duration-150 group-hover:text-ink" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-13 font-medium leading-snug">{META[k].label}</span>
+                      <span className="block text-xs leading-snug text-muted">{META[k].hint}</span>
+                    </span>
+                    <Plus size={14} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+                  </button>
+                );
+              })}
+          </div>
+          <p className="px-4 py-4 text-xs leading-relaxed text-muted">Drag from a dot on the right of a block to the left of another to connect them. Select a block and press Backspace to delete it.</p>
         </aside>
-        <div className="min-w-0 flex-1 bg-bg">
+        <div data-tour="canvas" className="wf-canvas min-w-0 flex-1 bg-canvas">
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={shownEdges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -236,11 +292,11 @@ export function Builder(props: {
             deleteKeyCode={["Backspace", "Delete"]}
             proOptions={{ hideAttribution: true }}
           >
-            <Background gap={20} />
+            <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} />
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>
-        <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-line bg-surface p-4" aria-label="Block settings">
+        <aside data-tour="settings" className="w-80 shrink-0 overflow-y-auto border-l border-line bg-surface p-5" aria-label="Block settings">
           {!selected || selected.data.kind === "trigger" ? (
             <TriggerPanel trigger={trigger} setTrigger={setTrigger} />
           ) : (
@@ -257,14 +313,18 @@ export function Builder(props: {
         </aside>
       </div>
       </div>
+      <Tour id="flow-builder" steps={TOUR} />
     </ServicesCtx.Provider>
   );
 }
 
 function TriggerPanel({ trigger, setTrigger }: { trigger: FlowTrigger; setTrigger: (t: FlowTrigger) => void }) {
   return (
-    <div className="space-y-4">
-      <h2 className="font-semibold">When does this flow start?</h2>
+    <div className="space-y-5">
+      <div className="border-b border-line pb-4">
+        <SectionLabel as="div">{META.trigger.label}</SectionLabel>
+        <h2 className="type-heading mt-2">When does this flow start?</h2>
+      </div>
       <Field label="Start when" htmlFor="trigger-kind">
         <Select
           id="trigger-kind"
@@ -284,7 +344,7 @@ function TriggerPanel({ trigger, setTrigger }: { trigger: FlowTrigger; setTrigge
           />
         </Field>
       )}
-      <p className="text-xs text-muted">
+      <p className="border-t border-line pt-4 text-xs leading-relaxed text-muted">
         Keyword flows win over “any new conversation” flows. While a bot is waiting for an answer, the customer&apos;s reply goes to the bot. If they reply with something that isn&apos;t one of the options, the chat is handed to your team.
       </p>
     </div>
@@ -313,21 +373,26 @@ function NodePanel({ data, update, remove }: { data: Data; update: (p: Record<st
     const items = (data[key] as string[]) ?? [];
     return (
       <div className="space-y-2">
-        <div className="text-[13px] font-medium">{key === "buttons" ? "Buttons" : "Options"}</div>
+        <div className="section-label text-muted">{key === "buttons" ? "Buttons" : "Options"}</div>
         {items.map((b, i) => (
           <div key={i} className="flex gap-1">
             <Input aria-label={`Option ${i + 1}`} value={b} maxLength={maxLen} onChange={(e) => update({ [key]: items.map((x, j) => (j === i ? e.target.value : x)) })} />
-            <Button type="button" size="sm" variant="ghost" aria-label="Remove option" onClick={() => update({ [key]: items.filter((_, j) => j !== i) })}>
-              ×
-            </Button>
+            <button
+              type="button"
+              aria-label="Remove option"
+              className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong bg-surface text-muted transition-colors duration-150 hover:bg-fill hover:text-ink"
+              onClick={() => update({ [key]: items.filter((_, j) => j !== i) })}
+            >
+              <X size={14} strokeWidth={1.75} />
+            </button>
           </div>
         ))}
         {items.length < max && (
-          <button className="text-sm text-accent" onClick={() => update({ [key]: [...items, ""] })}>
-            + Add
-          </button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => update({ [key]: [...items, ""] })}>
+            <Plus size={14} strokeWidth={1.75} /> Add
+          </Button>
         )}
-        <p className="text-[11px] text-muted">
+        <p className="text-xs text-muted">
           Up to {max}, {maxLen} characters each (WhatsApp&apos;s limit). Each one gets its own connection.
         </p>
       </div>
@@ -339,8 +404,12 @@ function NodePanel({ data, update, remove }: { data: Data; update: (p: Record<st
     </Field>
   );
   return (
-    <div className="space-y-4">
-      <h2 className="font-semibold">{META[kind].label}</h2>
+    <div className="space-y-5">
+      <div className="border-b border-line pb-4">
+        <SectionLabel as="div">Block</SectionLabel>
+        <h2 className="type-heading mt-2">{META[kind].label}</h2>
+        <p className="mt-1 text-xs text-muted">{META[kind].hint}</p>
+      </div>
       {(kind === "message" || kind === "buttons" || kind === "list" || kind === "question") && text("Message")}
       {(kind === "products" || kind === "booking") &&
         text(
@@ -396,9 +465,11 @@ function NodePanel({ data, update, remove }: { data: Data; update: (p: Record<st
           <Input id="ts" value={String(data.subject ?? "")} onChange={(e) => update({ subject: e.target.value })} />
         </Field>
       )}
-      <Button variant="ghost" size="sm" className="text-danger" onClick={remove}>
-        <Trash2 size={14} /> Delete block
-      </Button>
+      <div className="border-t border-line pt-4">
+        <Button variant="ghost" size="sm" className="text-danger hover:text-danger" onClick={remove}>
+          <Trash2 size={14} strokeWidth={1.75} /> Delete block
+        </Button>
+      </div>
     </div>
   );
 }

@@ -76,7 +76,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </Field>
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <div className="text-[13px] font-medium">Custom fields</div>
+              <div className="section-label text-faint">Custom fields</div>
               {[...fields, ["", ""]].map(([k, v], i) => (
                 <div key={i} className="flex gap-2">
                   <Input name="fieldKey" placeholder="field name, e.g. birthday" aria-label="Field name" defaultValue={k} />
@@ -92,7 +92,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </Card>
         <div className="space-y-4">
           <Card className="p-5">
-            <h2 className="text-sm font-semibold">Marketing messages</h2>
+            <h2 className="type-heading">Marketing messages</h2>
             <p className="mt-1 text-sm text-muted">
               {contact.optedOutAt ? `Opted out on ${dateTime(contact.optedOutAt)}. They won't get marketing broadcasts.` : "Subscribed. They can reply STOP at any time."}
             </p>
@@ -106,8 +106,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </Card>
           <Card className="p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Orders</h2>
-              <Link href={`/orders/new?contact=${contact.id}`} className="text-sm text-accent">
+              <h2 className="type-heading">Orders</h2>
+              <Link href={`/orders/new?contact=${contact.id}`} className="text-sm link">
                 + New order
               </Link>
             </div>
@@ -119,7 +119,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   {orders.length} order{orders.length === 1 ? "" : "s"} · {formatMoney(orders.filter((o) => o.paymentStatus === "paid").reduce((t, o) => t + o.totalMinor, 0))} paid · last {dateTime(orders[0].createdAt)}
                 </p>
                 {orders.map((o) => (
-                  <Link key={o.id} href={`/orders/${o.id}`} className="flex justify-between py-1 text-sm hover:text-accent">
+                  <Link key={o.id} href={`/orders/${o.id}`} className="flex justify-between py-1 text-sm hover:underline">
                     <span>#{o.number}</span>
                     <span className="text-muted">
                       {o.status} · {o.paymentStatus.replace("_", " ")} · {formatMoney(o.totalMinor, o.currency)}
@@ -130,7 +130,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             )}
             {appointments.length > 0 && (
               <>
-                <h3 className="mb-1 mt-4 text-sm font-semibold">Appointments</h3>
+                <h3 className="mb-1 mt-4 type-heading">Appointments</h3>
                 {appointments.map(({ a, service }) => (
                   <div key={a.id} className="flex justify-between py-1 text-sm">
                     <span>{service}</span>
@@ -143,10 +143,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             )}
           </Card>
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold">Leads</h2>
+            <h2 className="mb-3 type-heading">Leads</h2>
             {leads.length === 0 && <p className="text-sm text-muted">None yet.</p>}
             {leads.map((l) => (
-              <Link key={l.lead.id} href="/pipeline" className="flex justify-between py-1 text-sm hover:text-accent">
+              <Link key={l.lead.id} href="/pipeline" className="flex justify-between py-1 text-sm hover:underline">
                 <span>{l.lead.title}</span>
                 <span className="text-muted">
                   {l.stage} · {formatMoney(l.lead.valueMinor, l.lead.currency)}
@@ -155,7 +155,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             ))}
           </Card>
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold">Activity</h2>
+            <h2 className="mb-3 type-heading">Activity</h2>
             <ol className="space-y-2">
               {timeline.map((t, i) => (
                 <li key={i} className="text-sm">

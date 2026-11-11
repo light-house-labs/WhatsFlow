@@ -21,9 +21,26 @@ export function InviteForm({ canInviteOwner }: { canInviteOwner: boolean }) {
       {state?.link && (
         <Alert tone="success">
           Send this link to them (on WhatsApp, say). It works once, for that email address:
-          <div className="mt-1 break-all font-mono text-xs text-ink">{state.link}</div>
+          <div className="mt-1 break-all text-xs text-ink">{state.link}</div>
         </Alert>
       )}
     </div>
+  );
+}
+
+/** Scrolls to the Invite card and focuses its email input. Used by every "Invite member" button. */
+export function InviteMemberButton() {
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={() => {
+        const card = document.getElementById("invite");
+        card?.scrollIntoView({ behavior: "smooth", block: "start" });
+        card?.querySelector<HTMLInputElement>('input[name="email"]')?.focus({ preventScroll: true });
+      }}
+    >
+      Invite member
+    </Button>
   );
 }

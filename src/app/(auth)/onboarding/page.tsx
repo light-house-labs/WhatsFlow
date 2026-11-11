@@ -9,7 +9,7 @@ export default async function Page() {
   const s = await requireUser();
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold">Hi {s.user.name.split(" ")[0]}, let&apos;s set up your workspace</h1>
+      <h1 className="mb-1 type-title">Hi {s.user.name.split(" ")[0]}, let&apos;s set up your workspace</h1>
       <p className="mb-6 text-sm text-muted">Takes under a minute.</p>
       <WorkspaceForm industries={INDUSTRIES} />
     </>

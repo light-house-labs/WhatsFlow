@@ -6,7 +6,7 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { duration, nowMs, timeAgo } from "@/lib/format";
-import { Card, EmptyState, PageHeader, Stat, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Card, EmptyState, PageHeader, Stat, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Enquiries" };
 
@@ -17,6 +17,8 @@ const FILTERS = [
   { id: "answered", label: "Answered by team" },
   { id: "converted", label: "Became a lead or ticket" },
 ];
+
+const COLS = ["Customer", "Asked", "Source", "Status", "First reply", "When"];
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const { status } = await searchParams;
@@ -52,17 +54,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           <Stat label="Turned into leads/tickets" value={Number(s.converted)} />
           <Stat label="Avg first human reply" value={duration(s.avg ? Math.round(Number(s.avg)) : null)} />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className={segmentedTrack}>
           {FILTERS.map((f) => (
-            <Link key={f.id} href={f.id ? `/enquiries?status=${f.id}` : "/enquiries"} className={`rounded-full px-3 py-1 text-xs ${(status ?? "") === f.id ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+            <Link key={f.id} href={f.id ? `/enquiries?status=${f.id}` : "/enquiries"} className={filterChip((status ?? "") === f.id)}>
               {f.label}
             </Link>
           ))}
         </div>
-        <Card>
-          {rows.length === 0 ? (
-            <EmptyState icon={<MessageCircleQuestion />} title="No enquiries" body="Each new conversation, or a message after a day of silence, is logged here." />
+        {rows.length === 0 ? (
+status ? (
+            <EmptyState variant="filtered" columns={COLS} primary={{ href: "/enquiries" }} />
           ) : (
+            <EmptyState
+              icon={<MessageCircleQuestion />}
+              columns={COLS}
+              title="No enquiries yet"
+              description="Each new conversation, or a message after a day of silence, is logged here."
+              primary={{ label: "Open inbox", href: "/inbox" }}
+            />
+          )
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -76,9 +88,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </thead>
               <tbody>
                 {rows.map(({ e, name, waId }) => (
-                  <tr key={e.id} className="hover:bg-surface-2">
+                  <tr key={e.id} className="hover:bg-hover">
                     <Td>
-                      <Link href={`/inbox?c=${e.conversationId}`} className="font-medium hover:text-accent">
+                      <Link href={`/inbox?c=${e.conversationId}`} className="font-medium hover:underline">
                         {name ?? formatWaId(waId)}
                       </Link>
                     </Td>
@@ -94,8 +106,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

@@ -21,12 +21,12 @@ export function UploadField({ name, label, accept, defaultValue }: { name: strin
   }
   return (
     <div className="space-y-1.5">
-      <label htmlFor={name} className="block text-[13px] font-medium">
+      <label htmlFor={name} className="section-label block text-faint">
         {label}
       </label>
       <div className="flex gap-2">
         <Input id={name} name={name} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… or upload" />
-        <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-line px-3 text-sm hover:bg-surface-2">
+        <label className="inline-flex h-10 cursor-pointer items-center rounded-md px-3 text-sm hover:bg-surface-2 bg-fill">
           {busy ? "Uploading…" : "Upload"}
           <input type="file" accept={accept} className="sr-only" disabled={busy} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
         </label>

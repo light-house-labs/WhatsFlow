@@ -8,7 +8,9 @@ import { requireOrg } from "@/lib/auth";
 import { usageFor } from "@/lib/billing";
 import { PLANS, formatMoney, limitsFor, overLimit } from "@/lib/plans";
 import { dateTime } from "@/lib/format";
-import { Alert, Button, ButtonLink, Card, PageHeader, Select, cx } from "@/components/ui";
+import { Alert, Button, ButtonLink, Card, Select, cx } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 import { cancel, choosePlan, resume } from "./actions";
 
 export const metadata: Metadata = { title: "Plan & billing" };
@@ -38,9 +40,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
           : `${PLANS[org.plan].name}, billed ${org.planInterval}ly. Renews ${dateTime(org.currentPeriodEnd)}.`;
 
   return (
-    <>
-      <PageHeader title="Plan & billing" description={status} />
-      <div className="max-w-5xl space-y-6 p-6">
+    <SettingsPage title="Plan & billing" summary={status} status={[{ label: "Plan", value: PLANS[org.plan].name, tone: "on" }, { label: "Billing", value: org.billingStatus, tone: org.billingStatus === "active" || org.billingStatus === "trialing" ? "on" : "warn" }, { label: org.cancelAtPeriodEnd ? "Ends" : "Renews", value: dateTime(org.currentPeriodEnd), tone: org.cancelAtPeriodEnd ? "warn" : "off" }]} tips={["Downgrades apply at the end of the period.", "Going over a limit pauses automations and broadcasts.", "Only the owner can change the plan or cancel."]}>
+      <div className="space-y-3 empty:hidden">
         {sp.done === "cancelled" && (
           <Alert tone="success">
             Your subscription is cancelled. Nothing more will be charged. We&apos;ve recorded it below. If you change your mind before it ends, click Resume.
@@ -50,18 +51,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
         {sp.done === "downgrade_scheduled" && <Alert tone="success">Downgrade scheduled for {dateTime(org.currentPeriodEnd)}. Until then you keep your current plan.</Alert>}
         {sp.done === "resumed" && <Alert tone="success">Subscription resumed.</Alert>}
         {!owner && <Alert tone="accent">Only the workspace owner can change the plan or cancel.</Alert>}
+      </div>
 
-        <Card className="grid gap-4 p-5 sm:grid-cols-3">
+      <SettingsSection title="Usage" description={status}>
+        <div className="grid gap-4 sm:grid-cols-3">
           <Usage label="Team members" used={usage.seats} limit={limits.seats} />
           <Usage label="Live bot flows" used={usage.liveFlows} limit={limits.botFlows} />
           <Usage label="Connected numbers" used={usage.numbers} limit={limits.numbers} />
-        </Card>
+        </div>
+      </SettingsSection>
 
+      <SettingsSection title="Plan" description="Pick a plan or change how often you are billed.">
         {preview && owner ? (
-          <Card className="space-y-4 p-5">
-            <h2 className="font-semibold">
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold">
               Switch to {PLANS[preview].name}, billed {interval}ly
-            </h2>
+            </h3>
             <p className="text-sm">
               {formatMoney(interval === "year" ? PLANS[preview].yearlyMinor : PLANS[preview].monthlyMinor)} / {interval} + GST.{" "}
               {isDowngrade ? `Takes effect on ${dateTime(org.currentPeriodEnd)}. Nothing changes before then.` : "Takes effect now."}
@@ -88,12 +93,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
               </ButtonLink>
             </div>
             <p className="text-xs text-muted">Payments: this build uses a manual billing provider in development, so no card is charged. Connect Razorpay or Stripe before going live.</p>
-          </Card>
+          </div>
         ) : (
           <>
             <form className="flex items-center gap-2 text-sm">
               <span>Billing period</span>
-              <Select name="interval" defaultValue={interval} className="h-8 w-48 text-[13px]" aria-label="Billing period">
+              <Select name="interval" defaultValue={interval} className="h-8 w-48 text-13" aria-label="Billing period">
                 <option value="month">Monthly</option>
                 <option value="year">Yearly (2 months free)</option>
               </Select>
@@ -101,25 +106,25 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
                 Show prices
               </Button>
             </form>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {(["starter", "team"] as const).map((id) => {
                 const p = PLANS[id];
                 const current = org.plan === id && org.billingStatus === "active";
                 return (
-                  <Card key={id} className={cx("flex flex-col p-5", current && "border-accent")}>
+                  <Card key={id} className={cx("flex flex-col p-5", current && "bg-accent-soft")}>
                     <div className="flex items-center">
-                      <h3 className="flex-1 font-semibold">{p.name}</h3>
-                      {current && <span className="text-xs font-medium text-accent">Current plan</span>}
+                      <h3 className="flex-1 type-heading">{p.name}</h3>
+                      {current && <span className="section-label text-accent-text">Current plan</span>}
                     </div>
                     <p className="text-sm text-muted">{p.tagline}</p>
-                    <div className="my-3 text-2xl font-semibold">
+                    <div className="my-3 type-stat tabular-nums">
                       {formatMoney(interval === "year" ? p.yearlyMinor : p.monthlyMinor)}
                       <span className="text-sm font-normal text-muted"> / {interval}</span>
                     </div>
                     <ul className="flex-1 space-y-1 text-sm">
                       {p.features.map((f) => (
                         <li key={f} className="flex gap-2">
-                          <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-accent" /> {f}
+                          <CheckCircle2 size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent-text" /> {f}
                         </li>
                       ))}
                     </ul>
@@ -133,14 +138,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
               })}
             </div>
             <p className="text-sm text-muted">
-              Need more numbers or seats? <Link href="/support" className="text-accent">Talk to a person</Link>.
+              Need more numbers or seats? <Link href="/support" className="link">Talk to a person</Link>.
             </p>
           </>
         )}
+      </SettingsSection>
 
         {owner && org.billingStatus !== "cancelled" && (
-          <Card className="p-5">
-            <h2 className="font-semibold">Cancel</h2>
+          <SettingsSection title="Cancel" description="One click, no call or email needed.">
             {org.cancelAtPeriodEnd ? (
               <form action={resume} className="mt-2 flex items-center gap-3">
                 <p className="flex-1 text-sm text-muted">Already cancelled. Access ends {dateTime(org.currentPeriodEnd)}.</p>
@@ -162,11 +167,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
                 <Button variant="danger">Cancel subscription</Button>
               </form>
             )}
-          </Card>
+          </SettingsSection>
         )}
 
-        <Card className="p-5">
-          <h2 className="mb-3 font-semibold">History</h2>
+        <SettingsSection title="History" description="Plan changes on this workspace.">
           {events.length === 0 && <p className="text-sm text-muted">Nothing yet.</p>}
           <ul className="space-y-1 text-sm">
             {events.map((e) => (
@@ -177,9 +181,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
               </li>
             ))}
           </ul>
-        </Card>
-      </div>
-    </>
+        </SettingsSection>
+    </SettingsPage>
   );
 }
 
@@ -189,12 +192,12 @@ function Usage({ label, used, limit }: { label: string; used: number; limit: num
   return (
     <div>
       <div className="text-xs text-muted">{label}</div>
-      <div className={cx("text-xl font-semibold", over && "text-danger")}>
+      <div className={cx("type-stat", over && "text-danger")}>
         {used} <span className="text-sm font-normal text-muted">/ {unlimited ? "unlimited" : limit}</span>
       </div>
       {!unlimited && (
         <div className="mt-1 h-1.5 rounded bg-surface-2">
-          <div className={cx("h-1.5 rounded", over ? "bg-danger" : "bg-accent")} style={{ width: `${Math.min(100, (used / limit) * 100)}%` }} />
+          <div className={cx("h-1.5 rounded", over ? "bg-danger" : "bg-ink")} style={{ width: `${Math.min(100, (used / limit) * 100)}%` }} />
         </div>
       )}
     </div>

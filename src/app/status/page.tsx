@@ -22,27 +22,27 @@ export default async function StatusPage() {
         <Logo />
       </Link>
       <div className="flex items-center gap-3">
-        <span className={`size-3 rounded-full ${DOT[state]}`} aria-hidden="true" />
-        <h1 className="text-2xl font-semibold">{HEADLINE[state]}</h1>
+        <span className={`size-3 ${DOT[state]}`} aria-hidden="true" />
+        <h1 className="type-title">{HEADLINE[state]}</h1>
       </div>
-      {notice && <Card className="border-warning/50 p-4 text-sm">{notice}</Card>}
+      {notice && <Card className="border-warning bg-warning-soft p-4 text-sm">{notice}</Card>}
       <Card>
         <ul className="divide-y divide-line">
           {(h?.checks ?? [{ id: "app", name: "App and inbox", state: "down" as const, detail: "We can't reach our database." }]).map((c) => (
             <li key={c.id} className="flex items-start gap-3 px-4 py-3">
-              <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${DOT[c.state]}`} aria-hidden="true" />
+              <span className={`mt-1.5 size-2 shrink-0 ${DOT[c.state]}`} aria-hidden="true" />
               <div className="flex-1">
                 <div className="font-medium">{c.name}</div>
                 <div className="text-sm text-muted">{c.detail}</div>
               </div>
-              <span className="text-sm text-muted">{LABEL[c.state]}</span>
+              <span className="section-label pt-0.5 text-faint">{LABEL[c.state]}</span>
             </li>
           ))}
         </ul>
       </Card>
       <p className="text-sm text-muted">
         WhatsApp itself is run by Meta. If messages aren&apos;t arriving and everything above is working, check{" "}
-        <a className="text-accent" href="https://metastatus.com/whatsapp-business-api" target="_blank" rel="noreferrer noopener">
+        <a className="link" href="https://metastatus.com/whatsapp-business-api" target="_blank" rel="noreferrer noopener">
           Meta&apos;s status page
         </a>
         . Checked {h ? new Date(h.checkedAt).toUTCString() : "just now"}.

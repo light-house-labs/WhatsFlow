@@ -15,7 +15,7 @@ export const INDUSTRIES = [
   "Other",
 ] as const;
 
-const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 14;
 
 /** Create a workspace with sensible defaults and a sandbox number so it works on minute one. */
 export async function createWorkspace(d: DB, userId: string, name: string, industry: string | null) {

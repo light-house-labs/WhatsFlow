@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
+import { LineChart } from "lucide-react";
 import { rowsOf, schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { duration, nowMs } from "@/lib/format";
 import { formatMoney } from "@/lib/plans";
-import { Card, PageHeader, Stat, Table, Td, Th } from "@/components/ui";
+import { Card, EmptyState, PageHeader, Stat, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Analytics" };
 
@@ -96,128 +97,142 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
     <>
       <PageHeader title="Analytics" description={`Last ${days} days${user ? ` · ${team.find((t) => t.id === user)?.name}` : ""}`} />
       <div className="space-y-6 p-6">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className={segmentedTrack}>
           {RANGES.map((r) => (
-            <Link key={r} href={link({ days: r })} className={`rounded-full px-3 py-1 text-xs ${days === r ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+            <Link key={r} href={link({ days: r })} className={filterChip(days === r)}>
               {r} days
             </Link>
           ))}
-          <span className="mx-2 text-muted">|</span>
-          <Link href={link({ user: null })} className={`rounded-full px-3 py-1 text-xs ${!user ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+          </div>
+          <div className={segmentedTrack}>
+          <Link href={link({ user: null })} className={filterChip(!user)}>
             Whole team
           </Link>
           {team.map((t) => (
-            <Link key={t.id} href={link({ user: t.id })} className={`rounded-full px-3 py-1 text-xs ${user === t.id ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+            <Link key={t.id} href={link({ user: t.id })} className={filterChip(user === t.id)}>
               {t.name}
             </Link>
           ))}
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat label="Chats started" value={total} hint={`${total ? Math.round((Number(chats.bot) / total) * 100) : 0}% answered by bot or AI`} />
-          <Stat label="First reply (average)" value={duration(first.avg)} hint={`median ${duration(first.p50)}`} />
-          <Stat label="Time to close a chat" value={duration(resolution.chats)} hint={`tickets: ${duration(resolution.tickets)}`} />
-          <Stat label="Leads won" value={formatMoney(Number(leads.won_value))} hint={`${Number(leads.won)} of ${Number(leads.created)} leads`} />
-          <Stat label="Orders" value={Number(orders.n)} hint={`${Number(orders.paid)} paid`} />
-          <Stat label="Sales collected" value={formatMoney(Number(orders.revenue))} />
-          <Stat label="Bookings" value={Number(bookings.n)} hint={`${Number(bookings.via_whatsapp)} booked in WhatsApp`} />
-          <Stat label="No-shows" value={Number(bookings.no_show)} />
-        </div>
-        <Card>
-          <div className="px-5 pt-4 text-sm font-semibold">By source</div>
-          <Table>
-            <thead>
-              <tr>
-                <Th>Source</Th>
-                <Th>Enquiries</Th>
-                <Th>Leads</Th>
-                <Th>Won value</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {sources.length === 0 ? (
-                <tr>
-                  <Td className="text-muted">No data yet.</Td>
-                </tr>
-              ) : (
-                sources.map((s) => (
-                  <tr key={s.source}>
-                    <Td className="capitalize">{s.source === "ad" ? "Click-to-WhatsApp ad" : s.source}</Td>
-                    <Td>{Number(s.enquiries)}</Td>
-                    <Td>{Number(s.leads)}</Td>
-                    <Td>{formatMoney(Number(s.won))}</Td>
+        {total === 0 && Number(leads.created) === 0 && Number(orders.n) === 0 && Number(bookings.n) === 0 ? (
+          <EmptyState
+            icon={<LineChart />}
+            title="Not enough data yet"
+            description="Charts and team numbers fill in once customers start messaging you."
+            primary={{ label: "Open inbox", href: "/inbox" }}
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-8 lg:grid-cols-4">
+              <Stat label="Chats started" value={total} hint={`${total ? Math.round((Number(chats.bot) / total) * 100) : 0}% answered by bot or AI`} />
+              <Stat label="First reply (average)" value={duration(first.avg)} hint={`median ${duration(first.p50)}`} />
+              <Stat label="Time to close a chat" value={duration(resolution.chats)} hint={`tickets: ${duration(resolution.tickets)}`} />
+              <Stat label="Leads won" value={formatMoney(Number(leads.won_value))} hint={`${Number(leads.won)} of ${Number(leads.created)} leads`} />
+              <Stat label="Orders" value={Number(orders.n)} hint={`${Number(orders.paid)} paid`} />
+              <Stat label="Sales collected" value={formatMoney(Number(orders.revenue))} accent />
+              <Stat label="Bookings" value={Number(bookings.n)} hint={`${Number(bookings.via_whatsapp)} booked in WhatsApp`} />
+              <Stat label="No-shows" value={Number(bookings.no_show)} />
+            </div>
+            <Card>
+              <div className="section-label px-5 pt-4 text-faint">By source</div>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Source</Th>
+                    <Th>Enquiries</Th>
+                    <Th>Leads</Th>
+                    <Th>Won value</Th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
-        </Card>
-        {ads.length > 0 && (
-          <Card>
-            <div className="px-5 pt-4 text-sm font-semibold">Click to WhatsApp ads</div>
-            <p className="px-5 text-xs text-muted">People who tapped an ad and messaged you, and what they did next.</p>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Ad</Th>
-                  <Th>Chats</Th>
-                  <Th>Became leads</Th>
-                  <Th>Paid orders</Th>
-                  <Th>Sales</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {ads.map((a) => (
-                  <tr key={a.ad_id}>
-                    <Td>
-                      {a.url?.startsWith("https://") ? (
-                        <a href={a.url} target="_blank" rel="noreferrer noopener" className="font-medium text-ink hover:text-accent">
-                          {a.headline ?? `Ad ${a.ad_id}`}
-                        </a>
-                      ) : (
-                        <span className="font-medium">{a.headline ?? `Ad ${a.ad_id}`}</span>
-                      )}
-                      <div className="text-xs text-muted">ID {a.ad_id}</div>
-                    </Td>
-                    <Td>{Number(a.chats)}</Td>
-                    <Td>{Number(a.leads)}</Td>
-                    <Td>{Number(a.paid_orders)}</Td>
-                    <Td>{formatMoney(Number(a.revenue))}</Td>
+                </thead>
+                <tbody>
+                  {sources.length === 0 ? (
+                    <tr>
+                      <Td className="text-muted">No data yet.</Td>
+                    </tr>
+                  ) : (
+                    sources.map((s) => (
+                      <tr key={s.source}>
+                        <Td className="capitalize">{s.source === "ad" ? "Click-to-WhatsApp ad" : s.source}</Td>
+                        <Td>{Number(s.enquiries)}</Td>
+                        <Td>{Number(s.leads)}</Td>
+                        <Td>{formatMoney(Number(s.won))}</Td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </Card>
+            {ads.length > 0 && (
+              <Card>
+                <div className="section-label px-5 pt-4 text-faint">Click to WhatsApp ads</div>
+                <p className="px-5 text-xs text-muted">People who tapped an ad and messaged you, and what they did next.</p>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Ad</Th>
+                      <Th>Chats</Th>
+                      <Th>Became leads</Th>
+                      <Th>Paid orders</Th>
+                      <Th>Sales</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ads.map((a) => (
+                      <tr key={a.ad_id}>
+                        <Td>
+                          {a.url?.startsWith("https://") ? (
+                            <a href={a.url} target="_blank" rel="noreferrer noopener" className="font-medium text-ink hover:underline">
+                              {a.headline ?? `Ad ${a.ad_id}`}
+                            </a>
+                          ) : (
+                            <span className="font-medium">{a.headline ?? `Ad ${a.ad_id}`}</span>
+                          )}
+                          <div className="text-xs text-muted">ID {a.ad_id}</div>
+                        </Td>
+                        <Td>{Number(a.chats)}</Td>
+                        <Td>{Number(a.leads)}</Td>
+                        <Td>{Number(a.paid_orders)}</Td>
+                        <Td>{formatMoney(Number(a.revenue))}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </Card>
+            )}
+            <Card>
+              <div className="section-label px-5 pt-4 text-faint">Team</div>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Teammate</Th>
+                    <Th>Replies sent</Th>
+                    <Th>Chats handled</Th>
+                    <Th>Avg first reply</Th>
+                    <Th>Tickets resolved</Th>
+                    <Th>Won value</Th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Card>
+                </thead>
+                <tbody>
+                  {mates.map((m) => (
+                    <tr key={m.id} className={user && user !== m.id ? "text-faint" : ""}>
+                      <Td className="font-medium">{m.name}</Td>
+                      <Td>{Number(m.replies)}</Td>
+                      <Td>{Number(m.chats)}</Td>
+                      <Td>{duration(m.avg_first)}</Td>
+                      <Td>{Number(m.tickets_resolved)}</Td>
+                      <Td>{formatMoney(Number(m.won_value))}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Card>
+            <p className="text-xs text-muted">
+              Download the underlying data from <Link href="/settings/data" className="link">Your data</Link>.
+            </p>
+          </>
         )}
-        <Card>
-          <div className="px-5 pt-4 text-sm font-semibold">Team</div>
-          <Table>
-            <thead>
-              <tr>
-                <Th>Teammate</Th>
-                <Th>Replies sent</Th>
-                <Th>Chats handled</Th>
-                <Th>Avg first reply</Th>
-                <Th>Tickets resolved</Th>
-                <Th>Won value</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {mates.map((m) => (
-                <tr key={m.id} className={user && user !== m.id ? "opacity-50" : ""}>
-                  <Td className="font-medium">{m.name}</Td>
-                  <Td>{Number(m.replies)}</Td>
-                  <Td>{Number(m.chats)}</Td>
-                  <Td>{duration(m.avg_first)}</Td>
-                  <Td>{Number(m.tickets_resolved)}</Td>
-                  <Td>{formatMoney(Number(m.won_value))}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
-        <p className="text-xs text-muted">
-          Download the underlying data from <Link href="/settings/data" className="text-accent">Your data</Link>.
-        </p>
       </div>
     </>
   );

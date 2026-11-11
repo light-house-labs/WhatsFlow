@@ -62,7 +62,7 @@ export function SandboxPhone({
   }
 
   return (
-    <div className="flex flex-wrap gap-8 p-6">
+    <div className="flex flex-wrap gap-8">
       <div className="w-72 space-y-4">
         {test && (
           <Alert tone={testing ? "accent" : "success"}>
@@ -107,7 +107,7 @@ export function SandboxPhone({
         <div className="space-y-1 text-sm text-muted">
           <p>Try:</p>
           {["hi", "What are your prices?", "STOP"].map((s) => (
-            <button key={s} className="mr-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs text-ink" onClick={() => send(s)}>
+            <button key={s} className="mr-1 rounded-md border border-line-strong bg-surface px-2.5 py-1 text-xs text-ink hover:bg-fill" onClick={() => send(s)}>
               {s}
             </button>
           ))}
@@ -115,31 +115,31 @@ export function SandboxPhone({
         </div>
       </div>
 
-      <div className="flex h-[640px] w-[360px] flex-col overflow-hidden rounded-[32px] border-8 border-ink bg-surface-2 shadow-xl" aria-label="Simulated phone">
-        <div className="bg-accent px-4 py-3 text-on-accent">
+      <div className="flex h-[640px] w-[360px] flex-col overflow-hidden rounded-lg border border-line bg-surface" aria-label="Simulated phone">
+        <div className="border-b border-line bg-surface px-4 py-3 text-ink">
           <div className="text-sm font-semibold">{biz.displayName}</div>
-          <div className="text-[11px] opacity-80">{biz.displayPhone} · sandbox</div>
+          <div className="text-xs text-muted">{biz.displayPhone} · sandbox</div>
         </div>
-        <div className="flex-1 space-y-2 overflow-y-auto p-3">
-          {msgs.length === 0 && <p className="mt-10 text-center text-xs text-muted">Say hello to {biz.displayName}.</p>}
+        <div className="flex-1 space-y-2 overflow-y-auto bg-canvas p-3">
+          {msgs.length === 0 && <p className="section-label mt-10 text-center text-faint">Say hello to {biz.displayName}.</p>}
           {msgs.map((m) => {
             const mine = m.direction === "in"; // customer's own messages
             const options = (m.payload?.buttons as string[] | undefined) ?? (m.payload?.rows as string[] | undefined) ?? [];
             const prefix = m.payload?.buttons ? "btn" : "row";
             return (
               <div key={m.id} className={cx("flex", mine ? "justify-end" : "justify-start")}>
-                <div className={cx("max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm", mine ? "bg-bubble-out" : "bg-surface")}>
+                <div className={cx("max-w-[80%] rounded-lg px-3 py-2 text-sm", mine ? "bg-bubble-out" : "border border-line bg-bubble-in")}>
                   <div className="whitespace-pre-wrap">{m.body}</div>
                   {!mine && options.length > 0 && (
                     <div className="mt-2 space-y-1 border-t border-line pt-2">
                       {options.map((o, i) => (
-                        <button key={o} onClick={() => send(o, `${prefix}:${i}`)} className="block w-full rounded py-1 text-center text-xs font-medium text-accent hover:bg-surface-2">
+                        <button key={o} onClick={() => send(o, `${prefix}:${i}`)} className="block w-full rounded-xs py-1 text-center text-xs font-medium text-ink hover:bg-surface-2">
                           {o}
                         </button>
                       ))}
                     </div>
                   )}
-                  <div className="mt-0.5 text-right text-[10px] text-muted">
+                  <div className="mt-0.5 text-right text-xs text-muted tabular-nums">
                     {new Date(m.createdAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
                   </div>
                 </div>

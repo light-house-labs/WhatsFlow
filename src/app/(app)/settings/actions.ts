@@ -14,31 +14,41 @@ import { cloudProvider, subscribeApp } from "@/lib/wa/cloud";
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
+/** Each settings card posts its own `section`, so saving one card never touches the others' fields. */
 export async function saveInboxSettings(form: FormData) {
   const ctx = await requireOrg("admin");
-  const hours: BusinessHours = {};
-  for (const d of DAYS) {
-    hours[d] = form.get(`${d}_on`) === "on" ? { open: String(form.get(`${d}_open`) || "09:00"), close: String(form.get(`${d}_close`) || "18:00") } : null;
+  const section = String(form.get("section"));
+  if (section === "business") {
+    const tz = String(form.get("timezone") || "Asia/Kolkata");
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: tz });
+    } catch {
+      redirect("/settings?error=tz");
+    }
+    await ctx.db.update(schema.orgs).set({ timezone: tz, name: String(form.get("orgName") ?? ctx.org.name).trim() || ctx.org.name }).where(eq(schema.orgs.id, ctx.org.id));
+  } else {
+    let set: Partial<typeof schema.inboxSettings.$inferInsert> = {};
+    if (section === "replies") {
+      set = {
+        welcomeEnabled: form.get("welcomeEnabled") === "on",
+        welcomeMessage: String(form.get("welcomeMessage") ?? "").trim() || "Hi! How can we help?",
+        awayEnabled: form.get("awayEnabled") === "on",
+        awayMessage: String(form.get("awayMessage") ?? "").trim() || "We're closed right now and will reply when we open.",
+      };
+    } else if (section === "hours") {
+      const hours: BusinessHours = {};
+      for (const d of DAYS) {
+        hours[d] = form.get(`${d}_on`) === "on" ? { open: String(form.get(`${d}_open`) || "09:00"), close: String(form.get(`${d}_close`) || "18:00") } : null;
+      }
+      set = { businessHours: hours };
+    } else if (section === "alerts") {
+      set = {
+        waitAlertMinutes: Math.max(1, Math.min(1440, Number(form.get("waitAlertMinutes")) || 15)),
+        optOutKeywords: String(form.get("optOutKeywords") ?? "STOP").split(",").map((k) => k.trim()).filter(Boolean),
+      };
+    } else return;
+    await ctx.db.update(schema.inboxSettings).set(set).where(eq(schema.inboxSettings.orgId, ctx.org.id));
   }
-  const tz = String(form.get("timezone") || "Asia/Kolkata");
-  try {
-    new Intl.DateTimeFormat("en", { timeZone: tz });
-  } catch {
-    redirect("/settings?error=tz");
-  }
-  await ctx.db
-    .update(schema.inboxSettings)
-    .set({
-      welcomeEnabled: form.get("welcomeEnabled") === "on",
-      welcomeMessage: String(form.get("welcomeMessage") ?? "").trim() || "Hi! How can we help?",
-      awayEnabled: form.get("awayEnabled") === "on",
-      awayMessage: String(form.get("awayMessage") ?? "").trim() || "We're closed right now and will reply when we open.",
-      businessHours: hours,
-      waitAlertMinutes: Math.max(1, Math.min(1440, Number(form.get("waitAlertMinutes")) || 15)),
-      optOutKeywords: String(form.get("optOutKeywords") ?? "STOP").split(",").map((k) => k.trim()).filter(Boolean),
-    })
-    .where(eq(schema.inboxSettings.orgId, ctx.org.id));
-  await ctx.db.update(schema.orgs).set({ timezone: tz, name: String(form.get("orgName") ?? ctx.org.name).trim() || ctx.org.name }).where(eq(schema.orgs.id, ctx.org.id));
   revalidatePath("/settings");
   redirect("/settings?saved=1");
 }

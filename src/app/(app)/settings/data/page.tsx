@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { requireOrg } from "@/lib/auth";
-import { Alert, Button, ButtonLink, Card, Field, Input, PageHeader } from "@/components/ui";
+import { Alert, Button, ButtonLink, Field, Input } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 import { deleteWorkspace } from "./actions";
 
 export const metadata: Metadata = { title: "Your data" };
@@ -18,12 +20,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
   const sp = await searchParams;
   const { org, role } = await requireOrg("admin");
   return (
-    <>
-      <PageHeader title="Your data" description="Everything you put in is yours. Download it any time, and leave whenever you like." />
-      <div className="max-w-3xl space-y-6 p-6">
-        {sp.error && <Alert tone="danger">{sp.error}</Alert>}
-        <Card className="p-5">
-          <h2 className="mb-3 font-semibold">Export</h2>
+    <SettingsPage title="Your data" summary={`Export a copy of your records any time · you are ${role}`} status={[{ label: "Workspace", value: org.name, tone: "on" }, { label: "Your role", value: role, tone: "on" }, { label: "Exports", value: "On demand", tone: "off" }]} tips={["Download your data before deleting anything.", "Deleting a workspace is permanent.", "Exports include only this workspace."]}>
+      {sp.error && (
+        <Alert tone="danger">{sp.error}</Alert>
+      )}
+      <SettingsSection title="Export" description="Everything you put in is yours. Download a copy of your records any time, and leave whenever you like.">
           <ul className="divide-y divide-line">
             {EXPORTS.map(([kind, label, hint]) => (
               <li key={kind} className="flex items-center gap-4 py-2 text-sm">
@@ -42,10 +43,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               Download everything (JSON)
             </ButtonLink>
           </div>
-        </Card>
+      </SettingsSection>
         {role === "owner" && (
-          <Card className="space-y-3 border-danger/40 p-5">
-            <h2 className="font-semibold text-danger">Delete this workspace</h2>
+          <SettingsSection title="Delete this workspace" description="Permanent. Download your data first.">
             <p className="text-sm text-muted">
               Disconnects your WhatsApp numbers (we delete our copy of the access token), cancels the plan with no further charges, and permanently deletes contacts, chats, orders and settings. Download your data first. This can&apos;t be undone.
             </p>
@@ -58,9 +58,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               </Field>
               <Button variant="danger">Delete workspace</Button>
             </form>
-          </Card>
+          </SettingsSection>
         )}
-      </div>
-    </>
+    </SettingsPage>
   );
 }

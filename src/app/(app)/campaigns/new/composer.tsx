@@ -85,7 +85,7 @@ export function Composer({
             </Field>
           </div>
           <fieldset>
-            <legend className="mb-1.5 text-[13px] font-medium">Audience</legend>
+            <legend className="section-label mb-1.5 text-faint">Audience</legend>
             {segments.length > 0 && (
               <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
                 <label htmlFor="segmentId">Send to a saved segment</label>
@@ -101,13 +101,13 @@ export function Composer({
             )}
             {segmentId ? (
               <p className="text-xs text-muted">
-                Everyone who matches the segment when the campaign sends. <Link className="text-accent" href={`/contacts/segments/${segmentId}`}>Edit segment</Link>
+                Everyone who matches the segment when the campaign sends. <Link className="link" href={`/contacts/segments/${segmentId}`}>Edit segment</Link>
               </p>
             ) : (
             <>
             <p className="mb-2 text-xs text-muted">
               Leave all unticked to send to every contact. Tick tags to send to anyone with at least one of them. Have a spreadsheet?{" "}
-              <Link className="text-accent" href={`/contacts/import?for=campaign&tag=list-${new Date().toISOString().slice(0, 10)}`}>
+              <Link className="link" href={`/contacts/import?for=campaign&tag=list-${new Date().toISOString().slice(0, 10)}`}>
                 Upload it as a list
               </Link>{" "}
               and it comes back here as a tag.
@@ -115,7 +115,7 @@ export function Composer({
             <div className="flex flex-wrap gap-2">
               {tags.length === 0 && <span className="text-sm text-muted">No tags yet. Add tags on contacts or when importing.</span>}
               {tags.map((t) => (
-                <label key={t.tag} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm">
+                <label key={t.tag} className="flex cursor-pointer items-center gap-1.5 rounded-xs px-2.5 py-1 text-sm transition-colors duration-150 has-[:checked]:bg-accent-soft bg-fill">
                   <input type="checkbox" name="tags" value={t.tag} checked={chosen.includes(t.tag)} onChange={(e) => setChosen(e.target.checked ? [...chosen, t.tag] : chosen.filter((x) => x !== t.tag))} />
                   {t.tag} <span className="text-muted">({t.n})</span>
                 </label>
@@ -126,10 +126,10 @@ export function Composer({
           </fieldset>
           {n > 0 && (
             <fieldset className="space-y-2">
-              <legend className="mb-1.5 text-[13px] font-medium">Fill in the variables</legend>
+              <legend className="section-label mb-1.5 text-faint">Fill in the variables</legend>
               {Array.from({ length: n }, (_, i) => i + 1).map((i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="w-12 font-mono text-sm">{`{{${i}}}`}</span>
+                  <span className="w-12 text-sm">{`{{${i}}}`}</span>
                   <Select name={`var${i}`} aria-label={`Value for {{${i}}}`} value={vars[i]?.src ?? ""} onChange={(e) => setVars({ ...vars, [i]: { src: e.target.value, text: vars[i]?.text ?? "" } })} className="w-52">
                     <option value="">Choose…</option>
                     <option value="name">Contact&apos;s first name</option>
@@ -147,7 +147,7 @@ export function Composer({
             </fieldset>
           )}
           <fieldset>
-            <legend className="mb-1.5 text-[13px] font-medium">When</legend>
+            <legend className="section-label mb-1.5 text-faint">When</legend>
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <label className="flex items-center gap-2">
                 <input type="radio" name="when" value="now" checked={when === "now"} onChange={() => setWhen("now")} /> Send now
@@ -166,10 +166,10 @@ export function Composer({
           <div className="font-medium">Who gets it</div>
           {size ? (
             <>
-              <div className="mt-1 text-2xl font-semibold">{size.reachable}</div>
+              <div className="mt-1 type-stat tabular-nums">{size.reachable}</div>
               {size.total !== size.reachable && <div className="text-xs text-muted">{size.total - size.reachable} opted out of offers and will be skipped</div>}
               <div className="mt-3 font-medium">Estimated Meta charge</div>
-              <div className="text-lg font-semibold">≈ {formatMoney(estimateCost(tpl.category, size.reachable))}</div>
+              <div className="type-stat tabular-nums">≈ {formatMoney(estimateCost(tpl.category, size.reachable))}</div>
               <div className="text-xs text-muted">Charged by Meta at cost, not by us. Rates vary by country and category.</div>
             </>
           ) : (
@@ -182,10 +182,10 @@ export function Composer({
             </div>
           )}
         </Card>
-        <div className="rounded-lg bg-surface-2 p-4">
-          <div className="rounded-lg bg-surface p-3 text-sm shadow-sm">
+        <div className="rounded-lg border border-line p-4">
+          <div className="rounded-sm bg-surface p-3 text-sm">
             {tpl.headerType && tpl.headerType !== "text" ? (
-              <div className="mb-2 rounded bg-surface-2 py-6 text-center text-xs text-muted">{tpl.headerType} header</div>
+              <div className="section-label mb-2 rounded-xs bg-surface-2 py-6 text-center text-faint">{tpl.headerType} header</div>
             ) : (
               tpl.headerText && <div className="mb-1 font-semibold">{tpl.headerText}</div>
             )}

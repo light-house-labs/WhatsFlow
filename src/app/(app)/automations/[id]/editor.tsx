@@ -68,7 +68,7 @@ export function Editor({ id, initial, templates, team }: { id: string; initial: 
       {s.steps.map((step, i) => (
         <Card key={i} className="space-y-3 p-4">
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">{i + 1}</span>
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-fill text-xs font-medium tabular-nums">{i + 1}</span>
             <Select aria-label="Step type" value={step.type} onChange={(e) => setStep(i, NEW_STEP[e.target.value as AutomationStep["type"]])} className="h-8 max-w-56">
               {Object.entries(STEP_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { Megaphone, Plus } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
@@ -9,9 +9,12 @@ import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } 
 
 export const metadata: Metadata = { title: "Campaigns" };
 
+const COLS = ["Campaign", "Status", "Recipients", "Delivered", "Read", "Replied", "When"];
+
 export default async function Page() {
   const { db: d, org, role } = await requireOrg();
   const r = schema.campaignRecipients;
+  const [{ n: approved }] = await d.select({ n: count() }).from(schema.templates).where(and(eq(schema.templates.orgId, org.id), eq(schema.templates.status, "approved")));
   const rows = await d
     .select({
       c: schema.campaigns,
@@ -42,10 +45,28 @@ export default async function Page() {
         }
       />
       <div className="p-6">
-        <Card>
-          {rows.length === 0 ? (
-            <EmptyState icon={<Megaphone />} title="No campaigns yet" body="Send reminders, updates or offers to everyone with a tag." action={role !== "agent" && <ButtonLink href="/campaigns/new">New campaign</ButtonLink>} />
+        {rows.length === 0 ? (
+approved === 0 ? (
+            <EmptyState
+              icon={<Megaphone />}
+              columns={COLS}
+              title="No campaigns yet"
+              description="Broadcasts need an approved message template first."
+              primary={{ label: "Create a template", href: "/templates/new", allow: role !== "agent" }}
+              askAdmin="create a template"
+            />
           ) : (
+            <EmptyState
+              icon={<Megaphone />}
+              columns={COLS}
+              title="No campaigns yet"
+              description="Send reminders, updates or offers to everyone with a tag."
+              primary={{ label: "New campaign", href: "/campaigns/new", allow: role !== "agent" }}
+              askAdmin="send a campaign"
+            />
+          )
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -60,12 +81,12 @@ export default async function Page() {
               </thead>
               <tbody>
                 {rows.map((x) => (
-                  <tr key={x.c.id} className="hover:bg-surface-2">
+                  <tr key={x.c.id} className="hover:bg-hover">
                     <Td>
-                      <Link href={`/campaigns/${x.c.id}`} className="font-medium hover:text-accent">
+                      <Link href={`/campaigns/${x.c.id}`} className="font-medium hover:underline">
                         {x.c.name}
                       </Link>
-                      <div className="font-mono text-xs text-muted">{x.template}</div>
+                      <div className="text-xs text-muted">{x.template}</div>
                     </Td>
                     <Td>
                       <StatusBadge status={x.c.status} />
@@ -79,8 +100,8 @@ export default async function Page() {
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

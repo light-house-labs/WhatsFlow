@@ -1,12 +1,15 @@
+import { Users } from "lucide-react";
 import type { Metadata } from "next";
 import { and, eq, isNull } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { limitsFor } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
-import { Alert, Button, Card, PageHeader, Select, Table, Td, Th } from "@/components/ui";
+import { Alert, Button, Select, Table, Td, Th } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 import { changeRole, removeMember, revokeInvite } from "../actions";
-import { InviteForm } from "./invite-form";
+import { InviteForm, InviteMemberButton } from "./invite-form";
 
 export const metadata: Metadata = { title: "Team" };
 
@@ -21,11 +24,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
   ]);
   const seats = limitsFor(org.plan).seats;
   return (
-    <>
-      <PageHeader title="Team" description={`${members.length} of ${seats} seats used on your plan.`} />
-      <div className="max-w-4xl space-y-6 p-6">
-        {sp.error && <Alert tone="danger">{ERR[sp.error] ?? "Something went wrong."}</Alert>}
-        <Card>
+    <SettingsPage title="Team" summary={`${members.length} of ${seats} seats used · ${invites.length} pending ${invites.length === 1 ? "invite" : "invites"} · you are ${role}`} status={[{ label: "Seats used", value: `${members.length} of ${seats}`, tone: members.length >= seats ? "warn" : "on" }, { label: "Pending invites", value: String(invites.length), tone: invites.length ? "warn" : "off" }, { label: "Your role", value: role, tone: "on" }]} tips={["Agents work the inbox; admins also change settings.", "Only an owner can make another owner.", "Revoke an invite if it went to the wrong address."]}>
+      {sp.error && (
+        <Alert tone="danger">{ERR[sp.error] ?? "Something went wrong."}</Alert>
+      )}
+      <SettingsSection title="Members" description={`${members.length} of ${seats} seats used on your plan. Everyone with access to this workspace.`} flush>
           <Table>
             <thead>
               <tr>
@@ -49,7 +52,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                     ) : (
                       <form action={changeRole} className="flex gap-1">
                         <input type="hidden" name="userId" value={u.id} />
-                        <Select name="role" defaultValue={m.role} aria-label={`Role for ${u.name}`} className="h-8 w-32 text-[13px]">
+                        <Select name="role" defaultValue={m.role} aria-label={`Role for ${u.name}`} className="h-8 w-32 text-13">
                           <option value="agent">Agent</option>
                           <option value="admin">Admin</option>
                           {role === "owner" && <option value="owner">Owner</option>}
@@ -74,10 +77,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               ))}
             </tbody>
           </Table>
-        </Card>
-        <Card className="space-y-3 p-5">
-          <h2 className="font-semibold">Invite someone</h2>
-          <p className="text-sm text-muted">Agents work the inbox, contacts, pipeline and tickets. Admins can also change settings, templates, campaigns and bots. Owners manage billing.</p>
+          {members.length <= 1 && (
+            <div className="flex flex-col items-center gap-1 px-6 py-8 text-center">
+              <div className="mb-2 grid size-8 place-items-center rounded-full bg-fill text-muted [&>svg]:size-4">
+                <Users strokeWidth={1.75} aria-hidden />
+              </div>
+              <h3 className="text-sm font-semibold text-ink">It&apos;s just you so far</h3>
+              <p className="max-w-[400px] text-sm text-muted">Invite teammates to share the inbox, tickets and pipeline.</p>
+              <div className="mt-3">
+                <InviteMemberButton />
+              </div>
+            </div>
+          )}
+      </SettingsSection>
+      <SettingsSection id="invite" title="Invite someone" description="Agents work the inbox, contacts, pipeline and tickets. Admins can also change settings, templates, campaigns and bots. Owners manage billing.">
           <InviteForm canInviteOwner={role === "owner"} />
           {invites.length > 0 && (
             <ul className="divide-y divide-line text-sm">
@@ -96,8 +109,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               ))}
             </ul>
           )}
-        </Card>
-      </div>
-    </>
+      </SettingsSection>
+    </SettingsPage>
   );
 }

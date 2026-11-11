@@ -39,7 +39,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
         <div className="space-y-4">
           <Card className="p-5">
-            <h2 className="mb-3 font-semibold">Activity</h2>
+            <h2 className="mb-3 type-heading">Activity</h2>
             {runs.length === 0 ? (
               <p className="text-sm text-muted">No runs yet.</p>
             ) : (

@@ -1,3 +1,4 @@
+import { Phone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
@@ -6,7 +7,9 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { PROFILE_VERTICALS, providerFor, type HealthCheck } from "@/lib/wa";
 import { timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, StatusBadge, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Select, StatusBadge } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { MessageField, SettingsSection } from "@/components/settings";
 import { UploadField } from "@/components/upload-field";
 import { disconnectNumber, fixSubscription, saveProfile } from "../actions";
 import { ConnectForm } from "./connect-form";
@@ -29,17 +32,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
     await d.update(schema.waNumbers).set({ lastCheckedAt: new Date() }).where(eq(schema.waNumbers.id, current.id));
   }
   const base = process.env.APP_URL ?? "http://localhost:3000";
+  const live = numbers.filter((n) => n.status !== "disconnected").length;
+  const passing = checks.filter((c) => c.ok).length;
   return (
-    <>
-      <PageHeader title="WhatsApp numbers" description="Connect your number through Meta's official Cloud API. Your number and your Meta account stay yours." />
-      <div className="grid max-w-6xl gap-6 p-6 lg:grid-cols-[1fr_420px]">
-        <div className="space-y-6">
-          {sp.disconnected && <Alert tone="success">Disconnected. We deleted the access token, so WhatsFlow can no longer send or read anything on that number. You can also remove our app in Meta Business Settings → Integrations.</Alert>}
-          <Card>
+    <SettingsPage title="WhatsApp numbers" summary={numbers.length ? `${live} of ${numbers.length} ${numbers.length === 1 ? "number" : "numbers"} connected${current ? ` · viewing ${current.displayPhone}` : ""}` : "No numbers connected"} status={[{ label: "Numbers connected", value: `${live} of ${numbers.length}`, tone: live ? "on" : "warn" }, { label: "Connection checks", value: checks.length ? `${passing} of ${checks.length} passing` : "None run", tone: checks.length ? (passing < checks.length ? "warn" : "on") : "off" }, { label: "Provider", value: current ? (current.provider === "sandbox" ? "Sandbox" : "Cloud API") : "None", tone: current ? "on" : "off" }]} tips={["Connect through Meta's official Cloud API; the number stays yours.", "A failing check lists how to fix it.", "Disconnecting deletes the access token."]}>
+      {sp.disconnected && (
+        <Alert tone="success">Disconnected. We deleted the access token, so WhatsFlow can no longer send or read anything on that number. You can also remove our app in Meta Business Settings → Integrations.</Alert>
+      )}
+      {numbers.length === 0 ? (
+        <EmptyState icon={<Phone />} columns={["Number", "Provider", "Status"]} title="No numbers connected" description="Connect a WhatsApp number to send and receive customer messages." primary={{ label: "Connect number", href: "#connect" }} />
+      ) : (
+      <SettingsSection title="Numbers" description="Connect your number through Meta's official Cloud API. Your number and your Meta account stay yours. Pick a number to see its connection check and business profile." flush>
             <ul className="divide-y divide-line">
               {numbers.map((n) => (
                 <li key={n.id}>
-                  <Link href={`/settings/whatsapp?n=${n.id}`} className={`flex items-center gap-3 px-5 py-4 hover:bg-surface-2 ${current?.id === n.id ? "bg-accent-soft" : ""}`}>
+                  <Link href={`/settings/whatsapp?n=${n.id}`} aria-current={current?.id === n.id ? "true" : undefined} className={`relative flex items-center gap-3 px-5 py-4 transition-colors duration-150 hover:bg-surface-2 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent ${current?.id === n.id ? "bg-surface-2 before:opacity-100" : "before:opacity-0"}`}>
                     <div className="flex-1">
                       <div className="font-medium">
                         {n.displayPhone} <span className="text-muted">· {n.displayName}</span>
@@ -54,12 +61,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                 </li>
               ))}
             </ul>
-          </Card>
+      </SettingsSection>
+      )}
 
           {current && current.status !== "disconnected" && (
-            <Card className="p-5">
-              <h2 className="font-semibold">Connection check · {current.displayPhone}</h2>
-              <p className="mb-4 text-sm text-muted">Run live against Meta each time you open this page.</p>
+            <SettingsSection title={`Connection check · ${current.displayPhone}`} description="Run live against Meta each time you open this page.">
               <ul className="space-y-3">
                 {checks.map((c) => (
                   <li key={c.id} className="flex gap-3">
@@ -74,7 +80,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
               </ul>
               {current.provider === "cloud" && (
                 <>
-                  <div className="mt-5 space-y-2 rounded-md bg-surface-2 p-4 text-sm">
+                  <div className="mt-5 space-y-2 rounded-lg border border-line p-4 text-sm">
                     <div className="font-medium">Webhook settings for your Meta app</div>
                     <div>
                       Callback URL: <code className="break-all">{base}/api/webhooks/whatsapp</code>
@@ -100,23 +106,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                   </div>
                 </>
               )}
-            </Card>
+            </SettingsSection>
           )}
 
           {current && current.status !== "disconnected" && (
-            <Card id="profile" className="p-5">
-              <h2 className="font-semibold">Business profile · {current.displayPhone}</h2>
-              <p className="mb-4 text-sm text-muted">What customers see when they tap your name in WhatsApp.{current.provider === "sandbox" ? " Sandbox numbers just save it here." : ""}</p>
+            <SettingsSection
+              id="profile"
+              title={`Business profile · ${current.displayPhone}`}
+              description={`What customers see when they tap your name in WhatsApp.${current.provider === "sandbox" ? " Sandbox numbers just save it here." : ""}`}
+              action={saveProfile}
+              fields={{ id: current.id }}
+            >
               {sp.profileSaved && <Alert tone="success">Profile updated.</Alert>}
               {sp.profileError && <Alert tone="danger">{sp.profileError}</Alert>}
-              <form action={saveProfile} className="mt-3 space-y-4">
-                <input type="hidden" name="id" value={current.id} />
+              <>
                 <Field label="About" htmlFor="about" hint="Up to 139 characters, shown under your name.">
                   <Input id="about" name="about" maxLength={139} defaultValue={current.profile.about ?? ""} required />
                 </Field>
-                <Field label="Description" htmlFor="description">
-                  <Textarea id="description" name="description" maxLength={512} rows={3} defaultValue={current.profile.description ?? ""} />
-                </Field>
+                <MessageField name="description" label="Description" max={512} variables={[]} bubble={false} defaultValue={current.profile.description ?? ""} />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Address" htmlFor="address">
                     <Input id="address" name="address" maxLength={256} defaultValue={current.profile.address ?? ""} />
@@ -138,31 +145,26 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                   </Field>
                 </div>
                 <UploadField name="photoUrl" label="Profile photo (square JPG or PNG, optional)" accept="image/jpeg,image/png" defaultValue={current.profile.photoUrl ?? ""} />
-                <Button>Save profile</Button>
-              </form>
-            </Card>
+              </>
+            </SettingsSection>
           )}
-        </div>
-        <Card className="h-fit p-5">
-          <h2 className="font-semibold">Connect a real number</h2>
+        <SettingsSection id="connect" title="Connect a real number" description="Use Meta's official Cloud API. The token is encrypted at rest and deleted when you disconnect.">
           {process.env.META_APP_ID && process.env.META_ES_CONFIG_ID && (
             <div className="mt-3 border-b border-line pb-4">
               <EmbeddedSignup appId={process.env.META_APP_ID} configId={process.env.META_ES_CONFIG_ID} version={process.env.META_GRAPH_VERSION ?? "v23.0"} />
-              <p className="mt-3 text-xs font-medium text-muted">Or connect by hand:</p>
+              <p className="section-label mt-4 text-faint">Or connect by hand:</p>
             </div>
           )}
           <ol className="my-3 list-decimal space-y-1 pl-5 text-sm text-muted">
             <li>
-              In <a className="text-accent" href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">Meta for Developers</a>, create a Business app and add WhatsApp.
+              In <a className="link" href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">Meta for Developers</a>, create a Business app and add WhatsApp.
             </li>
             <li>Add and verify your phone number under WhatsApp → API Setup.</li>
             <li>In Business Settings → System users, create a permanent token with whatsapp_business_messaging and whatsapp_business_management.</li>
             <li>Paste the IDs and token here. We check them with Meta before saving.</li>
           </ol>
           <ConnectForm />
-          <p className="mt-3 text-xs text-muted">The token is encrypted at rest and deleted when you disconnect.</p>
-        </Card>
-      </div>
-    </>
+        </SettingsSection>
+    </SettingsPage>
   );
 }

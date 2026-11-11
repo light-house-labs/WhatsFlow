@@ -36,7 +36,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       />
       <div className="grid gap-6 p-6 lg:grid-cols-[1fr_360px]">
         <Card className="p-5">
-          <h2 className="mb-3 text-sm font-semibold">Conversation</h2>
+          <h2 className="mb-3 type-heading">Conversation</h2>
           {messages.length === 0 && <p className="text-sm text-muted">No chat linked.</p>}
           <div className="max-h-[60vh] space-y-2 overflow-y-auto">
             {messages.map((m) => (
@@ -47,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     <img src={`/api/media/${m.id}`} alt="Photo from customer" className="mb-1 max-h-56 rounded" />
                   )}
                   <div className="whitespace-pre-wrap">{m.body}</div>
-                  <div className="mt-0.5 text-right text-[10px] text-muted">{dateTime(m.createdAt)}</div>
+                  <div className="mt-0.5 text-right text-xs text-muted">{dateTime(m.createdAt)}</div>
                 </div>
               </div>
             ))}
@@ -88,7 +88,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </Select>
             </Field>
             {t.orderId && (
-              <Link href={`/orders/${t.orderId}`} className="text-sm text-accent">
+              <Link href={`/orders/${t.orderId}`} className="text-sm link">
                 Open order →
               </Link>
             )}

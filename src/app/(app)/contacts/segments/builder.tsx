@@ -114,7 +114,7 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
           </div>
           <ul className="space-y-2">
             {rows.map((r, i) => (
-              <li key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 p-2">
+              <li key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-line p-2">
                 <Select aria-label="Condition" value={r.field} onChange={(e) => setRows(rows.map((x, j) => (j === i ? blank(e.target.value as FieldKey, tags, fields) : x)))} className="w-36">
                   {FIELDS.map((f) => (
                     <option key={f.value} value={f.value}>
@@ -168,7 +168,7 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
             ))}
           </datalist>
           {rows.length < 20 && (
-            <button type="button" className="text-sm text-accent" onClick={() => setRows([...rows, blank("tag", tags, fields)])}>
+            <button type="button" className="text-sm font-medium hover:underline" onClick={() => setRows([...rows, blank("tag", tags, fields)])}>
               + Add condition
             </button>
           )}
@@ -186,7 +186,7 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
           <p className="mt-1 text-muted">{preview.error}</p>
         ) : preview ? (
           <>
-            <div className="mt-1 text-2xl font-semibold">{preview.count}</div>
+            <div className="mt-1 type-stat tabular-nums">{preview.count}</div>
             <ul className="mt-2 space-y-1 text-muted">
               {preview.sample?.map((c) => (
                 <li key={c.id}>

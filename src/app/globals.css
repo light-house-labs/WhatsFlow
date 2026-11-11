@@ -1,83 +1,503 @@
 @import "tailwindcss";
 
-/* Tokens from replica/design/tokens.json. Components use the Tailwind names
-   (bg-surface, text-muted, …), never raw hex. */
+/* Dark mode: next-themes toggles .dark on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* SizeIt brand tokens. Components use the Tailwind names (bg-surface,
+   text-muted, border-line, …), never raw hex. Green is the only accent and
+   stays rare: primary action, active/selected, success, key numbers. */
 :root {
-  --wf-bg: #f7f7fb;
-  --wf-surface: #ffffff;
-  --wf-surface-2: #f1f2f7;
-  --wf-border: #e3e5ee;
-  --wf-border-input: #8b90a5;
-  --wf-text: #151827;
-  --wf-text-muted: #5b6078;
-  --wf-accent: #4537c9;
-  --wf-accent-soft: #ecebfd;
+  /* Cool-neutral tokens. Components use the Tailwind names (bg-surface,
+     text-muted, border-line, …), never raw hex. */
+  --wf-ink: #1b1b1b;
+  --wf-green: #239641;
+  --wf-paper: #ffffff;
+
+  --wf-canvas: #f7f7f8; /* bg-app: sidebar, chat message area */
+  --wf-panel: #f7f7f8;
+  --wf-hover: rgba(0, 0, 0, 0.04); /* nav / row hover */
+  --wf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --wf-bg: var(--wf-canvas);
+  --wf-surface: #ffffff; /* list, chat header, composer, right panel, cards, inputs */
+  --wf-fill: #f4f4f5; /* subtle: hover, inbound bubble, avatar, chips */
+  --wf-fill-strong: #f0f0f1; /* selected */
+  --wf-surface-2: var(--wf-fill);
+  --wf-surface-3: var(--wf-fill-strong);
+  --wf-border: #e4e4e7; /* panel dividers, card edges, list dividers */
+  --wf-border-input: #d4d4d8; /* inputs, secondary buttons, selects */
+  --wf-border-strong: #d4d4d8;
+  --wf-shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px #e4e4e7;
+  --wf-text: var(--wf-ink);
+  --wf-text-muted: #52525b; /* text-2 */
+  --wf-text-soft: #52525b;
+  --wf-text-faint: #71717a; /* text-3: lightest allowed for real content */
+  --wf-placeholder: #a1a1aa;
+  --wf-accent: var(--wf-green);
+  --wf-accent-hover: #1e7f37;
+  --wf-accent-text: #17692e; /* on-soft */
+  --wf-accent-soft: #e9f6ed;
   --wf-on-accent: #ffffff;
-  --wf-danger: #c22f3d;
-  --wf-success: #13795b;
-  --wf-warning: #9a5b00;
-  --wf-bubble-out: #e7e5ff;
-  --wf-bubble-in: #ffffff;
+  --wf-danger: #b91c1c;
+  --wf-danger-soft: #fee2e2;
+  --wf-danger-hover: #fecaca;
+  --wf-field: var(--wf-surface); /* input background */
+  --wf-focus: var(--wf-accent-soft); /* focus ring */
+  --wf-success: var(--wf-accent-text);
+  --wf-warning: #b45309;
+  --wf-warning-soft: #fef3c7;
+  --wf-bubble-out: var(--wf-accent-soft);
+  --wf-bubble-in: var(--wf-surface);
+  --wf-bubble-agent: #dff1e5;
+  --wf-edge: #a1a1aa;
+  --wf-dot: #d4d4d8;
+  --wf-scrim: rgba(27, 27, 27, 0.35);
+  --wf-wa-bg: #efeae2; /* WhatsApp-style chat preview */
+  --wf-wa-out: #d9fdd3;
+  color-scheme: light;
+
+  /* Font stacks. Real variables (not @theme inline) so utilities resolve. */
+  --wf-font-body: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --wf-font-display: var(--font-display-face), "Inter Tight", ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --wf-bg: #0f1120;
-    --wf-surface: #171a2c;
-    --wf-surface-2: #1f2338;
-    --wf-border: #2c3150;
-    --wf-border-input: #6c7294;
-    --wf-text: #eceefa;
-    --wf-text-muted: #a3a8c3;
-    --wf-accent: #8f86ff;
-    --wf-accent-soft: #262457;
-    --wf-on-accent: #0f1120;
-    --wf-danger: #ff7b86;
-    --wf-success: #4fd1a5;
-    --wf-warning: #f2b45a;
-    --wf-bubble-out: #2b2870;
-    --wf-bubble-in: #1f2338;
-  }
+/* Dark set: soft and low-contrast, never pure black or pure white. Brand
+   green (--wf-green) is left alone so the logo tile keeps its colour. */
+.dark {
+  --wf-ink: #e4e4e5;
+  --wf-canvas: #222326;
+  --wf-panel: #222326;
+  --wf-hover: rgba(255, 255, 255, 0.05);
+  --wf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --wf-surface: #26272b;
+  --wf-fill: #2e2f33;
+  --wf-fill-strong: #34353a;
+  --wf-border: #37383d;
+  --wf-border-input: #45464c;
+  --wf-border-strong: #45464c;
+  --wf-shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px #37383d;
+  --wf-text: #e4e4e5;
+  --wf-text-muted: #a9aaae;
+  --wf-text-soft: #a9aaae;
+  --wf-text-faint: #8a8b90;
+  --wf-placeholder: #6c6d72;
+  --wf-accent: #2fa84f;
+  --wf-accent-hover: #38b85a;
+  --wf-accent-text: #8fd6a5;
+  --wf-accent-soft: #23382b;
+  --wf-on-accent: #ffffff;
+  --wf-danger: #ec6f6f;
+  --wf-danger-soft: #3d2729;
+  --wf-danger-hover: #4c2f32;
+  --wf-warning: #e0a33a;
+  --wf-warning-soft: #3a3123;
+  --wf-bubble-in: var(--wf-fill);
+  --wf-bubble-agent: #2a4232;
+  --wf-field: var(--wf-fill);
+  --wf-focus: color-mix(in srgb, var(--wf-accent) 40%, transparent);
+  --wf-edge: #45464c;
+  --wf-dot: #37383d;
+  --wf-scrim: rgba(0, 0, 0, 0.5);
+  --wf-wa-bg: #1f2c25;
+  --wf-wa-out: #144d37;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-bg: var(--wf-bg);
+  --color-canvas: var(--wf-canvas);
+  --color-app: var(--wf-canvas);
+  --color-panel: var(--wf-panel);
+  --color-hover: var(--wf-hover);
+  --color-fill: var(--wf-fill);
+  --color-fill-strong: var(--wf-fill-strong);
+  --color-selected: var(--wf-fill-strong);
   --color-surface: var(--wf-surface);
   --color-surface-2: var(--wf-surface-2);
+  --color-surface-3: var(--wf-surface-3);
   --color-line: var(--wf-border);
+  --color-line-strong: var(--wf-border-strong);
   --color-line-input: var(--wf-border-input);
   --color-ink: var(--wf-text);
   --color-muted: var(--wf-text-muted);
+  --color-soft: var(--wf-text-soft);
+  --color-faint: var(--wf-text-faint);
+  --color-placeholder: var(--wf-placeholder);
   --color-accent: var(--wf-accent);
+  --color-accent-hover: var(--wf-accent-hover);
+  --color-accent-text: var(--wf-accent-text);
   --color-accent-soft: var(--wf-accent-soft);
   --color-on-accent: var(--wf-on-accent);
   --color-danger: var(--wf-danger);
+  --color-danger-soft: var(--wf-danger-soft);
+  --color-danger-hover: var(--wf-danger-hover);
+  --color-field: var(--wf-field);
+  --color-focus: var(--wf-focus);
   --color-success: var(--wf-success);
   --color-warning: var(--wf-warning);
+  --color-warning-soft: var(--wf-warning-soft);
   --color-bubble-out: var(--wf-bubble-out);
   --color-bubble-in: var(--wf-bubble-in);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-bubble-agent: var(--wf-bubble-agent);
+
+  --font-sans: var(--wf-font-body);
+  --font-display: var(--wf-font-display);
+  --font-mono: var(--wf-font-body);
+
+  /* Type scale (size/line-height): 12/16 meta, 13/20 secondary, 14/20 body,
+     16/24 panel titles, 20/28 page titles, 24/32 numbers */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-13: 13px;
+  --text-13--line-height: 20px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  /* Radius: 6 controls, 8 cards/bubbles, 999 pills */
+  --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+
+  /* No shadows except dropdown menus (shadow-menu) */
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --shadow-menu: var(--wf-shadow-menu);
+  --shadow-xs: var(--wf-shadow-xs);
 }
 
-html {
-  color-scheme: light dark;
+/* Section label: sans 12/16/600, text-3, sentence case. Colour comes from the element. */
+@utility section-label {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+/* Panel / card title: 16/24/600 */
+@utility type-heading {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Inline link: ink text on an ink hairline underline. Green is kept for
+   actions, labels and active states only. */
+@utility link {
+  color: var(--wf-text);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--wf-ink) 40%, transparent);
+  transition: text-decoration-color 150ms;
+  &:hover {
+    text-decoration-color: var(--wf-ink);
+  }
+}
+
+/* Page title: 20/28/600 */
+@utility type-title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Dashboard numbers: 24/32/600 */
+@utility type-stat {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Heavy display face: logo and landing page only */
+@utility type-display {
+  font-family: var(--wf-font-display);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
 }
 
 html,
 body {
-  background: var(--wf-bg);
+  background: var(--wf-canvas);
   color: var(--wf-text);
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--wf-font-body);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum";
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: inherit;
+}
+
+table,
+time,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--wf-green) 24%, transparent);
+  color: var(--wf-text);
 }
 
 :focus-visible {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 2px;
+}
+
+@layer base {
+  select {
+    appearance: none;
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1b1b' stroke-opacity='.6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+}
+
+.dark select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e4e4e5' stroke-opacity='.6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+input,
+textarea,
+select {
+  caret-color: var(--wf-ink);
+  accent-color: var(--wf-accent);
+}
+
+/* Standalone controls: green border + 3px soft ring on focus. Text fields
+   match :focus-visible on any focus; buttons and links only from the keyboard. */
+input:not([type="checkbox"]):not([type="radio"]):not([data-bare]):focus-visible,
+textarea:not([data-bare]):focus-visible,
+select:not([data-bare]):focus-visible {
+  outline: none;
+  border-color: var(--wf-accent);
+  box-shadow: 0 0 0 3px var(--wf-focus);
+}
+
+/* Fields inside composite widgets (command palette, inbox search, composer,
+   inline table filters): no ring, outline or glow in any state. */
+[data-bare]:focus,
+[data-bare]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+[cmdk-input] {
+  caret-color: var(--wf-accent);
+}
+
+a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wf-border) transparent;
+}
+
+/* Flow builder canvas (React Flow). Paper ground, faint dots, ink edges at
+   40%; green only for the selection and the path through it. */
+.wf-canvas {
+  --xy-background-color: var(--wf-bg);
+  --xy-background-pattern-color: var(--wf-dot);
+  --xy-edge-stroke: var(--wf-edge);
+  --xy-edge-stroke-width: 1.25;
+  --xy-edge-stroke-selected: var(--wf-accent);
+  --xy-connectionline-stroke: var(--wf-accent);
+  --xy-connectionline-stroke-width: 1.5;
+  --xy-handle-background-color: var(--wf-accent);
+  --xy-handle-border-color: var(--wf-accent);
+  --xy-node-border-radius: 2px;
+  --xy-controls-box-shadow: none;
+  --xy-controls-button-background-color: var(--wf-surface);
+  --xy-controls-button-background-color-hover: var(--wf-surface-2);
+  --xy-controls-button-color: var(--wf-text);
+  --xy-controls-button-color-hover: var(--wf-text);
+  --xy-controls-button-border-color: var(--wf-border);
+}
+.wf-canvas .react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--wf-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.wf-canvas .react-flow__controls-button:last-child {
+  border-bottom: 0;
+}
+.wf-canvas .react-flow__edge.wf-path .react-flow__edge-path,
+.wf-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--wf-accent);
+  stroke-width: 1.75;
+}
+.wf-canvas .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 999px;
+  border-width: 1px;
+}
+.wf-canvas .react-flow__handle.wf-handle-no {
+  background: var(--wf-placeholder);
+  border-color: var(--wf-placeholder);
+}
+.wf-canvas .react-flow__node:focus-visible {
+  outline: none;
+}
+.wf-canvas .react-flow__node:focus-visible > div {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 2px;
+}
+/* Scrollbars: 6px, invisible until the scroller is hovered. Firefox gets the
+   standard properties; WebKit/Blink get the pseudo-elements so the width is exactly 6px. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: var(--wf-border-input) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  *,
+  *:hover {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: var(--wf-border-input);
+  }
+}
+
+/* Unread / nav count: round, 18px, green, white 11/600 */
+@utility count-badge {
+  display: inline-grid;
+  place-items: center;
+  height: 18px;
+  min-width: 18px;
+  padding-inline: 5px;
+  border-radius: 999px;
+  background: var(--wf-accent);
+  color: var(--wf-on-accent);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A setting opened from search: green-soft wash that fades out over 1s.
+   An inset shadow paints over the element's own background, so cards keep theirs. */
+@keyframes wf-search-flash {
+  0%,
+  35% {
+    box-shadow: 0 0 0 6px var(--wf-accent-soft), inset 0 0 0 100vmax var(--wf-accent-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent, inset 0 0 0 100vmax transparent;
+  }
+}
+.search-flash {
+  border-radius: 6px;
+  animation: wf-search-flash 1s ease-out;
+}
+
+/* Hover / selected background changes: 120ms ease */
+@utility transition-surface {
+  transition-property: background-color, color, border-color, opacity;
+  transition-duration: 120ms;
+  transition-timing-function: ease;
+}
+
+/* Flow builder canvas (React Flow). Paper ground, faint dots, ink edges at
+   40%; green only for the selection and the path through it. */
+.wf-canvas {
+  --xy-background-color: var(--wf-bg);
+  --xy-background-pattern-color: var(--wf-dot);
+  --xy-edge-stroke: var(--wf-edge);
+  --xy-edge-stroke-width: 1.25;
+  --xy-edge-stroke-selected: var(--wf-accent);
+  --xy-connectionline-stroke: var(--wf-accent);
+  --xy-connectionline-stroke-width: 1.5;
+  --xy-handle-background-color: var(--wf-accent);
+  --xy-handle-border-color: var(--wf-accent);
+  --xy-node-border-radius: 2px;
+  --xy-controls-box-shadow: none;
+  --xy-controls-button-background-color: var(--wf-surface);
+  --xy-controls-button-background-color-hover: var(--wf-surface-2);
+  --xy-controls-button-color: var(--wf-text);
+  --xy-controls-button-color-hover: var(--wf-text);
+  --xy-controls-button-border-color: var(--wf-border);
+}
+.wf-canvas .react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--wf-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.wf-canvas .react-flow__controls-button:last-child {
+  border-bottom: 0;
+}
+.wf-canvas .react-flow__edge.wf-path .react-flow__edge-path,
+.wf-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--wf-accent);
+  stroke-width: 1.75;
+}
+.wf-canvas .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 999px;
+  border-width: 1px;
+}
+.wf-canvas .react-flow__handle.wf-handle-no {
+  background: var(--wf-placeholder);
+  border-color: var(--wf-placeholder);
+}
+.wf-canvas .react-flow__node:focus-visible {
+  outline: none;
+}
+.wf-canvas .react-flow__node:focus-visible > div {
   outline: 2px solid var(--wf-accent);
   outline-offset: 2px;
 }

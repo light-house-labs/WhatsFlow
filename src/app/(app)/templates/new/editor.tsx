@@ -38,7 +38,7 @@ export function TemplateEditor() {
               <button
                 type="button"
                 key={s.label}
-                className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs"
+                className="rounded-xs px-2 py-0.5 text-xs transition-colors duration-150 bg-fill"
                 onClick={() => {
                   setBody(s.body);
                   setCategory(s.category);
@@ -109,7 +109,7 @@ export function TemplateEditor() {
             <Textarea id="body" name="body" required maxLength={1024} rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
           </Field>
           <div className="flex justify-between text-xs text-muted">
-            <button type="button" className="text-accent" onClick={() => setBody((b) => `${b}{{${n + 1}}}`)}>
+            <button type="button" className="font-medium hover:underline" onClick={() => setBody((b) => `${b}{{${n + 1}}}`)}>
               + Add variable {`{{${n + 1}}}`}
             </button>
             <span>{body.length}/1024</span>
@@ -118,7 +118,7 @@ export function TemplateEditor() {
             <Input id="footer" name="footer" maxLength={60} value={footer} onChange={(e) => setFooter(e.target.value)} />
           </Field>
           <div className="space-y-2">
-            <div className="text-[13px] font-medium">Buttons (optional)</div>
+            <div className="section-label text-faint">Buttons (optional)</div>
             {buttons.map((b, i) => (
               <div key={i} className="flex gap-2">
                 <Select name="btnType" aria-label="Button type" value={b.type} onChange={(e) => setButtons(buttons.map((x, j) => (j === i ? { ...x, type: e.target.value as Btn["type"] } : x)))} className="w-40">
@@ -138,7 +138,7 @@ export function TemplateEditor() {
               </div>
             ))}
             {buttons.length < 3 && (
-              <button type="button" className="text-sm text-accent" onClick={() => setButtons([...buttons, { type: "QUICK_REPLY", text: "", value: "" }])}>
+              <button type="button" className="text-sm font-medium hover:underline" onClick={() => setButtons([...buttons, { type: "QUICK_REPLY", text: "", value: "" }])}>
                 + Add button
               </button>
             )}
@@ -155,15 +155,15 @@ export function TemplateEditor() {
         </form>
       </Card>
       <div className="space-y-3">
-        <div className="text-[13px] font-medium">Preview</div>
+        <div className="section-label text-faint">Preview</div>
         {Array.from({ length: n }).map((_, i) => (
           <Input key={i} aria-label={`Sample for {{${i + 1}}}`} placeholder={`Sample for {{${i + 1}}}`} value={samples[i] ?? ""} onChange={(e) => setSamples((s) => Object.assign([...s], { [i]: e.target.value }))} />
         ))}
-        <div className="rounded-lg bg-surface-2 p-4">
-          <div className="rounded-lg bg-surface p-3 text-sm shadow-sm">
+        <div className="rounded-lg border border-line p-4">
+          <div className="rounded-sm bg-surface p-3 text-sm">
             {headerType === "text" && header && <div className="mb-1 font-semibold">{header}</div>}
             {(headerType === "image" || headerType === "video" || headerType === "document") && (
-              <div className="mb-2 flex h-28 items-center justify-center rounded bg-surface-2 text-muted" aria-label={`${headerType} header`}>
+              <div className="mb-2 flex h-28 items-center justify-center rounded-xs bg-surface-2 text-muted" aria-label={`${headerType} header`}>
                 {headerType === "image" ? <ImageIcon size={28} /> : headerType === "video" ? <Film size={28} /> : <FileText size={28} />}
               </div>
             )}
@@ -171,7 +171,7 @@ export function TemplateEditor() {
             {footer && <div className="mt-1 text-xs text-muted">{footer}</div>}
           </div>
           {[...buttons.filter((b) => b.text), ...(category === "MARKETING" ? [{ text: "Stop offers" }] : [])].map((b, i) => (
-            <div key={i} className="mt-1 rounded-lg bg-surface py-1.5 text-center text-sm text-accent shadow-sm">
+            <div key={i} className="mt-1 rounded-sm bg-surface py-1.5 text-center text-sm font-medium text-ink">
               {b.text}
             </div>
           ))}

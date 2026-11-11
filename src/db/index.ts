@@ -20,10 +20,16 @@ async function connect(): Promise<DB> {
     await migratePg(db, { migrationsFolder: MIGRATIONS });
     return db;
   }
-  const { PGlite } = await import("@electric-sql/pglite");
+  const [{ PGlite }, { pg_trgm }, { unaccent }] = await Promise.all([
+    import("@electric-sql/pglite"),
+    import("@electric-sql/pglite/contrib/pg_trgm"),
+    import("@electric-sql/pglite/contrib/unaccent"),
+  ]);
   const dir = process.env.PGLITE_DIR ?? path.join(process.cwd(), ".data", "pglite");
   if (dir !== "memory") (await import("node:fs")).mkdirSync(dir, { recursive: true });
-  const client = dir === "memory" ? new PGlite() : new PGlite(dir);
+  // Search (migration 0006) needs these two; on real Postgres they ship as contrib.
+  const extensions = { pg_trgm, unaccent };
+  const client = dir === "memory" ? new PGlite({ extensions }) : new PGlite(dir, { extensions });
   const db = drizzlePglite(client, { schema });
   await migratePglite(db, { migrationsFolder: MIGRATIONS });
   // Both drivers expose the same query builder; type as one of them.

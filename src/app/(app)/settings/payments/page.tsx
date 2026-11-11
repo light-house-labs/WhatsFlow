@@ -1,9 +1,12 @@
+import { CreditCard } from "lucide-react";
 import type { Metadata } from "next";
 import { eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { sandboxPaymentsAllowed } from "@/lib/payments";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 import { removePaymentProvider, savePaymentProvider, saveReminder } from "./actions";
 
 export const metadata: Metadata = { title: "Payments" };
@@ -36,33 +39,33 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       webhookHelp: "In Stripe → Developers → Webhooks, add this URL and select checkout.session.completed.",
     },
   ];
+  const hasRzp = rows.some((r) => r.kind === "razorpay");
+  const hasStripe = rows.some((r) => r.kind === "stripe");
   return (
-    <>
-      <PageHeader title="Payments" description="Send payment links in chat. Money goes straight to your own Razorpay or Stripe account; we never touch it." />
-      <div className="max-w-3xl space-y-6 p-6">
+    <SettingsPage title="Payments" summary={rows.length ? `${rows.length} ${rows.length === 1 ? "provider" : "providers"} connected · reminders ${org.paymentReminderHours ? `after ${org.paymentReminderHours}h` : "off"}` : "No provider connected"} status={[{ label: "Razorpay", value: hasRzp ? "Connected" : "Not connected", tone: hasRzp ? "on" : "off" }, { label: "Stripe", value: hasStripe ? "Connected" : "Not connected", tone: hasStripe ? "on" : "off" }, { label: "Reminder", value: org.paymentReminderHours ? `After ${org.paymentReminderHours}h` : "Off", tone: org.paymentReminderHours ? "on" : "off" }]} tips={["Money goes straight to your own account.", "Add the webhook URL so paid links update orders.", "If both are connected, Razorpay is used."]}>
+      <div className="space-y-3 empty:hidden">
         {sp.saved === "1" && <Alert tone="success">Connected. New payment links will use it.</Alert>}
         {sp.saved === "reminder" && <Alert tone="success">Reminder setting saved.</Alert>}
         {sp.error === "razorpay" && <Alert tone="danger">Check the Razorpay key ID (starts rzp_live_ or rzp_test_), key secret and webhook secret.</Alert>}
         {sp.error === "stripe" && <Alert tone="danger">Check the Stripe secret key (sk_ or rk_) and webhook signing secret (whsec_).</Alert>}
-        {!rows.length && (
-          <Alert tone="accent">
-            {sandboxPaymentsAllowed()
-              ? "No provider connected: payment links open a test checkout page where you can simulate a payment."
-              : "Connect a provider to send payment links."}
-          </Alert>
-        )}
-        {providers.map((p) => {
+      </div>
+      <p className="text-sm text-muted">Send payment links in chat. Money goes straight to your own Razorpay or Stripe account; we never touch it.</p>
+      {!rows.length && (
+        <EmptyState
+          icon={<CreditCard />}
+          columns={["Provider", "Status"]}
+          title="No payment provider connected"
+          description="Connect Razorpay or Stripe to send payment links in chat. Money goes straight to your account."
+          primary={{ label: "Connect payment provider", href: "#razorpay" }}
+          hint={sandboxPaymentsAllowed() ? "Until then, payment links open a test checkout page where you can simulate a payment." : undefined}
+        />
+      )}
+      {providers.map((p) => {
           const row = rows.find((r) => r.kind === p.kind);
           return (
-            <Card key={p.kind} className="space-y-4 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-semibold">{p.name}</h2>
-                  <p className="text-sm text-muted">{p.blurb}</p>
-                </div>
-                {row ? <Badge tone="success">Connected · {row.label}</Badge> : <Badge>Not connected</Badge>}
-              </div>
-              <div className="rounded-md bg-surface-2 p-3 text-xs">
+            <SettingsSection key={p.kind} id={p.kind} title={p.name} description={p.blurb}>
+              <div>{row ? <Badge tone="success">Connected · {row.label}</Badge> : <Badge>Not connected</Badge>}</div>
+              <div className="rounded-lg border border-line p-3 text-xs">
                 <div className="mb-1 text-muted">{p.webhookHelp}</div>
                 <code className="break-all">{`${base}/api/webhooks/payments/${p.kind}/${org.id}`}</code>
               </div>
@@ -87,21 +90,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   </Button>
                 </form>
               )}
-            </Card>
+            </SettingsSection>
           );
         })}
-        <Card className="p-5">
-          <form action={saveReminder} className="flex flex-wrap items-end gap-3">
-            <Field label="Remind unpaid customers after (hours)" htmlFor="reminderHours" hint="One reminder with the same link, sent in chat. 0 turns it off.">
-              <Input id="reminderHours" name="hours" type="number" min={0} max={168} defaultValue={org.paymentReminderHours} className="w-32" />
-            </Field>
-            <Button size="sm" variant="secondary">
-              Save
-            </Button>
-          </form>
-        </Card>
-        <p className="text-xs text-muted">Keys are encrypted at rest. If both are connected, Razorpay is used.</p>
-      </div>
-    </>
+        <SettingsSection title="Payment reminders" description="Keys are encrypted at rest. If both providers are connected, Razorpay is used." action={saveReminder}>
+          <Field label="Remind unpaid customers after (hours)" htmlFor="reminderHours" hint="One reminder with the same link, sent in chat. 0 turns it off.">
+            <Input id="reminderHours" name="hours" type="number" min={0} max={168} defaultValue={org.paymentReminderHours} className="w-32" />
+          </Field>
+        </SettingsSection>
+    </SettingsPage>
   );
 }

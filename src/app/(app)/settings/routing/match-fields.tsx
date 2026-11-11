@@ -19,10 +19,10 @@ export function MatchFields({ languages }: { languages: Record<string, string> }
         </Field>
       ) : (
         <fieldset>
-          <legend className="mb-1.5 text-[13px] font-medium">Languages</legend>
+          <legend className="section-label mb-1.5 text-faint">Languages</legend>
           <div className="flex flex-wrap gap-2">
             {Object.entries(languages).map(([code, name]) => (
-              <label key={code} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm">
+              <label key={code} className="flex cursor-pointer items-center gap-1.5 rounded-xs px-2.5 py-1 text-sm transition-colors duration-150 has-[:checked]:bg-accent-soft bg-fill">
                 <input type="checkbox" name="languages" value={code} /> {name}
               </label>
             ))}

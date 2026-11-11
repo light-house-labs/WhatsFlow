@@ -26,10 +26,10 @@ export default async function Page({ params }: { params: Promise<{ orderId: stri
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface-2 p-4">
       <Card className="w-full max-w-sm space-y-4 p-6">
-        <div className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">Test checkout. No real money moves.</div>
+        <div className="rounded-md bg-warning-soft px-3 py-2 text-xs text-warning">Test checkout. No real money moves.</div>
         <div>
           <div className="text-sm text-muted">{row.org}</div>
-          <h1 className="text-lg font-semibold">Order #{o.number}</h1>
+          <h1 className="type-title">Order #{o.number}</h1>
         </div>
         <ul className="space-y-1 text-sm">
           {o.items.map((i, n) => (

@@ -31,7 +31,7 @@ export default async function Page() {
           .map((x) => (
             <Card key={x.t.id} className="p-5">
               <div className="flex items-center gap-2">
-                <h2 className="flex-1 font-semibold">{x.t.subject}</h2>
+                <h2 className="flex-1 type-heading">{x.t.subject}</h2>
                 <StatusBadge status={x.t.status} />
               </div>
               <p className="text-xs text-muted">
@@ -41,13 +41,13 @@ export default async function Page() {
                 {x.msgs.map((m) => (
                   <div key={m.id} className={cx("rounded-md px-3 py-2 text-sm", m.fromStaff ? "bg-surface-2" : "bg-bubble-out")}>
                     <div className="whitespace-pre-wrap">{m.body}</div>
-                    <div className="text-[10px] text-muted">{dateTime(m.createdAt)}</div>
+                    <div className="text-xs text-muted">{dateTime(m.createdAt)}</div>
                   </div>
                 ))}
               </div>
               <form action={reply} className="mt-3 flex gap-2">
                 <input type="hidden" name="threadId" value={x.t.id} />
-                <Textarea name="body" aria-label="Staff reply" className="min-h-11 flex-1" required />
+                <Textarea name="body" aria-label="Staff reply" className="min-h-9 flex-1" required />
                 <Button>Reply</Button>
               </form>
             </Card>

@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         {sp.saved && <Alert tone="success">Saved.</Alert>}
         {sp.error === "name" && <Alert tone="danger">Give the service a name.</Alert>}
         <Card className="p-5">
-          <h2 className="mb-3 font-semibold">Services</h2>
+          <h2 className="mb-3 type-heading">Services</h2>
           {services.length > 0 && (
             <div className="mb-4">
               <Table>
@@ -105,7 +105,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         </Card>
         <form action={saveBookingSettings} className="space-y-6">
           <Card className="p-5">
-            <h2 className="mb-3 font-semibold">Bookable hours</h2>
+            <h2 className="mb-3 type-heading">Bookable hours</h2>
             <div className="space-y-2">
               {DAYS.map(([k, label]) => {
                 const h = s.hours[k];

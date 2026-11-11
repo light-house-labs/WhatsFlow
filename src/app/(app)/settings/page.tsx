@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, ne } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { Alert, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
+import { Alert, Button, Field, Input, Textarea } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { openingStatus } from "@/lib/hours";
+import { FieldGrid, MessageField, SettingsSection, TimezoneSelect, Toggle } from "@/components/settings";
 import { addQuickReply, deleteQuickReply, saveInboxSettings } from "./actions";
 
 export const metadata: Metadata = { title: "Inbox settings" };
@@ -25,75 +28,70 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     d.select().from(schema.quickReplies).where(eq(schema.quickReplies.orgId, org.id)).orderBy(asc(schema.quickReplies.shortcut)),
   ]);
   const admin = role !== "agent";
+  const [wa] = await d.select({ n: count() }).from(schema.waNumbers).where(and(eq(schema.waNumbers.orgId, org.id), ne(schema.waNumbers.status, "disconnected")));
+  const hours = openingStatus(s.businessHours, org.timezone);
+  const auto = s.welcomeEnabled && s.awayEnabled ? "Welcome and away replies on" : s.welcomeEnabled ? "Welcome reply on" : s.awayEnabled ? "Away reply on" : "Auto-replies off";
+  const autoOn = s.welcomeEnabled || s.awayEnabled;
   return (
-    <>
-      <PageHeader title="Inbox settings" description="Automatic replies, opening hours, alerts and quick replies." />
-      <div className="max-w-4xl space-y-6 p-6">
-        {sp.saved && <Alert tone="success">Saved.</Alert>}
-        {sp.error === "tz" && <Alert tone="danger">That time zone isn&apos;t recognised. Use a name like Asia/Kolkata.</Alert>}
-        {admin ? (
-          <form action={saveInboxSettings} className="space-y-6">
-            <Card className="space-y-4 p-5">
-              <h2 className="font-semibold">Business</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Business name" htmlFor="orgName">
-                  <Input id="orgName" name="orgName" defaultValue={org.name} />
-                </Field>
-                <Field label="Time zone" htmlFor="timezone" hint="Used for opening hours and reports.">
-                  <Input id="timezone" name="timezone" defaultValue={org.timezone} />
-                </Field>
-              </div>
-            </Card>
-            <Card className="space-y-4 p-5">
-              <h2 className="font-semibold">Automatic replies</h2>
-              <p className="text-sm text-muted">Sent when a new conversation starts and no bot flow picks it up.</p>
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" name="welcomeEnabled" defaultChecked={s.welcomeEnabled} /> Welcome message during opening hours
-              </label>
-              <Textarea name="welcomeMessage" aria-label="Welcome message" defaultValue={s.welcomeMessage} />
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" name="awayEnabled" defaultChecked={s.awayEnabled} /> Away message outside opening hours
-              </label>
-              <Textarea name="awayMessage" aria-label="Away message" defaultValue={s.awayMessage} />
-            </Card>
-            <Card className="p-5">
-              <h2 className="mb-3 font-semibold">Opening hours</h2>
-              <div className="space-y-2">
-                {DAYS.map(([k, label]) => {
-                  const h = s.businessHours[k];
-                  return (
-                    <div key={k} className="flex flex-wrap items-center gap-3 text-sm">
-                      <label className="flex w-32 items-center gap-2">
-                        <input type="checkbox" name={`${k}_on`} defaultChecked={Boolean(h)} /> {label}
-                      </label>
-                      <Input type="time" name={`${k}_open`} aria-label={`${label} opens`} defaultValue={h?.open ?? "09:00"} className="w-32" />
-                      <span className="text-muted">to</span>
-                      <Input type="time" name={`${k}_close`} aria-label={`${label} closes`} defaultValue={h?.close ?? "18:00"} className="w-32" />
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-            <Card className="grid gap-4 p-5 sm:grid-cols-2">
-              <Field label="Alert when a customer waits longer than (minutes)" htmlFor="wait">
-                <Input id="wait" name="waitAlertMinutes" type="number" min={1} max={1440} defaultValue={s.waitAlertMinutes} />
+    <SettingsPage title="Inbox" summary={`${auto} · ${hours.open ? "Open now" : "Closed"} · ${replies.length} quick ${replies.length === 1 ? "reply" : "replies"}`} status={[{ label: "Opening", value: hours.text, tone: hours.open ? "on" : "off" }, { label: "WhatsApp number", value: wa.n ? "Connected" : "Not connected", tone: wa.n ? "on" : "warn" }, { label: "Auto-replies", value: autoOn ? "On" : "Off", tone: autoOn ? "on" : "off" }]} tips={["Welcome goes out in opening hours, away goes out after them.", "Type / in the inbox to use a quick reply.", "Variables like {name} are filled in per customer."]}>
+      {sp.saved && (
+        <Alert tone="success">Saved.</Alert>
+      )}
+      {sp.error === "tz" && (
+        <Alert tone="danger">That time zone isn&apos;t recognised. Pick one from the list.</Alert>
+      )}
+      {admin ? (
+        <>
+          <SettingsSection title="Business" description="Your business name and the time zone used for opening hours and reports." action={saveInboxSettings} section="business">
+            <FieldGrid>
+              <Field label="Business name" htmlFor="orgName">
+                <Input id="orgName" name="orgName" defaultValue={org.name} />
               </Field>
-              <Field label="Opt-out keywords" htmlFor="optout" hint="A customer who sends one of these stops getting marketing messages.">
-                <Input id="optout" name="optOutKeywords" defaultValue={s.optOutKeywords.join(", ")} />
+              <Field label="Time zone" htmlFor="timezone">
+                <TimezoneSelect id="timezone" name="timezone" defaultValue={org.timezone} />
               </Field>
-            </Card>
-            <Button>Save settings</Button>
-          </form>
-        ) : (
-          <Alert tone="accent">Only owners and admins can change automatic replies and hours. You can manage quick replies below.</Alert>
-        )}
-        <Card className="p-5">
-          <h2 className="font-semibold">Quick replies</h2>
-          <p className="mb-3 text-sm text-muted">Type / in the inbox to use them.</p>
-          <ul className="mb-4 divide-y divide-line">
+            </FieldGrid>
+          </SettingsSection>
+          <SettingsSection title="Automatic replies" description="Sent when a new conversation starts and no bot flow picks it up." action={saveInboxSettings} section="replies" hint="Variables are filled in per customer.">
+            <Toggle name="welcomeEnabled" label="Welcome message" description="Sent during opening hours." defaultChecked={s.welcomeEnabled}>
+              <MessageField name="welcomeMessage" label="Message" defaultValue={s.welcomeMessage} business={org.name} />
+            </Toggle>
+            <Toggle name="awayEnabled" label="Away message" description="Sent outside opening hours." defaultChecked={s.awayEnabled}>
+              <MessageField name="awayMessage" label="Message" defaultValue={s.awayMessage} business={org.name} />
+            </Toggle>
+          </SettingsSection>
+          <SettingsSection title="Opening hours" description="Days you are open. Closed days get the away message." action={saveInboxSettings} section="hours">
+            <div className="space-y-3">
+              {DAYS.map(([k, label]) => {
+                const h = s.businessHours[k];
+                return (
+                  <Toggle key={k} inline name={`${k}_on`} label={label} defaultChecked={Boolean(h)}>
+                    <Input type="time" name={`${k}_open`} aria-label={`${label} opens`} defaultValue={h?.open ?? "09:00"} className="w-32" />
+                    <span className="text-sm text-muted">to</span>
+                    <Input type="time" name={`${k}_close`} aria-label={`${label} closes`} defaultValue={h?.close ?? "18:00"} className="w-32" />
+                  </Toggle>
+                );
+              })}
+            </div>
+          </SettingsSection>
+          <SettingsSection title="Alerts and opt-out" description="When to flag a waiting customer, and which words stop marketing messages." action={saveInboxSettings} section="alerts">
+            <Field label="Alert when a customer waits longer than (minutes)" htmlFor="wait">
+              <Input id="wait" name="waitAlertMinutes" type="number" min={1} max={1440} defaultValue={s.waitAlertMinutes} className="w-32" />
+            </Field>
+            <Field label="Opt-out keywords" htmlFor="optout" hint="A customer who sends one of these stops getting marketing messages. Comma separated.">
+              <Input id="optout" name="optOutKeywords" defaultValue={s.optOutKeywords.join(", ")} />
+            </Field>
+          </SettingsSection>
+        </>
+      ) : (
+        <Alert tone="accent">Only owners and admins can change automatic replies and hours. You can manage quick replies below.</Alert>
+      )}
+      <SettingsSection title="Quick replies" description="Type / in the inbox to use them.">
+        {replies.length > 0 && (
+          <ul className="divide-y divide-line">
             {replies.map((r) => (
-              <li key={r.id} className="flex items-start gap-3 py-2 text-sm">
-                <span className="w-28 shrink-0 font-mono">/{r.shortcut}</span>
+              <li key={r.id} className="flex items-start gap-3 py-2 text-sm first:pt-0">
+                <span className="w-28 shrink-0">/{r.shortcut}</span>
                 <span className="flex-1 whitespace-pre-wrap text-muted">{r.body}</span>
                 <form action={deleteQuickReply}>
                   <input type="hidden" name="id" value={r.id} />
@@ -104,13 +102,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </li>
             ))}
           </ul>
-          <form action={addQuickReply} className="flex flex-wrap items-start gap-2">
-            <Input name="shortcut" placeholder="shortcut" aria-label="Shortcut" className="w-36" required />
-            <Textarea name="body" placeholder="Message" aria-label="Quick reply message" className="min-h-10 flex-1" required />
-            <Button variant="secondary">Add</Button>
-          </form>
-        </Card>
-      </div>
-    </>
+        )}
+        <form action={addQuickReply} className="flex flex-wrap items-start gap-2">
+          <Input name="shortcut" placeholder="shortcut" aria-label="Shortcut" className="w-36" required />
+          <Textarea name="body" placeholder="Message" aria-label="Quick reply message" className="min-h-9 flex-1 resize-none" required />
+          <Button variant="secondary">Add</Button>
+        </form>
+      </SettingsSection>
+    </SettingsPage>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bot, CheckCircle2, Inbox, KanbanSquare, LifeBuoy, Megaphone, ShieldCheck, Ticket } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { ButtonLink, Card } from "@/components/ui";
+import { ButtonLink, SectionLabel } from "@/components/ui";
 import { PLANS, formatMoney } from "@/lib/plans";
 
 const FEATURES = [
@@ -23,10 +23,10 @@ const PROMISES = [
 export default function Home() {
   return (
     <div className="min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <header className="mx-auto flex max-w-6xl items-center justify-between border-b border-line px-6 py-4">
         <Logo />
         <nav className="flex items-center gap-2">
-          <Link href="#pricing" className="px-3 text-sm text-muted hover:text-ink">
+          <Link href="#pricing" className="section-label px-3 text-muted transition-colors duration-150 hover:text-ink">
             Pricing
           </Link>
           <ButtonLink variant="ghost" href="/login">
@@ -36,30 +36,32 @@ export default function Home() {
         </nav>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 pb-16 pt-12">
-        <p className="mb-4 inline-block rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">The honest WhatsApp CRM</p>
-        <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+      <section className="mx-auto max-w-6xl px-6 pb-20 pt-16">
+        <SectionLabel as="div" className="mb-6">
+          The honest WhatsApp CRM
+        </SectionLabel>
+        <h1 className="max-w-4xl type-display text-[44px] sm:text-[68px]">
           Your team on WhatsApp, organised. And you can leave any time.
         </h1>
-        <p className="mt-5 max-w-2xl text-lg text-muted">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
           A shared inbox, bots, broadcasts, pipeline and tickets for businesses that sell and support on WhatsApp. One-click cancel. Real people when you need help.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-9 flex flex-wrap items-center gap-5">
           <ButtonLink href="/signup">Try it free for 14 days</ButtonLink>
-          <ButtonLink variant="secondary" href="#how">
+          <ButtonLink variant="ghost" arrow="down" href="#how">
             See how it works
           </ButtonLink>
         </div>
-        <p className="mt-3 text-sm text-muted">No card. A sandbox number is included so you can try every feature before connecting yours.</p>
+        <p className="mt-4 text-sm text-muted">No card. A sandbox number is included so you can try every feature before connecting yours.</p>
       </section>
 
       <section id="how" className="border-y border-line bg-surface">
-        <div className="mx-auto grid max-w-6xl gap-6 px-6 py-16 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-x-10 gap-y-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, body }) => (
-            <div key={title}>
-              <Icon className="text-accent" aria-hidden />
-              <h3 className="mt-3 font-semibold">{title}</h3>
-              <p className="mt-1 text-sm text-muted">{body}</p>
+            <div key={title} className="border-t border-line pt-4">
+              <Icon size={18} strokeWidth={1.75} className="text-muted" aria-hidden />
+              <h3 className="mt-4 type-display text-[17px]">{title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
             </div>
           ))}
         </div>
@@ -68,13 +70,13 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-8 lg:grid-cols-2">
           <div>
-            <h2 className="text-2xl font-semibold">What we promise, in writing</h2>
+            <h2 className="type-display text-[32px]">What we promise, in writing</h2>
             <p className="mt-2 text-muted">Most complaints about WhatsApp tools aren&apos;t about features. They&apos;re about getting stuck. So we built the exits first.</p>
           </div>
-          <ul className="space-y-3">
+          <ul className="border-t border-line">
             {PROMISES.map((p) => (
-              <li key={p} className="flex gap-3">
-                <CheckCircle2 className="mt-0.5 shrink-0 text-success" size={18} aria-hidden />
+              <li key={p} className="flex gap-3 border-b border-line py-3.5">
+                <CheckCircle2 className="mt-0.5 shrink-0 text-accent-text" size={18} strokeWidth={1.75} aria-hidden />
                 <span>{p}</span>
               </li>
             ))}
@@ -84,38 +86,38 @@ export default function Home() {
 
       <section id="pricing" className="border-t border-line bg-surface">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold">Simple pricing</h2>
-          <p className="mt-1 text-sm text-muted">Prices exclude GST. WhatsApp&apos;s own per-message fees are charged by Meta at cost and shown before every broadcast.</p>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <h2 className="type-display text-[32px]">Simple pricing</h2>
+          <p className="mt-2 text-sm text-muted">Prices exclude GST. WhatsApp&apos;s own per-message fees are charged by Meta at cost and shown before every broadcast.</p>
+          <div className="mt-10 grid border-y border-line md:grid-cols-3">
             {(["starter", "team", "custom"] as const).map((id) => {
               const p = PLANS[id];
               return (
-                <Card key={id} className="flex flex-col p-6">
-                  <h3 className="font-semibold">{p.name}</h3>
+                <div key={id} className="flex flex-col border-line py-7 max-md:border-b max-md:last:border-b-0 md:border-r md:px-7 md:first:pl-0 md:last:border-r-0 md:last:pr-0">
+                  <h3 className="section-label text-muted">{p.name}</h3>
                   <p className="mt-1 text-sm text-muted">{p.tagline}</p>
-                  <div className="mt-4 text-3xl font-semibold">
+                  <div className="mt-5 type-display text-[40px] tabular-nums">
                     {p.monthlyMinor ? formatMoney(p.monthlyMinor) : "Let's talk"}
                     {p.monthlyMinor > 0 && <span className="text-sm font-normal text-muted"> / month</span>}
                   </div>
                   {p.yearlyMinor > 0 && <p className="text-xs text-muted">or {formatMoney(p.yearlyMinor)} a year (2 months free)</p>}
-                  <ul className="mt-4 flex-1 space-y-1.5 text-sm">
+                  <ul className="mt-5 flex-1 border-t border-line text-sm">
                     {p.features.map((f) => (
-                      <li key={f} className="flex gap-2">
-                        <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden /> {f}
+                      <li key={f} className="flex gap-2 border-b border-line py-2">
+                        <CheckCircle2 size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent-text" aria-hidden /> {f}
                       </li>
                     ))}
                   </ul>
                   <ButtonLink className="mt-6" variant={id === "team" ? "primary" : "secondary"} href={id === "custom" ? "/signup?plan=custom" : "/signup"}>
                     {id === "custom" ? "Talk to us" : "Start free trial"}
                   </ButtonLink>
-                </Card>
+                </div>
               );
             })}
           </div>
         </div>
       </section>
 
-      <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm text-muted">
+      <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t border-line px-6 py-8 text-sm text-muted">
         <Logo />
         <span className="flex items-center gap-2">
           <LifeBuoy size={14} aria-hidden /> Help from real people, on WhatsApp

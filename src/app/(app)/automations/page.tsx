@@ -36,10 +36,18 @@ export default async function Page() {
         }
       />
       <div className="p-6">
-        <Card>
-          {rows.length === 0 ? (
-            <EmptyState icon={<Workflow />} title="No automations yet" body="Example: when an order is paid, wait 3 days, then ask for a review." />
-          ) : (
+        {rows.length === 0 ? (
+<EmptyState
+            icon={<Workflow />}
+            columns={["Name", "When", "Steps", "Runs", "Status", "Edited"]}
+            title="No automations yet"
+            description="Run follow-ups, tags and assignments on their own when something happens."
+            primary={{ label: "New automation", action: createAutomation, allow: role !== "agent" }}
+            askAdmin="create an automation"
+            hint="Example: when an order is paid, wait 3 days, then ask for a review."
+          />
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -53,9 +61,9 @@ export default async function Page() {
               </thead>
               <tbody>
                 {rows.map(({ a, runs, failed }) => (
-                  <tr key={a.id} className="hover:bg-surface-2">
+                  <tr key={a.id} className="hover:bg-hover">
                     <Td>
-                      <Link href={`/automations/${a.id}`} className="font-medium hover:text-accent">
+                      <Link href={`/automations/${a.id}`} className="font-medium hover:underline">
                         {a.name}
                       </Link>
                     </Td>
@@ -73,8 +81,8 @@ export default async function Page() {
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

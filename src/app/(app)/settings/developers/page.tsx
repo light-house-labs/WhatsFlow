@@ -1,3 +1,4 @@
+import { KeyRound, Webhook } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -5,7 +6,9 @@ import { schema } from "@/db";
 import { WEBHOOK_EVENTS } from "@/db/schema";
 import { requireOrg } from "@/lib/auth";
 import { dateTime, timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 import { addWebhook, createApiKey, deleteWebhook, retryDelivery, revokeApiKey, sendTestWebhook, toggleWebhook } from "./actions";
 
 export const metadata: Metadata = { title: "Developers" };
@@ -44,10 +47,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       .where(and(eq(r.orgId, org.id), sql`${r.createdAt} > now() - interval '24 hours'`)),
   ]);
   const base = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const liveKeys = keys.filter((k) => !k.revokedAt).length;
+  const liveHooks = hooks.filter((h) => h.active).length;
+  const reqs = Number(usage?.total ?? 0);
+  const failed = Number(usage?.failed ?? 0);
   return (
-    <>
-      <PageHeader title="Developers" description="Connect WhatsFlow to your own systems with the REST API and webhooks." />
-      <div className="max-w-5xl space-y-6 p-6">
+    <SettingsPage title="API & webhooks" summary={`${liveKeys} active ${liveKeys === 1 ? "key" : "keys"} · ${liveHooks} active ${liveHooks === 1 ? "webhook" : "webhooks"} · ${reqs} requests in 24h`} status={[{ label: "API keys", value: String(liveKeys), tone: liveKeys ? "on" : "off" }, { label: "Webhooks", value: String(liveHooks), tone: liveHooks ? "on" : "off" }, { label: "Failed (24h)", value: `${failed} of ${reqs}`, tone: failed ? "warn" : "off" }]} tips={["A new key or secret is shown once; copy it straight away.", "Use Test on a webhook to queue a sample delivery.", "Filter the request log to failures to debug."]}>
+      <div className="space-y-3 empty:hidden">
         {flash && (
           <Alert tone="success">
             <div className="font-medium">{flash.label}: copy it now. It won&apos;t be shown again.</div>
@@ -56,15 +62,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         )}
         {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         {sp.tested && <Alert tone="accent">Test delivery queued. It appears in the log below.</Alert>}
+      </div>
 
-        <Card className="space-y-4 p-5">
-          <div>
-            <h2 className="font-semibold">API keys</h2>
-            <p className="text-sm text-muted">
-              Send <code>Authorization: Bearer &lt;key&gt;</code> to <code>{base}/api/v1</code>. Endpoints: <code>GET/POST /contacts</code>, <code>GET/PATCH /contacts/:id</code>,{" "}
+        <SettingsSection
+          id="api-keys"
+          title="API keys"
+          description={
+            <>
+              Connect WhatsFlow to your own systems with the REST API and webhooks. Send <code>Authorization: Bearer &lt;key&gt;</code> to <code>{base}/api/v1</code>. Endpoints: <code>GET/POST /contacts</code>, <code>GET/PATCH /contacts/:id</code>,{" "}
               <code>GET /conversations</code>, <code>GET /conversations/:id/messages</code>, <code>POST /messages</code>, <code>GET /messages/:id</code>, <code>GET /orders</code>.
-            </p>
-          </div>
+            </>
+          }
+        >
+          {keys.length === 0 && (
+            <EmptyState
+              icon={<KeyRound />}
+              columns={["Name", "Key", "Access", "Last used", ""]}
+              title="No API keys yet"
+              description="Use an API key to read and send from your own systems."
+              primary={{ label: "Create API key", href: "#kname" }}
+            />
+          )}
           {keys.length > 0 && (
             <Table>
               <thead>
@@ -112,15 +130,26 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
             </Field>
             <Button>Create key</Button>
           </form>
-        </Card>
+        </SettingsSection>
 
-        <Card className="space-y-4 p-5">
-          <div>
-            <h2 className="font-semibold">Webhooks</h2>
-            <p className="text-sm text-muted">
+        <SettingsSection
+          id="webhooks"
+          title="Webhooks"
+          description={
+            <>
               We POST JSON to your URL. Verify <code>X-WhatsFlow-Signature</code>: <code>sha256=</code> HMAC-SHA256 of <code>{"{X-WhatsFlow-Timestamp}.{body}"}</code> with your signing secret. Failed deliveries are retried 6 times with backoff.
-            </p>
-          </div>
+            </>
+          }
+        >
+          {hooks.length === 0 && (
+            <EmptyState
+              icon={<Webhook />}
+              columns={["Endpoint", "Events", "Status", ""]}
+              title="No webhooks yet"
+              description="Add a webhook to get events pushed to your own URL."
+              primary={{ label: "Add webhook", href: "#wurl" }}
+            />
+          )}
           {hooks.map((h) => (
             <div key={h.id} className="flex flex-wrap items-center gap-3 rounded-md border border-line p-3 text-sm">
               <code className="min-w-0 flex-1 break-all">{h.url}</code>
@@ -148,7 +177,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               <Input id="wurl" name="url" type="url" placeholder="https://example.com/whatsflow" required />
             </Field>
             <fieldset className="grid gap-1 sm:grid-cols-3">
-              <legend className="mb-1 text-[13px] font-medium">Events</legend>
+              <legend className="section-label mb-1 text-faint">Events</legend>
               {WEBHOOK_EVENTS.map((e) => (
                 <label key={e} className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name={`ev_${e}`} defaultChecked={e !== "message.status"} /> <code className="text-xs">{e}</code>
@@ -157,16 +186,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
             </fieldset>
             <Button size="sm">Add webhook</Button>
           </form>
-        </Card>
+        </SettingsSection>
 
-        <Card className="p-5">
-          <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <h2 className="font-semibold">API requests</h2>
+        <SettingsSection title="API requests">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <span className="text-sm text-muted">
               Last 24 hours: {Number(usage.total)} calls · {Number(usage.failed)} failed{Number(usage.limited) ? ` (${Number(usage.limited)} rate limited)` : ""}
               {usage.p95 != null && ` · 95% answered within ${Math.round(Number(usage.p95))} ms`}
             </span>
-            <a href={sp.failed ? "/settings/developers" : "/settings/developers?failed=1"} className="ml-auto text-sm text-accent">
+            <a href={sp.failed ? "/settings/developers" : "/settings/developers?failed=1"} className="ml-auto text-sm link">
               {sp.failed ? "Show all" : "Only failures"}
             </a>
           </div>
@@ -203,9 +231,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               </tbody>
             </Table>
           )}
-        </Card>
-        <Card className="p-5">
-          <h2 className="mb-3 font-semibold">Recent deliveries</h2>
+        </SettingsSection>
+        <SettingsSection title="Recent deliveries">
           {deliveries.length === 0 ? (
             <p className="text-sm text-muted">Nothing sent yet.</p>
           ) : (
@@ -245,8 +272,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               </tbody>
             </Table>
           )}
-        </Card>
-      </div>
-    </>
+        </SettingsSection>
+    </SettingsPage>
   );
 }

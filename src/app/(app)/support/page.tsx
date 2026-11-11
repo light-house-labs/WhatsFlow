@@ -41,11 +41,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       />
       <div className="grid max-w-5xl gap-6 p-6 lg:grid-cols-[280px_1fr]">
         <div className="space-y-2">
-          <Link href="/support" className={cx("block rounded-md px-3 py-2 text-sm", !current ? "bg-accent-soft text-accent" : "hover:bg-surface-2")}>
+          <Link href="/support" className={cx("block rounded-md px-3 py-2 text-sm", !current ? "bg-surface-2 font-medium" : "hover:bg-surface-2")}>
             + New request
           </Link>
           {threads.map((t) => (
-            <Link key={t.id} href={`/support?t=${t.id}`} className={cx("block rounded-md px-3 py-2 text-sm", current?.id === t.id ? "bg-accent-soft" : "hover:bg-surface-2")}>
+            <Link key={t.id} href={`/support?t=${t.id}`} className={cx("block rounded-md px-3 py-2 text-sm", current?.id === t.id ? "bg-surface-2 font-medium" : "hover:bg-surface-2")}>
               <div className="truncate font-medium">{t.subject}</div>
               <div className="flex items-center gap-2 text-xs text-muted">
                 <StatusBadge status={t.status} /> {timeAgo(t.updatedAt)}
@@ -55,20 +55,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </div>
         {current ? (
           <Card className="flex flex-col p-5">
-            <h2 className="mb-3 font-semibold">{current.subject}</h2>
+            <h2 className="mb-3 type-heading">{current.subject}</h2>
             <div className="flex-1 space-y-3">
               {messages.map((m) => (
                 <div key={m.id} className={cx("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.fromStaff ? "bg-surface-2" : "ml-auto bg-bubble-out")}>
-                  <div className="mb-0.5 text-[11px] font-medium text-accent">{m.fromStaff ? "WhatsFlow team" : "You"}</div>
+                  <div className="section-label mb-1 text-xs text-faint">{m.fromStaff ? "WhatsFlow team" : "You"}</div>
                   <div className="whitespace-pre-wrap">{m.body}</div>
-                  <div className="mt-0.5 text-right text-[10px] text-muted">{dateTime(m.createdAt)}</div>
+                  <div className="mt-0.5 text-right text-xs text-muted">{dateTime(m.createdAt)}</div>
                 </div>
               ))}
               {current.status === "open" && <p className="text-center text-xs text-muted">Waiting for our team. You&apos;ll see the reply here.</p>}
             </div>
             <form action={reply} className="mt-4 flex gap-2">
               <input type="hidden" name="threadId" value={current.id} />
-              <Textarea name="body" aria-label="Reply" className="min-h-11 flex-1" required />
+              <Textarea name="body" aria-label="Reply" className="min-h-9 flex-1" required />
               <Button>Send</Button>
             </form>
           </Card>

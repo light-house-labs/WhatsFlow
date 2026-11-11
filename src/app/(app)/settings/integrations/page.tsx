@@ -1,3 +1,4 @@
+import { Plug } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
@@ -8,7 +9,9 @@ import { storeConfigFor } from "@/lib/stores";
 import { serviceAccount, SHEET_KINDS } from "@/lib/sheets";
 import type { SheetKind } from "@/db/schema";
 import { timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Select } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection, Toggle } from "@/components/settings";
 import { connectSheet, removeSheet, removeStore, saveStore, syncSheetNow } from "./actions";
 
 export const metadata: Metadata = { title: "Connected apps" };
@@ -46,14 +49,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     { name: `Webhooks (${hooks.n})`, on: hooks.n > 0, href: "/settings/developers" },
   ];
   return (
-    <>
-      <PageHeader title="Connected apps" description={`${connected} connected. Orders from your store land in Orders and can trigger WhatsApp automations.`} />
-      <div className="max-w-3xl space-y-6 p-6">
+    <SettingsPage title="Connected apps" summary={connected ? `${connected} connected · ${synced.n} store orders synced` : "Nothing connected yet"} status={[{ label: "Connected", value: String(connected), tone: connected ? "on" : "off" }, { label: "Store orders synced", value: String(synced.n), tone: synced.n ? "on" : "off" }, { label: "Cart reminders sent", value: String(carts.n), tone: carts.n ? "on" : "off" }]} tips={["Send a test order after connecting a store.", "Store orders can trigger WhatsApp automations.", "Sheets sync needs the service account shared on the sheet."]}>
+      <div className="space-y-3 empty:hidden">
         {sp.saved && sp.saved !== "sheets" && <Alert tone="success">Connected. Send a test order to check it.</Alert>}
         {sp.error && ERRORS[sp.error] && <Alert tone="danger">{ERRORS[sp.error]}</Alert>}
-        <Card className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3">
+      </div>
+      {connected === 0 ? (
+        <EmptyState icon={<Plug />} columns={["App", "Status"]} title="No apps connected" description="Connect your store, payments or a spreadsheet to bring orders and data into WhatsFlow." primary={{ label: "Browse apps", href: "#shopify" }} />
+      ) : (
+      <SettingsSection title="Overview" description={`${connected} connected. Orders from your store land in Orders and can trigger WhatsApp automations.`}>
+        <div className="grid grid-cols-2 gap-2">
           {apps.map((a) => (
-            <Link key={a.name} href={a.href} className="flex items-center justify-between rounded-md border border-line px-3 py-2 text-sm hover:bg-surface-2">
+            <Link key={a.name} href={a.href} className="flex items-center justify-between rounded-md border border-line px-3 py-2 text-sm hover:bg-hover">
               {a.name}
               <Badge tone={a.on ? "success" : "neutral"}>{a.on ? "On" : "Off"}</Badge>
             </Link>
@@ -61,23 +68,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           <p className="col-span-full text-xs text-muted">
             {synced.n} store orders synced · {carts.n} abandoned-cart reminders sent
           </p>
-        </Card>
+        </div>
+      </SettingsSection>
+      )}
 
-        <Card id="shopify" className="space-y-4 p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="font-semibold">Shopify</h2>
-              <p className="text-sm text-muted">New and updated orders, and abandoned checkouts.</p>
-            </div>
-            {shopify && (
-              <form action={removeStore}>
-                <input type="hidden" name="kind" value="shopify" />
-                <Button size="sm" variant="ghost" className="text-danger">
-                  Disconnect
-                </Button>
-              </form>
-            )}
-          </div>
+        <SettingsSection id="shopify" title="Shopify" description="New and updated orders, and abandoned checkouts.">
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
             <li>
               In Shopify admin, open Settings → Notifications → Webhooks and create webhooks for <strong>Order creation</strong>, <strong>Order update</strong>, <strong>Checkout creation</strong> and <strong>Checkout update</strong>, format JSON, sent to:
@@ -98,34 +93,28 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 <Input id="cartMinutes" name="cartMinutes" type="number" min={15} max={1440} defaultValue={shopify?.cartMinutes ?? 60} />
               </Field>
             </div>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" name="cartConsentOnly" defaultChecked={shopify?.cartConsentOnly ?? true} className="mt-0.5" />
-              <span>
-                Only remind shoppers who agreed to marketing at checkout. Cart reminders are marketing messages, and Meta requires opt-in for those.
-              </span>
-            </label>
+            <Toggle
+              name="cartConsentOnly"
+              label="Only remind shoppers who agreed to marketing"
+              description="Cart reminders are marketing messages, and Meta requires opt-in for those."
+              defaultChecked={shopify?.cartConsentOnly ?? true}
+            />
             <p className="text-xs text-muted">
               To message abandoned carts, create an automation on <em>A store checkout is abandoned</em> that sends an approved template with <code>cart_url</code>.
             </p>
             <Button>{shopify ? "Save changes" : "Connect Shopify"}</Button>
           </form>
-        </Card>
+          {shopify && (
+            <form action={removeStore}>
+              <input type="hidden" name="kind" value="shopify" />
+              <Button size="sm" variant="ghost" className="text-danger">
+                Disconnect Shopify
+              </Button>
+            </form>
+          )}
+        </SettingsSection>
 
-        <Card id="woocommerce" className="space-y-4 p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="font-semibold">WooCommerce</h2>
-              <p className="text-sm text-muted">New and updated orders.</p>
-            </div>
-            {woo && (
-              <form action={removeStore}>
-                <input type="hidden" name="kind" value="woocommerce" />
-                <Button size="sm" variant="ghost" className="text-danger">
-                  Disconnect
-                </Button>
-              </form>
-            )}
-          </div>
+        <SettingsSection id="woocommerce" title="WooCommerce" description="New and updated orders.">
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
             <li>
               In WordPress, open WooCommerce → Settings → Advanced → Webhooks and add two webhooks, <strong>Order created</strong> and <strong>Order updated</strong>, delivered to:
@@ -145,13 +134,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </div>
             <Button>{woo ? "Save changes" : "Connect WooCommerce"}</Button>
           </form>
-        </Card>
+          {woo && (
+            <form action={removeStore}>
+              <input type="hidden" name="kind" value="woocommerce" />
+              <Button size="sm" variant="ghost" className="text-danger">
+                Disconnect WooCommerce
+              </Button>
+            </form>
+          )}
+        </SettingsSection>
 
-        <Card id="sheets" className="space-y-4 p-5">
-          <div>
-            <h2 className="font-semibold">Google Sheets</h2>
-            <p className="text-sm text-muted">New leads, bookings, orders, enquiries or contacts are added as rows to your sheet within a minute.</p>
-          </div>
+        <SettingsSection id="sheets" title="Google Sheets" description="New leads, bookings, orders, enquiries or contacts are added as rows to your sheet within a minute.">
           {sp.saved === "sheets" && <Alert tone="success">Sheet connected. New rows appear within a minute.</Alert>}
           {sp.sheetError && <Alert tone="danger">{sp.sheetError}</Alert>}
           {!sa ? (
@@ -165,7 +158,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                       <div className="flex-1">
                         <div className="font-medium">
                           {SHEET_KINDS[s.kind].label} →{" "}
-                          <a className="text-accent" href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit`} target="_blank" rel="noreferrer noopener">
+                          <a className="link" href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit`} target="_blank" rel="noreferrer noopener">
                             {s.tab}
                           </a>
                         </div>
@@ -214,16 +207,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   <Field label="Tab name (optional)" htmlFor="tab" hint="Leave blank for a tab named like “WhatsFlow leads”.">
                     <Input id="tab" name="tab" maxLength={80} />
                   </Field>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="backfill" /> Also send everything from before today
-                  </label>
+                  <Toggle name="backfill" label="Also send everything from before today" />
                   <Button>Connect sheet</Button>
                 </form>
               )}
             </>
           )}
-        </Card>
-      </div>
-    </>
+        </SettingsSection>
+    </SettingsPage>
   );
 }

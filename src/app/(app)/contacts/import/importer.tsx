@@ -76,7 +76,7 @@ export function Importer({ initialTag = "", forCampaign = false }: { initialTag?
       </Card>
       {headers.length > 0 && !result && (
         <Card className="p-5">
-          <h2 className="mb-3 font-semibold">Match your columns ({rows.length} rows)</h2>
+          <h2 className="mb-3 type-heading">Match your columns ({rows.length} rows)</h2>
           <Table>
             <thead>
               <tr>
@@ -91,7 +91,7 @@ export function Importer({ initialTag = "", forCampaign = false }: { initialTag?
                   <Td className="font-medium">{h}</Td>
                   <Td className="text-muted">{rows[0]?.[h]}</Td>
                   <Td>
-                    <Select aria-label={`Import ${h} as`} value={map[h]} onChange={(e) => setMap({ ...map, [h]: e.target.value })} className="h-8 w-44 text-[13px]">
+                    <Select aria-label={`Import ${h} as`} value={map[h]} onChange={(e) => setMap({ ...map, [h]: e.target.value })} className="h-8 w-44 text-13">
                       {TARGETS.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.label}
@@ -129,11 +129,11 @@ export function Importer({ initialTag = "", forCampaign = false }: { initialTag?
             </ul>
           )}
           {forCampaign && tag ? (
-            <Link href={`/campaigns/new?tag=${encodeURIComponent(tag.trim().toLowerCase())}`} className="text-sm font-medium text-accent">
+            <Link href={`/campaigns/new?tag=${encodeURIComponent(tag.trim().toLowerCase())}`} className="text-sm font-medium link">
               Continue to the broadcast with this list →
             </Link>
           ) : (
-            <Link href="/contacts" className="text-sm text-accent">
+            <Link href="/contacts" className="text-sm link">
               Back to contacts →
             </Link>
           )}

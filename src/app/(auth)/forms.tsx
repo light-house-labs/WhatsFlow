@@ -18,7 +18,7 @@ export function LoginForm({ next }: { next?: string }) {
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </Field>
       <div className="text-right text-xs">
-        <Link href="/forgot-password" className="text-accent">
+        <Link href="/forgot-password" className="link">
           Forgot password?
         </Link>
       </div>
@@ -27,7 +27,7 @@ export function LoginForm({ next }: { next?: string }) {
       </Button>
       <p className="text-center text-sm text-muted">
         New here?{" "}
-        <Link className="font-medium text-accent" href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>
+        <Link className="font-medium link" href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>
           Create an account
         </Link>
       </p>
@@ -66,7 +66,7 @@ export function SignupForm({ next }: { next?: string }) {
       <p className="text-center text-xs text-muted">No card needed. Cancel any time from Billing, in one click.</p>
       <p className="text-center text-sm text-muted">
         Have an account?{" "}
-        <Link className="font-medium text-accent" href="/login">
+        <Link className="font-medium link" href="/login">
           Log in
         </Link>
       </p>
@@ -112,7 +112,7 @@ export function ForgotForm() {
         Send reset link
       </Button>
       <p className="text-center text-sm">
-        <Link href="/login" className="text-accent">
+        <Link href="/login" className="link">
           Back to log in
         </Link>
       </p>

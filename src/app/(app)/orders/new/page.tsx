@@ -1,17 +1,18 @@
+import { Package } from "lucide-react";
 import type { Metadata } from "next";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { formatMoney } from "@/lib/plans";
-import { Alert, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, EmptyState, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { createOrderAction } from "../actions";
 
 export const metadata: Metadata = { title: "New order" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ contact?: string; error?: string }> }) {
   const sp = await searchParams;
-  const { db: d, org } = await requireOrg();
+  const { db: d, org, role } = await requireOrg();
   const [products, contacts] = await Promise.all([
     d.select().from(schema.products).where(and(eq(schema.products.orgId, org.id), eq(schema.products.active, true))).orderBy(asc(schema.products.name)),
     d.select().from(schema.contacts).where(eq(schema.contacts.orgId, org.id)).orderBy(desc(schema.contacts.lastInboundAt)).limit(300),
@@ -22,9 +23,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       <div className="max-w-2xl space-y-4 p-6">
         {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         {products.length === 0 ? (
-          <Card>
-            <EmptyState title="Your catalog is empty" body="Add products first, then come back to create the order." action={<ButtonLink href="/catalog?new=1">Add a product</ButtonLink>} />
-          </Card>
+          <EmptyState
+            icon={<Package />}
+            title="Your catalog is empty"
+            description="Add products first, then come back to create the order."
+            primary={{ label: "Add a product", href: "/catalog?new=1", allow: role !== "agent" }}
+            askAdmin="add products"
+          />
         ) : (
           <form action={createOrderAction} className="space-y-4">
             <Card className="space-y-4 p-5">

@@ -31,10 +31,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       />
       <div className="space-y-4 p-6">
         {sp.error === "used" && <Alert tone="danger">That template is used by a campaign, so it can&apos;t be deleted.</Alert>}
-        <Card>
-          {rows.length === 0 ? (
-            <EmptyState icon={<FileText />} title="No templates yet" body="Create one for order updates, reminders or offers. Approval usually takes minutes." action={role !== "agent" && <ButtonLink href="/templates/new">New template</ButtonLink>} />
-          ) : (
+        {rows.length === 0 ? (
+<EmptyState
+            icon={<FileText />}
+            columns={["Name", "Category", "Message", "Status", "Updated", ""]}
+            title="No templates yet"
+            description="Create one for order updates, reminders or offers. Approval usually takes minutes."
+            primary={{ label: "New template", href: "/templates/new", allow: role !== "agent" }}
+            askAdmin="create a template"
+          />
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -49,7 +56,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id}>
-                    <Td className="font-mono text-[13px]">
+                    <Td className="text-13">
                       {t.name}
                       <div className="font-sans text-xs text-muted">{t.language}</div>
                     </Td>
@@ -86,8 +93,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

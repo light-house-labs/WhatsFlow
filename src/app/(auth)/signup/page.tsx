@@ -7,7 +7,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const { next } = await searchParams;
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold">Create your account</h1>
+      <h1 className="mb-1 type-title">Create your account</h1>
       <p className="mb-6 text-sm text-muted">Shared WhatsApp inbox, bots and broadcasts for your team.</p>
       <SignupForm next={next} />
     </>

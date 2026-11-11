@@ -37,7 +37,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         description={`${c.name ?? formatWaId(c.waId)} · placed ${dateTime(o.createdAt, org.timezone)} · via ${o.source}`}
         actions={
           o.conversationId ? (
-            <Link href={`/inbox?c=${o.conversationId}`} className="text-sm text-accent">
+            <Link href={`/inbox?c=${o.conversationId}`} className="text-sm link">
               Open chat
             </Link>
           ) : undefined
@@ -77,12 +77,12 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </Card>
           {o.notes && (
             <Card className="p-5 text-sm">
-              <h2 className="mb-1 font-semibold">Notes</h2>
+              <h2 className="mb-1 type-heading">Notes</h2>
               <p className="whitespace-pre-wrap text-muted">{o.notes}</p>
             </Card>
           )}
           <Card className="p-5">
-            <h2 className="mb-3 font-semibold">Timeline</h2>
+            <h2 className="mb-3 type-heading">Timeline</h2>
             <ol className="space-y-3 border-l border-line pl-4 text-sm">
               {events.map(({ e, who }) => (
                 <li key={e.id}>
@@ -105,7 +105,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             </div>
             {o.paymentUrl && (
               <p className="break-all text-xs text-muted">
-                {o.paymentProvider} · <a href={o.paymentUrl} className="text-accent" target="_blank" rel="noreferrer">{o.paymentUrl}</a>
+                {o.paymentProvider} · <a href={o.paymentUrl} className="link" target="_blank" rel="noreferrer">{o.paymentUrl}</a>
               </p>
             )}
             {o.paymentStatus !== "paid" && (
@@ -153,15 +153,15 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </Card>
           {tickets.length > 0 && (
             <Card className="p-5 text-sm">
-              <h2 className="mb-2 font-semibold">Tickets</h2>
+              <h2 className="mb-2 type-heading">Tickets</h2>
               {tickets.map((t) => (
-                <Link key={t.id} href={`/tickets/${t.id}`} className="block text-accent">
+                <Link key={t.id} href={`/tickets/${t.id}`} className="block link">
                   #{t.number} {t.subject}
                 </Link>
               ))}
             </Card>
           )}
-          <Link href={`/contacts/${c.id}`} className="block text-sm text-accent">
+          <Link href={`/contacts/${c.id}`} className="block text-sm link">
             Customer profile →
           </Link>
         </aside>

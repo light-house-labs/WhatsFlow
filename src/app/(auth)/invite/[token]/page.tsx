@@ -26,7 +26,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   if (!inv) return <Alert tone="danger">{ERRORS.used}</Alert>;
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Join {inv.org.name}</h1>
+      <h1 className="type-title">Join {inv.org.name}</h1>
       <p className="text-sm text-muted">
         You&apos;ve been invited as <strong>{inv.invite.role}</strong> ({inv.invite.email}).
       </p>

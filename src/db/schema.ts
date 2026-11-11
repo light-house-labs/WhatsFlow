@@ -229,6 +229,8 @@ export const messages = pgTable(
     direction: text("direction").$type<"in" | "out">().notNull(),
     type: text("type").notNull().default("text"),
     body: text("body"),
+    /** `body` folded for search (lower case, no accents); trigram-indexed in migration 0006. */
+    bodySearch: text("body_search").generatedAlwaysAs(sql`public.wf_norm(body)`),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
     waMessageId: text("wa_message_id"),
     status: text("status").$type<MessageStatus>().notNull(),

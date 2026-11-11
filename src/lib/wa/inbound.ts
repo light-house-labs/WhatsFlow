@@ -208,7 +208,9 @@ export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, 
   if (!bot.handled && isNewThread && settings && org) {
     const open = isOpen(settings.businessHours, org.timezone, now);
     const text = open ? (settings.welcomeEnabled ? settings.welcomeMessage : null) : settings.awayEnabled ? settings.awayMessage : null;
-    if (text) await sendInConversation(d, conv.id, { kind: "text", body: text }, { senderKind: "system" });
+    // {name} and {business} are the variable chips in Settings > Inbox
+    const body = text?.replace(/\{name\}/g, contact.name?.split(" ")[0] || "there").replace(/\{business\}/g, org.name);
+    if (body) await sendInConversation(d, conv.id, { kind: "text", body }, { senderKind: "system" });
   }
 
   return { duplicate: false as const, conversationId: conv.id, optedOut: false };

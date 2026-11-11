@@ -6,11 +6,13 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
-import { Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Tickets" };
 
 const VIEWS = { open: ["open", "pending"], resolved: ["resolved", "closed"] } as const;
+
+const COLS = ["#", "Subject", "Customer", "Priority", "Status", "Assignee", "Due", "Opened"];
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ view?: "open" | "resolved"; mine?: string }> }) {
   const sp = await searchParams;
@@ -27,7 +29,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     .orderBy(desc(schema.tickets.createdAt))
     .limit(200);
   const tab = (href: string, label: string, on: boolean) => (
-    <Link href={href} className={`rounded-full px-3 py-1 text-xs ${on ? "bg-accent text-on-accent" : "bg-surface-2"}`}>
+    <Link href={href} className={filterChip(on)}>
       {label}
     </Link>
   );
@@ -35,15 +37,30 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     <>
       <PageHeader title="Tickets" description="Support requests with an owner, a status and the chat that started them." />
       <div className="space-y-4 p-6">
-        <div className="flex gap-1.5">
+        <div className={segmentedTrack}>
           {tab("/tickets", "Open", view === "open" && !sp.mine)}
           {tab("/tickets?mine=1", "Assigned to me", Boolean(sp.mine))}
           {tab("/tickets?view=resolved", "Resolved", view === "resolved")}
         </div>
-        <Card>
-          {rows.length === 0 ? (
-            <EmptyState icon={<Ticket />} title="Nothing here" body="Open a ticket from any conversation in the inbox, or let a bot flow create one." />
+        {rows.length === 0 ? (
+sp.mine || view === "resolved" ? (
+            <EmptyState variant="filtered" columns={COLS} primary={{ href: "/tickets" }} />
           ) : (
+            <EmptyState
+              icon={<Ticket />}
+              columns={COLS}
+              title="No tickets yet"
+              description="Track a customer problem from first message to resolved, with an owner and a due date."
+              primary={{ label: "New ticket", href: "/inbox" }}
+              hint={
+                <>
+                  Open a ticket from any conversation in the <Link href="/inbox">inbox</Link>, or let a <Link href="/bots">bot flow</Link> create one.
+                </>
+              }
+            />
+          )
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -61,10 +78,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                 {rows.map(({ t, name, waId, assignee }) => {
                   const overdue = t.dueAt && t.dueAt < new Date() && view === "open";
                   return (
-                    <tr key={t.id} className="hover:bg-surface-2">
+                    <tr key={t.id} className="hover:bg-hover">
                       <Td className="text-muted">{t.number}</Td>
                       <Td>
-                        <Link href={`/tickets/${t.id}`} className="font-medium hover:text-accent">
+                        <Link href={`/tickets/${t.id}`} className="font-medium hover:underline">
                           {t.subject}
                         </Link>
                       </Td>
@@ -83,8 +100,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                 })}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

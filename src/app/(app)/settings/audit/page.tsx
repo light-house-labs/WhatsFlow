@@ -1,3 +1,4 @@
+import { ScrollText } from "lucide-react";
 import type { Metadata } from "next";
 import { and, desc, eq, lt } from "drizzle-orm";
 import Link from "next/link";
@@ -5,7 +6,9 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { AUDIT_LABELS } from "@/lib/audit";
 import { dateTime } from "@/lib/format";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 
 export const metadata: Metadata = { title: "Audit log" };
 
@@ -25,13 +28,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   const more = rows.length > PAGE;
   const shown = rows.slice(0, PAGE);
   return (
-    <>
-      <PageHeader title="Audit log" description="Changes to team, numbers, integrations, keys and billing in this workspace, newest first." />
-      <div className="max-w-4xl p-6">
-        <Card>
-          {shown.length === 0 ? (
-            <EmptyState title="Nothing yet" body="Changes to settings show up here." />
-          ) : (
+    <SettingsPage title="Audit log" summary={`${shown.length} ${shown.length === 1 ? "change" : "changes"} shown, newest first${more ? " · older entries available" : ""}`} status={[{ label: "Showing", value: String(shown.length), tone: shown.length ? "on" : "off" }, { label: "Older entries", value: more ? "Yes" : "No", tone: more ? "warn" : "off" }]} tips={["Covers team, numbers, integrations, keys and billing.", "Use Older to page back in time.", "Entries cannot be edited or deleted."]}>
+      <SettingsSection title="Audit log" description="Changes to team, numbers, integrations, keys and billing in this workspace, newest first." flush>
+        {shown.length === 0 ? (
+          <EmptyState inside icon={<ScrollText />} columns={["When", "Who", "What"]} title="Nothing yet" description="Changes to settings show up here." />
+        ) : (
             <table className="w-full text-sm">
               <thead className="border-b border-line text-left text-xs text-muted">
                 <tr>
@@ -53,14 +54,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
                 ))}
               </tbody>
             </table>
-          )}
-        </Card>
+        )}
         {more && (
-          <Link className="mt-4 inline-block text-sm text-accent" href={`/settings/audit?before=${encodeURIComponent(shown[shown.length - 1].e.createdAt.toISOString())}`}>
+          <Link className="m-4 inline-block text-sm link" href={`/settings/audit?before=${encodeURIComponent(shown[shown.length - 1].e.createdAt.toISOString())}`}>
             Older entries
           </Link>
         )}
-      </div>
-    </>
+      </SettingsSection>
+    </SettingsPage>
   );
 }

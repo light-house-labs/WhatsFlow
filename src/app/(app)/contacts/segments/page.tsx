@@ -35,15 +35,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
       />
       <div className="space-y-4 p-6">
         {sp.saved && <Alert tone="success">Segment saved.</Alert>}
-        <Card>
-          {list.length === 0 ? (
-            <EmptyState
+        {list.length === 0 ? (
+<EmptyState
               icon={<Filter />}
+              columns={["Name", "Who", "Contacts", ""]}
               title="No segments yet"
-              body="Group contacts by tags, when they last messaged, what they've bought or any custom field, then broadcast to the group."
-              action={role !== "agent" ? <ButtonLink href="/contacts/segments?new=1">New segment</ButtonLink> : undefined}
+              description="Group contacts by tags, when they last messaged, what they've bought or any custom field, then broadcast to the group."
+              primary={{ label: "New segment", href: "/contacts/segments?new=1", allow: role !== "agent" }}
+              askAdmin="create a segment"
             />
-          ) : (
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -57,7 +59,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                 {list.map((s, i) => (
                   <tr key={s.id}>
                     <Td>
-                      <Link href={`/contacts?segment=${s.id}`} className="font-medium text-ink hover:text-accent">
+                      <Link href={`/contacts?segment=${s.id}`} className="font-medium text-ink hover:underline">
                         {s.name}
                       </Link>
                     </Td>
@@ -85,8 +87,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
       </div>
     </>
   );

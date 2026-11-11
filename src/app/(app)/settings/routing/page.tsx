@@ -1,9 +1,12 @@
+import { Route } from "lucide-react";
 import type { Metadata } from "next";
 import { asc, eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { LANGUAGES } from "@/lib/routing";
-import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Select } from "@/components/ui";
+import { SettingsPage } from "@/components/settings-page";
+import { SettingsSection } from "@/components/settings";
 import { addRule, deleteRule, toggleRule } from "./actions";
 import { MatchFields } from "./match-fields";
 
@@ -22,13 +25,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       .orderBy(asc(schema.users.name)),
   ]);
   const nameOf = new Map(members.map((m) => [m.id, m.name]));
+  const activeRules = rules.filter((r) => r.active).length;
+  const routed = rules.reduce((n, r) => n + r.hits, 0);
   return (
-    <>
-      <PageHeader title="Chat routing" description="Send each new chat to the right person, by what the customer wrote or the language they wrote in. The first matching rule wins." />
-      <div className="max-w-4xl space-y-6 p-6">
-        {sp.error && <Alert tone="danger">{sp.error}</Alert>}
-        <Card className="divide-y divide-line">
-          {rules.length === 0 && <EmptyState title="No rules yet" body="Without rules, new chats wait unassigned until someone picks them up." />}
+    <SettingsPage title="Chat routing" summary={rules.length ? `${activeRules} of ${rules.length} ${rules.length === 1 ? "rule" : "rules"} on · first match wins` : "No rules · new chats wait unassigned"} status={[{ label: "Rules on", value: `${activeRules} of ${rules.length}`, tone: activeRules ? "on" : "off" }, { label: "Chats routed", value: String(routed), tone: routed ? "on" : "off" }, { label: "No match", value: "Stays unassigned", tone: "off" }]} tips={["Rules run top to bottom; the first match wins.", "Least busy spreads chats evenly across the team.", "A label alone is fine: choose Nobody, just label it."]}>
+      {sp.error && (
+        <Alert tone="danger">{sp.error}</Alert>
+      )}
+      <SettingsSection title="Rules" description="Send each new chat to the right person, by what the customer wrote or the language they wrote in. Checked top to bottom: the first matching rule wins." flush>
+        {rules.length === 0 && <EmptyState inside icon={<Route />} columns={["Rule", "Assigns to"]} title="No rules yet" description="Without rules, new chats wait unassigned until someone picks them up." />}
+        {rules.length > 0 && (
+        <div className="divide-y divide-line">
           {rules.map((r, i) => (
             <div key={r.id} className="flex flex-wrap items-center gap-3 p-4 text-sm">
               <span className="w-6 text-muted">{i + 1}.</span>
@@ -64,9 +71,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               </form>
             </div>
           ))}
-        </Card>
-        <Card className="p-5">
-          <h2 className="mb-4 font-semibold">Add a rule</h2>
+        </div>
+        )}
+      </SettingsSection>
+      <SettingsSection title="Add a rule" description="Match on a word in the first message, or on the language it is written in.">
           <form action={addRule} className="space-y-4">
             <MatchFields languages={LANGUAGES} />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -87,8 +95,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
             </div>
             <Button>Add rule</Button>
           </form>
-        </Card>
-      </div>
-    </>
+      </SettingsSection>
+    </SettingsPage>
   );
 }

@@ -31,7 +31,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         {showForm && (
           <Card className="max-w-2xl p-5">
-            <h2 className="mb-4 font-semibold">{editing ? "Edit product" : "New product"}</h2>
+            <h2 className="mb-4 type-heading">{editing ? "Edit product" : "New product"}</h2>
             <form action={saveProduct} className="space-y-4">
               {editing && <input type="hidden" name="id" value={editing.id} />}
               <div className="grid gap-4 sm:grid-cols-2">
@@ -64,10 +64,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
             </form>
           </Card>
         )}
-        <Card>
-          {products.length === 0 ? (
-            <EmptyState icon={<Package />} title="No products yet" body="Add what you sell. Bots can then take orders and send payment links, and the AI assistant can answer price questions." />
-          ) : (
+        {products.length === 0 ? (
+<EmptyState
+            icon={<Package />}
+            columns={["Product", "Price", "Stock", "Status", ""]}
+            title="No products yet"
+            description="Add what you sell so bots can take orders and send payment links, and the AI assistant can answer price questions."
+            primary={{ label: "Add product", href: "/catalog?new=1", allow: admin && !showForm }}
+            askAdmin="add products"
+            hint={
+              <>
+                Then sell from the <Link href="/inbox">inbox</Link> or a <Link href="/bots">bot flow</Link>.
+              </>
+            }
+          />
+) : (
+<Card>
             <Table>
               <thead>
                 <tr>
@@ -117,11 +129,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 ))}
               </tbody>
             </Table>
-          )}
-        </Card>
+          </Card>
+)}
         <p className="text-xs text-muted">
           Sell in chat from the inbox (<strong>New order</strong>) or with a bot flow&apos;s <strong>Take an order</strong> block. Payment links use{" "}
-          <Link href="/settings/payments" className="text-accent">
+          <Link href="/settings/payments" className="link">
             your payment provider
           </Link>
           .

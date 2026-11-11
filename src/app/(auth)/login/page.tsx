@@ -7,7 +7,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const { next } = await searchParams;
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold">Welcome back</h1>
+      <h1 className="mb-1 type-title">Welcome back</h1>
       <p className="mb-6 text-sm text-muted">Log in to your inbox.</p>
       <LoginForm next={next} />
     </>

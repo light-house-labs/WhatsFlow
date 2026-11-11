@@ -1,8 +1,9 @@
+import { FileText } from "lucide-react";
 import type { Metadata } from "next";
 import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { Composer } from "./composer";
 
 export const metadata: Metadata = { title: "New campaign" };
@@ -22,7 +23,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     return (
       <>
         <PageHeader title="New campaign" />
-        <EmptyState title="You need an approved template first" body="WhatsApp only allows approved templates in broadcasts." action={<ButtonLink href="/templates/new">Create a template</ButtonLink>} />
+        <div className="p-6">
+        <EmptyState
+          icon={<FileText />}
+          title="You need an approved template first"
+          description="WhatsApp only allows approved templates in broadcasts."
+          primary={{ label: "Create a template", href: "/templates/new" }}
+        />
+        </div>
       </>
     );
   return (

@@ -3,8 +3,8 @@
 import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { DndContext, PointerSensor, KeyboardSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { CalendarClock, X } from "lucide-react";
-import { Button, Card, Field, Input, Select, Textarea, cx } from "@/components/ui";
+import { CalendarClock, Columns3, Plus, X } from "lucide-react";
+import { Button, ButtonLink, Card, EmptyState, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { formatMoney } from "@/lib/plans";
 import { addStage, deleteLead, deleteStage, moveLead, renameStage, updateLead } from "./actions";
 
@@ -39,7 +39,22 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
     });
   }
 
+  const empty =
+    stages.length === 0 ? (
+      <div className="p-6">
+        <EmptyState
+          icon={<Columns3 />}
+          title="No pipeline stages yet"
+          description="Stages are the steps a lead moves through, from new to won."
+          primary={{ label: "Set up stages", href: "#new-stage", allow: canEditStages }}
+          askAdmin="set up pipeline stages"
+        />
+      </div>
+    ) : null;
+
   return (
+    <>
+    {empty}
     <div className="flex gap-4 overflow-x-auto p-6">
       <DndContext id="pipeline-board" sensors={sensors} onDragEnd={onDragEnd}>
         {stages.map((s) => {
@@ -54,10 +69,10 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
         })}
       </DndContext>
       {canEditStages && (
-        <form action={addStage} className="w-64 shrink-0 space-y-2">
+        <form id="new-stage" action={addStage} className="w-64 shrink-0 space-y-2">
           <Input name="name" placeholder="New stage" aria-label="New stage name" />
           <div className="flex gap-2">
-            <Select name="kind" aria-label="Stage type" className="h-9">
+            <Select name="kind" aria-label="Stage type" className="h-8 text-13">
               <option value="open">Open</option>
               <option value="won">Won</option>
               <option value="lost">Lost</option>
@@ -70,6 +85,7 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
       )}
       {open && <LeadDrawer lead={open} members={members} onClose={() => setOpen(null)} />}
     </div>
+    </>
   );
 }
 
@@ -77,32 +93,42 @@ function Column({ stage, total, count, canEdit, children }: { stage: Stage; tota
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const [editing, setEditing] = useState(false);
   return (
-    <section ref={setNodeRef} className={cx("flex w-72 shrink-0 flex-col rounded-lg bg-surface-2 p-2", isOver && "outline-2 outline-accent")} aria-label={stage.name}>
-      <header className="flex items-center gap-2 px-2 py-1.5">
+    <section ref={setNodeRef} className={cx("flex w-72 shrink-0 flex-col rounded-lg border border-line bg-canvas p-2 transition-colors duration-150", isOver && "bg-accent-soft")} aria-label={stage.name}>
+      <header className="flex items-center gap-2 py-2">
         {editing ? (
           <form action={renameStage} onSubmit={() => setEditing(false)} className="flex flex-1 gap-1">
             <input type="hidden" name="id" value={stage.id} />
-            <Input name="name" defaultValue={stage.name} className="h-7 text-[13px]" aria-label="Stage name" autoFocus />
+            <Input name="name" defaultValue={stage.name} className="h-8 text-13" aria-label="Stage name" autoFocus />
           </form>
         ) : (
-          <button className="flex-1 text-left text-sm font-semibold" onDoubleClick={() => canEdit && setEditing(true)} title={canEdit ? "Double-click to rename" : undefined}>
+          <button className="section-label flex-1 text-left text-ink" onDoubleClick={() => canEdit && setEditing(true)} title={canEdit ? "Double-click to rename" : undefined}>
             {stage.name}
-            {stage.kind !== "open" && <span className={cx("ml-1 text-xs font-normal", stage.kind === "won" ? "text-success" : "text-muted")}>({stage.kind})</span>}
+            {stage.kind !== "open" && <span className={cx("ml-1", stage.kind === "won" ? "text-accent-text" : "text-muted")}>({stage.kind})</span>}
           </button>
         )}
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted tabular-nums">
           {count} · {formatMoney(total)}
         </span>
         {canEdit && count === 0 && (
           <form action={deleteStage}>
             <input type="hidden" name="id" value={stage.id} />
             <button aria-label={`Delete stage ${stage.name}`} className="text-muted hover:text-danger">
-              <X size={14} />
+              <X size={14} strokeWidth={1.75} />
             </button>
           </form>
         )}
       </header>
-      <div className="min-h-24 flex-1 space-y-2">{children}</div>
+      <div className="min-h-24 flex-1 space-y-2">
+        {children}
+        {count === 0 && (
+          <div className="grid min-h-24 place-items-center gap-1 rounded-md border border-dashed border-line px-3 py-4 text-center">
+            <span className="text-sm text-muted">No leads</span>
+            <Link href="/inbox" className="inline-flex items-center gap-1 text-13 font-medium text-ink hover:underline">
+              <Plus size={14} aria-hidden /> Add lead
+            </Link>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -116,14 +142,14 @@ function LeadCard({ lead, owner, onOpen }: { lead: Lead; owner?: string; onOpen:
       {...listeners}
       {...attributes}
       style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
-      className={cx("cursor-grab rounded-md border border-line bg-surface p-3 shadow-sm", isDragging && "z-10 opacity-80 shadow-lg")}
+      className={cx("cursor-grab rounded-lg border border-line bg-surface p-3 transition-colors duration-150", isDragging && "z-10 opacity-90")}
       onClick={onOpen}
       onKeyDown={(e) => e.key === "Enter" && onOpen()}
     >
       <div className="text-sm font-medium">{lead.title}</div>
       <div className="text-xs text-muted">{lead.contact}</div>
       <div className="mt-2 flex items-center gap-2 text-xs">
-        <span className="font-medium">{formatMoney(lead.valueMinor, lead.currency)}</span>
+        <span className="font-medium tabular-nums">{formatMoney(lead.valueMinor, lead.currency)}</span>
         {owner && <span className="text-muted">· {owner}</span>}
         {lead.nextFollowUpAt && (
           <span className={cx("ml-auto inline-flex items-center gap-1", overdue ? "text-danger" : "text-muted")}>
@@ -137,12 +163,12 @@ function LeadCard({ lead, owner, onOpen }: { lead: Lead; owner?: string; onOpen:
 
 function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: string; name: string }[]; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-20 flex justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex justify-end bg-[var(--wf-scrim)]" onClick={onClose}>
       <Card className="h-full w-full max-w-md overflow-y-auto rounded-none p-6" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit lead">
-        <div className="mb-4 flex items-center">
-          <h2 className="flex-1 font-semibold">{lead.contact}</h2>
-          <button onClick={onClose} aria-label="Close">
-            <X size={18} />
+        <div className="mb-5 flex items-center border-b border-line pb-4">
+          <h2 className="flex-1 type-stat">{lead.contact}</h2>
+          <button onClick={onClose} aria-label="Close" className="rounded-xs p-1.5 text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink">
+            <X size={16} strokeWidth={1.75} />
           </button>
         </div>
         <form action={async (f) => { await updateLead(f); onClose(); }} className="space-y-4">
@@ -169,17 +195,17 @@ function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: str
           <Field label="Notes" htmlFor="notes">
             <Textarea id="notes" name="notes" defaultValue={lead.notes ?? ""} />
           </Field>
-          <p className="text-xs text-muted">Source: {lead.source}</p>
+          <p className="section-label text-faint">Source: {lead.source}</p>
           <div className="flex gap-2">
             <Button>Save</Button>
             {lead.conversationId && (
-              <Link href={`/inbox?c=${lead.conversationId}`} className="inline-flex h-10 items-center px-3 text-sm text-accent">
+              <ButtonLink href={`/inbox?c=${lead.conversationId}`} variant="ghost" className="ml-2">
                 Open chat
-              </Link>
+              </ButtonLink>
             )}
           </div>
         </form>
-        <form action={async (f) => { await deleteLead(f); onClose(); }} className="mt-6">
+        <form action={async (f) => { await deleteLead(f); onClose(); }} className="mt-8 border-t border-line pt-4">
           <input type="hidden" name="id" value={lead.id} />
           <Button variant="ghost" size="sm" className="text-danger">
             Delete lead
