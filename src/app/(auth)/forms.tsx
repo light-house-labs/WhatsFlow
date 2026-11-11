@@ -1,9 +1,28 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, type ComponentProps } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
 import { createOrg, login, requestReset, resetPassword, signup, type FormState } from "./actions";
+
+function PasswordInput(props: ComponentProps<typeof Input>) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="relative">
+      <Input {...props} type={shown ? "text" : "password"} className="pr-10" />
+      <button
+        type="button"
+        onClick={() => setShown((v) => !v)}
+        aria-label={shown ? "Hide password" : "Show password"}
+        aria-pressed={shown}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted hover:text-ink"
+      >
+        {shown ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+      </button>
+    </div>
+  );
+}
 
 export function LoginForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(login, undefined);
@@ -15,7 +34,7 @@ export function LoginForm({ next }: { next?: string }) {
         <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={state?.fields?.email} />
       </Field>
       <Field label="Password" htmlFor="password">
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
       </Field>
       <div className="text-right text-xs">
         <Link href="/forgot-password" className="link">
@@ -52,7 +71,7 @@ export function SignupForm({ next }: { next?: string }) {
         <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+91 98765 43210" defaultValue={f.phone} />
       </Field>
       <Field label="Password" htmlFor="password" hint="At least 8 characters.">
-        <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} />
+        <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={8} />
       </Field>
       <label className="flex items-start gap-2 text-sm text-ink">
         <input type="checkbox" name="terms" className="mt-0.5" required /> I agree to the Terms and Privacy Policy.
