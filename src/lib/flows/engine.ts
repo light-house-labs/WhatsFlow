@@ -11,7 +11,11 @@ import { createOrder, OrderError, sendPaymentLink } from "@/lib/orders";
 import { PaymentError } from "@/lib/payments";
 import { emit } from "@/lib/events";
 
+/** Steps one inbound message may run. Waiting blocks reset it, so loops through them are fine. */
 const MAX_STEPS = 25;
+const DEFAULT_RETRIES = 2;
+
+const handoverNode = (text: string): FlowNode => ({ id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text } });
 
 type Ctx = {
   d: DB;
@@ -27,7 +31,14 @@ type StepResult = { waitAt: string | null; handedOver: boolean };
 
 async function execute(ctx: Ctx, start: FlowNode | null): Promise<StepResult> {
   let node = start;
-  for (let steps = 0; node && steps < MAX_STEPS; steps++) {
+  let capped = false;
+  for (let steps = 0; node; steps++) {
+    if (steps >= MAX_STEPS && !capped) {
+      // Only pass-through blocks can spin here (validateGraph rejects those loops), but old or hand-edited flows may.
+      capped = true;
+      console.error("[flow]", `step cap hit in flow ${ctx.flowId}, conversation ${ctx.conversationId}; handing over`);
+      node = handoverNode("Let me get someone from our team to help you.");
+    }
     const text = interpolate(String(node.data.text ?? ""), ctx.vars);
     switch (node.type) {
       case "trigger":
@@ -118,7 +129,7 @@ async function execute(ctx: Ctx, start: FlowNode | null): Promise<StepResult> {
           .limit(10);
         const available = products.filter((p) => p.stock === null || p.stock > 0);
         if (!available.length) {
-          node = { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "Sorry, nothing is available to order right now. Someone from our team will help you." } };
+          node = handoverNode("Sorry, nothing is available to order right now. Someone from our team will help you.");
           continue;
         }
         ctx.vars.__options = JSON.stringify(available.map((p) => p.id));
@@ -134,7 +145,7 @@ async function execute(ctx: Ctx, start: FlowNode | null): Promise<StepResult> {
         const [org] = await ctx.d.select({ tz: schema.orgs.timezone }).from(schema.orgs).where(eq(schema.orgs.id, ctx.orgId));
         const slots = await availableSlots(ctx.d, ctx.orgId, String(node.data.serviceId ?? ""), 10);
         if (!slots.length) {
-          node = { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "There are no free times online right now. Someone from our team will help you book." } };
+          node = handoverNode("There are no free times online right now. Someone from our team will help you book.");
           continue;
         }
         ctx.vars.__options = JSON.stringify(slots.map((x) => x.toISOString()));
@@ -192,7 +203,7 @@ function publicVars(vars: Record<string, string>) {
 
 /** The customer picked a product or a time from a list the bot sent. */
 async function actOnPick(ctx: Ctx, at: FlowNode, picked: string): Promise<FlowNode | null> {
-  const fail = (text: string): FlowNode => ({ id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text } });
+  const fail = handoverNode;
   if (at.type === "products") {
     try {
       const order = await createOrder(ctx.d, { orgId: ctx.orgId, contactId: ctx.contactId, conversationId: ctx.conversationId, lines: [{ productId: picked, qty: 1 }], source: "bot" });
@@ -282,9 +293,25 @@ export async function runBot(
       vars: { ...waiting.run.vars },
     };
     let next: FlowNode | null = null;
+    let reask = false;
+    /** Bad reply to a question, buttons or list: ask again (up to the limit) or hand over. */
+    const invalid = (block: FlowNode): FlowNode => {
+      const tries = Number(ctx.vars.__retries ?? 0);
+      const max = Math.max(0, Math.floor(Number(block.data.maxRetries ?? DEFAULT_RETRIES)));
+      if (block.data.onInvalid === "reask" && tries < max) {
+        ctx.vars.__retries = String(tries + 1);
+        reask = true;
+        return block;
+      }
+      return handoverNode("Let me get someone from our team to help you.");
+    };
     if (at?.type === "question") {
-      ctx.vars[String(at.data.saveAs || "answer")] = args.text;
-      next = nextNode(graph, at.id);
+      if (args.text.trim()) {
+        ctx.vars[String(at.data.saveAs || "answer")] = args.text;
+        next = nextNode(graph, at.id);
+      } else {
+        next = invalid(at);
+      }
     } else if (at && (at.type === "products" || at.type === "booking")) {
       const ids = JSON.parse(ctx.vars.__options ?? "[]") as string[];
       // options were sent as list rows; match by position, title, or typed number
@@ -292,18 +319,19 @@ export async function runBot(
       delete ctx.vars.__options;
       next = idx >= 0 && idx < ids.length
         ? await actOnPick(ctx, at, ids[idx])
-        : { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "Let me get someone from our team to help you." } };
+        : handoverNode("Let me get someone from our team to help you.");
     } else if (at && (at.type === "buttons" || at.type === "list")) {
       const options = ((at.type === "buttons" ? at.data.buttons : at.data.rows) as string[]) ?? [];
       const idx = matchOption(options, { text: args.text, replyId: args.replyId });
       if (idx < 0) {
-        // Not one of the options: hand over rather than loop the customer.
-        next = { id: "__handover", type: "handover", position: { x: 0, y: 0 }, data: { text: "Let me get someone from our team to help you." } };
+        next = invalid(at);
       } else {
         ctx.vars[String(at.data.saveAs || "choice")] = options[idx];
         next = nextNode(graph, at.id, String(idx));
       }
     }
+    // A valid reply (or a handover) ends the retry streak; a re-ask keeps it.
+    if (!reask) delete ctx.vars.__retries;
     const res = await execute(ctx, next);
     await d
       .update(schema.flowRuns)

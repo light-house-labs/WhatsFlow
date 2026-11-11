@@ -7,13 +7,14 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { formatMoney } from "@/lib/plans";
 import { dateTime } from "@/lib/format";
-import { Alert, Button, Card, Field, Input, PageHeader, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Card, Field, Input, PageHeader, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { markPaidAction, sendLinkAction, setStatusAction } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Order" };
 
-export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; sent?: string }> }) {
-  const [{ id }, sp] = await Promise.all([params, searchParams]);
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const { db: d, org, role } = await requireOrg();
   const [row] = await d
     .select({ o: schema.orders, c: schema.contacts })
@@ -45,8 +46,6 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       />
       <div className="grid gap-6 p-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
-          {sp.error && <Alert tone="danger">{sp.error}</Alert>}
-          {sp.sent && <Alert tone="success">Payment link sent in the chat.</Alert>}
           <Card>
             <Table>
               <thead>
@@ -110,26 +109,26 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             )}
             {o.paymentStatus !== "paid" && (
               <>
-                <form action={sendLinkAction}>
+                <SaveForm action={sendLinkAction} success="Payment link sent in the chat">
                   <input type="hidden" name="id" value={o.id} />
-                  <Button className="w-full" disabled={!o.conversationId}>
+                  <SubmitButton className="w-full" disabled={!o.conversationId}>
                     {o.paymentUrl ? "Resend payment link" : "Send payment link"}
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </SaveForm>
                 {role !== "agent" && (
-                  <form action={markPaidAction}>
+                  <SaveForm action={markPaidAction} success="Marked as paid">
                     <input type="hidden" name="id" value={o.id} />
-                    <Button variant="secondary" className="w-full">
+                    <SubmitButton variant="secondary" className="w-full">
                       Mark paid (cash / UPI / transfer)
-                    </Button>
-                  </form>
+                    </SubmitButton>
+                  </SaveForm>
                 )}
               </>
             )}
             {o.paidAt && <p className="text-xs text-muted">Paid {dateTime(o.paidAt, org.timezone)}</p>}
           </Card>
           <Card className="p-5">
-            <form action={setStatusAction} className="space-y-3">
+            <SaveForm action={setStatusAction} success="Order updated" className="space-y-3">
               <input type="hidden" name="id" value={o.id} />
               <Field label="Order status" htmlFor="status">
                 <Select id="status" name="status" defaultValue={o.status}>
@@ -146,10 +145,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="notify" defaultChecked /> Message the customer
               </label>
-              <Button variant="secondary" className="w-full">
+              <SubmitButton variant="secondary" className="w-full">
                 Update status
-              </Button>
-            </form>
+              </SubmitButton>
+            </SaveForm>
           </Card>
           {tickets.length > 0 && (
             <Card className="p-5 text-sm">

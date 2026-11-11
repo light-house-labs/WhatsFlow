@@ -7,14 +7,13 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
 import { describeRules, segmentWhere } from "@/lib/segments";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 import { bulkTag, createContact } from "./actions";
 
 export const metadata: Metadata = { title: "Contacts" };
 
-const ERR: Record<string, string> = { phone: "That doesn't look like a phone number.", exists: "A contact with that number already exists." };
-
-export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; segment?: string; error?: string; deleted?: string; new?: string; name?: string; phone?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; segment?: string; deleted?: string; new?: string; name?: string; phone?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg();
   const where = [eq(schema.contacts.orgId, org.id)];
@@ -46,7 +45,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
         }
       />
       <div className="space-y-4 p-6">
-        {sp.error && <Alert tone="danger">{ERR[sp.error] ?? "Something went wrong."}</Alert>}
         {sp.deleted && <Alert tone="success">Contact deleted.</Alert>}
         <div className="flex flex-wrap items-end gap-3">
           <form className="flex gap-2">
@@ -57,12 +55,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
           </form>
           <details className="ml-auto" open={Boolean(sp.new)}>
             <summary className="section-label cursor-pointer text-faint">+ Add a contact</summary>
-            <form action={createContact} className="mt-2 flex flex-wrap gap-2">
+            <SaveForm action={createContact} success="Contact added" className="mt-2 flex flex-wrap items-center gap-2">
               <Input name="name" placeholder="Name" aria-label="Name" defaultValue={sp.name} autoFocus={Boolean(sp.new) && !sp.phone} className="w-40" />
               <Input name="phone" placeholder="Phone with country code" aria-label="Phone" defaultValue={sp.phone} autoFocus={Boolean(sp.phone)} required className="w-48" />
               <Input name="tags" placeholder="tags, comma separated" aria-label="Tags" className="w-48" />
-              <Button>Add</Button>
-            </form>
+              <SubmitButton savedLabel="Added">Add</SubmitButton>
+            </SaveForm>
           </details>
         </div>
         {segments.length > 0 && (
@@ -105,12 +103,12 @@ sp.q || sp.tag || segment ? (
           )
 ) : (
 <Card>
-            <form action={bulkTag}>
+            <SaveForm action={bulkTag} success="Tag added" resetOnSuccess>
               <div className="flex items-center gap-2 border-b border-line px-4 py-2">
                 <Input name="tag" placeholder="Tag selected as…" aria-label="Tag to add" className="h-8 w-48 text-13" />
-                <Button size="sm" variant="secondary">
+                <SubmitButton size="sm" variant="secondary">
                   Add tag
-                </Button>
+                </SubmitButton>
               </div>
               <Table>
                 <thead>
@@ -155,7 +153,7 @@ sp.q || sp.tag || segment ? (
                   ))}
                 </tbody>
               </Table>
-            </form>
+            </SaveForm>
           </Card>
 )}
       </div>

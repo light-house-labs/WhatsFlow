@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { Check, CheckCheck, ChevronDown } from "lucide-react";
-import { Button, cx } from "@/components/ui";
+import { cx } from "@/components/ui";
+import { SaveButton } from "@/components/save-form";
+import { useSaveState, type SaveResult } from "@/lib/use-save-state";
 
 /** Next.js has no route-change events, so the unsaved-changes warning catches link clicks and tab close. One guard serves every card on the page. */
 const LEAVE = "You have unsaved changes. Leave without saving?";
@@ -33,21 +34,6 @@ function installGuard() {
   );
 }
 
-/** Save button in a card footer. Must sit inside the card's <form>. */
-function SaveButton({ onSettled }: { onSettled: () => void }) {
-  const { pending } = useFormStatus();
-  const was = useRef(false);
-  useEffect(() => {
-    if (was.current && !pending) onSettled();
-    was.current = pending;
-  }, [pending, onSettled]);
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save"}
-    </Button>
-  );
-}
-
 /**
  * A settings card: surface, 1px border, radius 12. Header (title 16/600 + description), body, and, when it
  * has an `action`, a footer with a hint on the left and a Save button on the right that only appears
@@ -69,7 +55,7 @@ export function SettingsSection({
   children: ReactNode;
   id?: string;
   /** Server action that saves this card's fields. Adds the dirty-tracked footer. */
-  action?: (form: FormData) => void | Promise<void>;
+  action?: (form: FormData) => Promise<SaveResult> | SaveResult;
   /** Sent as a hidden `section` field, so one server action can save each card on its own. */
   section?: string;
   /** More hidden fields to post with the card (an id, say). */
@@ -84,6 +70,7 @@ export function SettingsSection({
   const [dirty, setDirty] = useState(false);
   const path = usePathname();
   const key = useId();
+  const save = useSaveState({ success: `${title} saved` });
   const snap = () => (ref.current ? JSON.stringify([...new FormData(ref.current)].map(([k, v]) => [k, typeof v === "string" ? v : v.name])) : "");
   const check = () => setDirty(snap() !== base.current);
   const rebase = () => {
@@ -101,6 +88,16 @@ export function SettingsSection({
     else dirtyCards.delete(key);
     return () => void dirtyCards.delete(key);
   }, [dirty, action, key]);
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!action) return;
+    const data = new FormData(e.currentTarget);
+    void save.run(async () => {
+      const r = await action(data);
+      if (!(r && typeof r === "object" && r.error)) rebase();
+      return r;
+    });
+  };
   const cardId = id ?? `s-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   const inner = (
     <>
@@ -110,14 +107,16 @@ export function SettingsSection({
       </div>
       <div className={cx("min-w-0 border-t border-line", flush ? "overflow-hidden rounded-b-xl" : "space-y-4 p-4")}>{children}</div>
       {action ? (
-        dirty && (
+        (dirty || save.status !== "idle") && (
           <div className="flex items-center justify-between gap-4 rounded-b-xl border-t border-line bg-app px-4 py-[10px]">
-            <span className="text-13 text-faint">{hint}</span>
-            <SaveButton
-              onSettled={() => {
-                if (!/error/i.test(location.search)) rebase();
-              }}
-            />
+            {save.error ? (
+              <span role="alert" className="text-13 text-danger">
+                {save.error}
+              </span>
+            ) : (
+              <span className="text-13 text-faint">{hint}</span>
+            )}
+            <SaveButton status={save.status} />
           </div>
         )
       ) : (
@@ -127,7 +126,7 @@ export function SettingsSection({
   );
   const box = "scroll-mt-6 rounded-xl border border-line bg-surface";
   return action ? (
-    <form id={cardId} data-settings-card data-title={title} ref={ref} action={action} className={box} onInput={check} onChange={check} onReset={() => setTimeout(check, 0)}>
+    <form id={cardId} data-settings-card data-title={title} ref={ref} onSubmit={submit} className={box} onInput={check} onChange={check} onReset={() => setTimeout(check, 0)}>
       {section && <input type="hidden" name="section" value={section} />}
       {fields && Object.entries(fields).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       {inner}

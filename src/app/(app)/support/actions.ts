@@ -6,21 +6,21 @@ import { and, eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg, requireUser } from "@/lib/auth";
 
-export async function openThread(form: FormData) {
+export async function openThread(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg();
   const body = String(form.get("body") ?? "").trim();
   const subject = String(form.get("subject") ?? "").trim() || body.slice(0, 60);
-  if (!body) redirect("/support?error=empty");
+  if (!body) return { error: "Write your question first." };
   const [t] = await ctx.db.insert(schema.supportThreads).values({ orgId: ctx.org.id, userId: ctx.user.id, subject }).returning();
   await ctx.db.insert(schema.supportMessages).values({ threadId: t.id, fromStaff: false, authorId: ctx.user.id, body });
   redirect(`/support?t=${t.id}`);
 }
 
-export async function reply(form: FormData) {
+export async function reply(form: FormData): Promise<{ error: string } | undefined> {
   const s = await requireUser();
   const threadId = String(form.get("threadId"));
   const body = String(form.get("body") ?? "").trim();
-  if (!body) return;
+  if (!body) return { error: "Write a message first." };
   const d = (await import("@/db")).db;
   const db = await d();
   const [t] = await db.select().from(schema.supportThreads).where(eq(schema.supportThreads.id, threadId)).limit(1);

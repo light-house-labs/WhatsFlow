@@ -6,14 +6,15 @@ import { schema } from "@/db";
 import { WEBHOOK_EVENTS } from "@/db/schema";
 import { requireOrg } from "@/lib/auth";
 import { dateTime, timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, EmptyState, Field, Input, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Alert, Badge, EmptyState, Field, Input, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { SettingsSection } from "@/components/settings";
 import { addWebhook, createApiKey, deleteWebhook, retryDelivery, revokeApiKey, sendTestWebhook, toggleWebhook } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Developers" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string; tested?: string; failed?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ tested?: string; failed?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
   const flashRaw = (await cookies()).get("wf_flash_secret")?.value;
@@ -60,7 +61,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
             <code className="mt-1 block break-all rounded bg-surface px-2 py-1 text-xs">{flash.value}</code>
           </Alert>
         )}
-        {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         {sp.tested && <Alert tone="accent">Test delivery queued. It appears in the log below.</Alert>}
       </div>
 
@@ -105,12 +105,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                     <Td className="text-muted">{k.revokedAt ? "Revoked" : k.lastUsedAt ? timeAgo(k.lastUsedAt) : "Never"}</Td>
                     <Td className="text-right">
                       {!k.revokedAt && (
-                        <form action={revokeApiKey}>
+                        <SaveForm action={revokeApiKey} success="Key revoked">
                           <input type="hidden" name="id" value={k.id} />
-                          <Button size="sm" variant="ghost" className="text-danger">
+                          <SubmitButton size="sm" variant="ghost" className="text-danger">
                             Revoke
-                          </Button>
-                        </form>
+                          </SubmitButton>
+                        </SaveForm>
                       )}
                     </Td>
                   </tr>
@@ -118,7 +118,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               </tbody>
             </Table>
           )}
-          <form action={createApiKey} className="flex flex-wrap items-end gap-2">
+          <SaveForm action={createApiKey} success="Key created" className="flex flex-wrap items-end gap-2">
             <Field label="Key name" htmlFor="kname">
               <Input id="kname" name="name" placeholder="Zapier, my CRM…" className="w-56" />
             </Field>
@@ -128,8 +128,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 <option value="read">Read only</option>
               </Select>
             </Field>
-            <Button>Create key</Button>
-          </form>
+            <SubmitButton>Create key</SubmitButton>
+          </SaveForm>
         </SettingsSection>
 
         <SettingsSection
@@ -156,23 +156,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               {h.active ? <Badge tone="success">Active</Badge> : <Badge>Paused</Badge>}
               <div className="w-full text-xs text-muted">{h.events.join(", ")}</div>
               <div className="flex gap-1">
-                <form action={sendTestWebhook}>
+                <SaveForm action={sendTestWebhook} success="Test delivery queued">
                   <input type="hidden" name="id" value={h.id} />
-                  <Button size="sm" variant="secondary">Send test</Button>
-                </form>
-                <form action={toggleWebhook}>
+                  <SubmitButton size="sm" variant="secondary">Send test</SubmitButton>
+                </SaveForm>
+                <SaveForm action={toggleWebhook} success="Webhook updated">
                   <input type="hidden" name="id" value={h.id} />
                   <input type="hidden" name="active" value={h.active ? "0" : "1"} />
-                  <Button size="sm" variant="ghost">{h.active ? "Pause" : "Resume"}</Button>
-                </form>
-                <form action={deleteWebhook}>
+                  <SubmitButton size="sm" variant="ghost">{h.active ? "Pause" : "Resume"}</SubmitButton>
+                </SaveForm>
+                <SaveForm action={deleteWebhook} success="Webhook deleted">
                   <input type="hidden" name="id" value={h.id} />
-                  <Button size="sm" variant="ghost" className="text-danger">Delete</Button>
-                </form>
+                  <SubmitButton size="sm" variant="ghost" className="text-danger">Delete</SubmitButton>
+                </SaveForm>
               </div>
             </div>
           ))}
-          <form action={addWebhook} className="space-y-3">
+          <SaveForm action={addWebhook} success="Webhook added" resetOnSuccess className="space-y-3">
             <Field label="Endpoint URL" htmlFor="wurl">
               <Input id="wurl" name="url" type="url" placeholder="https://example.com/whatsflow" required />
             </Field>
@@ -184,8 +184,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 </label>
               ))}
             </fieldset>
-            <Button size="sm">Add webhook</Button>
-          </form>
+            <SubmitButton size="sm">Add webhook</SubmitButton>
+          </SaveForm>
         </SettingsSection>
 
         <SettingsSection title="API requests">
@@ -261,10 +261,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                     <Td className="text-muted">{dateTime(del.createdAt, org.timezone)}</Td>
                     <Td>
                       {del.status === "failed" && (
-                        <form action={retryDelivery}>
+                        <SaveForm action={retryDelivery} success="Retry queued">
                           <input type="hidden" name="id" value={del.id} />
-                          <Button size="sm" variant="ghost">Retry</Button>
-                        </form>
+                          <SubmitButton size="sm" variant="ghost">Retry</SubmitButton>
+                        </SaveForm>
                       )}
                     </Td>
                   </tr>

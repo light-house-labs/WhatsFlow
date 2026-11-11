@@ -6,10 +6,10 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { sendMail } from "@/lib/mail";
 
-export async function deleteWorkspace(form: FormData) {
+export async function deleteWorkspace(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("owner");
   if (String(form.get("confirm") ?? "").trim() !== ctx.org.name) {
-    redirect(`/settings/data?error=${encodeURIComponent("The name didn't match, so nothing was deleted.")}`);
+    return { error: "The name didn't match, so nothing was deleted." };
   }
   // Cascades remove every workspace row: numbers (and their tokens), contacts, chats, orders, keys.
   await ctx.db.delete(schema.orgs).where(eq(schema.orgs.id, ctx.org.id));

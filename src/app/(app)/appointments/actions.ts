@@ -14,7 +14,7 @@ import { slotLabel } from "@/lib/booking";
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 const clamp = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || dflt));
 
-export async function saveBookingSettings(form: FormData) {
+export async function saveBookingSettings(form: FormData): Promise<void> {
   const ctx = await requireOrg("admin");
   await bookingSettingsFor(ctx.db, ctx.org.id);
   const hours: BusinessHours = {};
@@ -33,14 +33,13 @@ export async function saveBookingSettings(form: FormData) {
     })
     .where(eq(schema.bookingSettings.orgId, ctx.org.id));
   revalidatePath("/appointments/settings");
-  redirect("/appointments/settings?saved=1");
 }
 
-export async function saveService(form: FormData) {
+export async function saveService(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const id = String(form.get("id") ?? "");
   const name = String(form.get("name") ?? "").trim();
-  if (!name) redirect("/appointments/settings?error=name");
+  if (!name) return { error: "Give the service a name." };
   const values = {
     name: name.slice(0, 80),
     durationMinutes: clamp(form.get("durationMinutes"), 5, 480, 30),
@@ -53,7 +52,6 @@ export async function saveService(form: FormData) {
   if (id) await ctx.db.update(schema.services).set(values).where(and(eq(schema.services.id, id), eq(schema.services.orgId, ctx.org.id)));
   else await ctx.db.insert(schema.services).values({ orgId: ctx.org.id, ...values });
   revalidatePath("/appointments/settings");
-  redirect("/appointments/settings?saved=1");
 }
 
 export async function toggleService(form: FormData) {
@@ -63,13 +61,13 @@ export async function toggleService(form: FormData) {
   revalidatePath("/appointments/settings");
 }
 
-export async function bookByStaff(form: FormData) {
+export async function bookByStaff(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg();
   const contactId = String(form.get("contactId") ?? "");
   const [contact] = await ctx.db.select().from(schema.contacts).where(and(eq(schema.contacts.id, contactId), eq(schema.contacts.orgId, ctx.org.id)));
   const date = String(form.get("date") ?? "");
   const time = String(form.get("time") ?? "");
-  if (!contact || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) redirect(`/appointments?date=${date}&error=${encodeURIComponent("Pick a customer, a date and a time.")}`);
+  if (!contact || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return { error: "Pick a customer, a date and a time." };
   const [y, m, d] = date.split("-").map(Number);
   const startAt = zonedToUtc(y, m, d, time, ctx.org.timezone);
   const [conv] = await ctx.db.select({ id: schema.conversations.id }).from(schema.conversations).where(eq(schema.conversations.contactId, contact.id)).limit(1);
@@ -94,7 +92,7 @@ export async function bookByStaff(form: FormData) {
       });
     }
   } catch (e) {
-    if (e instanceof BookingError) redirect(`/appointments?date=${date}&error=${encodeURIComponent(e.message)}`);
+    if (e instanceof BookingError) return { error: e.message };
     throw e;
   }
   revalidatePath("/appointments");

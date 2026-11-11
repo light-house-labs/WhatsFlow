@@ -19,11 +19,11 @@ async function owned(id: string) {
   return { ctx, order: o };
 }
 
-export async function createOrderAction(form: FormData) {
+export async function createOrderAction(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg();
   const contactId = String(form.get("contactId") ?? "");
   const [contact] = await ctx.db.select().from(schema.contacts).where(and(eq(schema.contacts.id, contactId), eq(schema.contacts.orgId, ctx.org.id)));
-  if (!contact) redirect("/orders?error=Pick+a+customer");
+  if (!contact) return { error: "Pick a customer." };
   const [conv] = await ctx.db.select({ id: schema.conversations.id }).from(schema.conversations).where(eq(schema.conversations.contactId, contact.id)).limit(1);
   const lines = [...form.entries()]
     .filter(([k]) => k.startsWith("qty_"))
@@ -44,26 +44,25 @@ export async function createOrderAction(form: FormData) {
     if (form.get("sendLink") === "on" && conv) await sendPaymentLink(ctx.db, order.id, { senderKind: "user", actorId: ctx.user.id });
   } catch (e) {
     if (e instanceof OrderError || e instanceof PaymentError || e instanceof SendError) {
-      redirect(`/orders/new?contact=${contact.id}&error=${encodeURIComponent(e.message)}`);
+      return { error: e.message };
     }
     throw e;
   }
   redirect(`/orders/${id}`);
 }
 
-export async function sendLinkAction(form: FormData) {
+export async function sendLinkAction(form: FormData): Promise<{ error: string } | undefined> {
   const { ctx, order } = await owned(String(form.get("id")));
   try {
     await sendPaymentLink(ctx.db, order.id, { senderKind: "user", actorId: ctx.user.id });
   } catch (e) {
-    if (e instanceof OrderError || e instanceof PaymentError || e instanceof SendError) redirect(`/orders/${order.id}?error=${encodeURIComponent(e.message)}`);
+    if (e instanceof OrderError || e instanceof PaymentError || e instanceof SendError) return { error: e.message };
     throw e;
   }
   revalidatePath(`/orders/${order.id}`);
-  redirect(`/orders/${order.id}?sent=1`);
 }
 
-export async function setStatusAction(form: FormData) {
+export async function setStatusAction(form: FormData): Promise<{ error: string } | undefined> {
   const { ctx, order } = await owned(String(form.get("id")));
   const status = String(form.get("status")) as OrderStatus;
   if (!STATUSES.includes(status)) return;
@@ -73,12 +72,12 @@ export async function setStatusAction(form: FormData) {
     tracking: String(form.get("tracking") ?? "").trim() || null,
   });
   revalidatePath(`/orders/${order.id}`);
-  redirect(`/orders/${order.id}${form.get("notify") === "on" && !r.notified ? "?error=" + encodeURIComponent("Status saved, but the customer couldn't be messaged (24-hour window closed). A note was left in the chat.") : ""}`);
+  if (form.get("notify") === "on" && !r.notified) return { error: "Status saved, but the customer couldn't be messaged (24-hour window closed). A note was left in the chat." };
 }
 
-export async function markPaidAction(form: FormData) {
+export async function markPaidAction(form: FormData): Promise<{ error: string } | undefined> {
   const { ctx, order } = await owned(String(form.get("id")));
-  if (ctx.role === "agent") redirect(`/orders/${order.id}?error=Only+owners+and+admins+can+mark+an+order+paid`);
+  if (ctx.role === "agent") return { error: "Only owners and admins can mark an order paid." };
   await markPaid(ctx.db, order.id, `manual entry by ${ctx.user.name}`);
   await logOrder(ctx.db, order.id, "note", "Marked paid by hand (cash, UPI or bank transfer)", ctx.user.id);
   revalidatePath(`/orders/${order.id}`);

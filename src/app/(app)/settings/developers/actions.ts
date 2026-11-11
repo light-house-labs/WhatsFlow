@@ -36,17 +36,17 @@ export async function revokeApiKey(form: FormData) {
   revalidatePath("/settings/developers");
 }
 
-export async function addWebhook(form: FormData) {
+export async function addWebhook(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const url = String(form.get("url") ?? "").trim();
   const events = WEBHOOK_EVENTS.filter((e) => form.get(`ev_${e}`) === "on") as WebhookEvent[];
   try {
     await assertPublicUrl(url);
   } catch (e) {
-    if (e instanceof UnsafeUrlError) redirect(`/settings/developers?error=${encodeURIComponent(e.message)}`);
+    if (e instanceof UnsafeUrlError) return { error: e.message };
     throw e;
   }
-  if (!events.length) redirect("/settings/developers?error=Pick+at+least+one+event");
+  if (!events.length) return { error: "Pick at least one event." };
   const secret = `whsec_${randomToken(24)}`;
   await ctx.db.insert(schema.webhookEndpoints).values({ orgId: ctx.org.id, url, secretEnc: encrypt(secret), events });
   await audit(ctx, "webhook.created", new URL(url).host, { events });

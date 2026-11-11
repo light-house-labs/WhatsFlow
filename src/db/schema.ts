@@ -1078,7 +1078,8 @@ export const abandonedCarts = pgTable(
 
 /** A saved filter over contacts, used as a live audience for broadcasts. */
 export type SegmentCondition =
-  | { field: "tag"; op: "has" | "lacks"; value: string }
+  /** `has` matches any of the tags, `lacks` matches none of them. `value` is the older single-tag form. */
+  | { field: "tag"; op: "has" | "lacks"; value?: string; values?: string[] }
   | { field: "source"; op: "is" | "is_not"; value: string }
   | { field: "custom"; op: "equals" | "contains" | "is_set" | "is_empty"; key: string; value?: string }
   | { field: "last_message"; op: "within_days" | "older_than_days" | "never"; days?: number }

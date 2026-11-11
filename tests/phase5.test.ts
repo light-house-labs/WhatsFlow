@@ -4,7 +4,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import type { SegmentRules } from "@/db/schema";
 import { drainJobs, makeOrg } from "./helpers";
-import { audienceWhere, countSegment, describeRules, RulesSchema } from "@/lib/segments";
+import { audienceWhere, countSegment, describeRules, RulesSchema, summarizeAudience } from "@/lib/segments";
 import { handleInbound } from "@/lib/wa/inbound";
 import { enqueue } from "@/lib/jobs";
 import { newApiKey } from "@/lib/api-auth";
@@ -53,6 +53,26 @@ describe("segments", () => {
     expect(await names(o, { match: "all", conditions: [{ field: "custom", op: "contains", key: "city", value: "100%" }] })).toEqual(["Quiet"]);
     expect(await names(o, { match: "all", conditions: [{ field: "custom", op: "equals", key: "city", value: "kochi" }] })).toEqual(["Regular"]);
     expect(await names(o, { match: "all", conditions: [{ field: "last_message", op: "never" }] })).toEqual(["Quiet"]);
+  });
+
+  it("matches any of several tags, or none of them", async () => {
+    const o = await makeOrg();
+    await people(o);
+    expect(await names(o, { match: "all", conditions: [{ field: "tag", op: "has", values: ["new", "nope"] }] })).toEqual(["Fresh"]);
+    expect(await names(o, { match: "all", conditions: [{ field: "tag", op: "has", values: ["new", "vip"] }] })).toEqual(["Fresh", "Regular"]);
+    expect(await names(o, { match: "all", conditions: [{ field: "tag", op: "lacks", values: ["new", "vip"] }] })).toEqual(["Quiet"]);
+    expect(RulesSchema.safeParse({ match: "all", conditions: [{ field: "tag", op: "has", values: [] }] }).success).toBe(false);
+    expect(RulesSchema.safeParse({ match: "all", conditions: [{ field: "tag", op: "has", value: "vip" }] }).success).toBe(true);
+  });
+
+  it("summarises what a tag or segment holds", async () => {
+    const o = await makeOrg();
+    await people(o);
+    const vip = await summarizeAudience(o.d, o.org.id, { tag: "vip" });
+    expect(vip).toMatchObject({ total: 2, optedOut: 0, criteria: "tagged vip", href: "/contacts?tag=vip" });
+    expect(vip.sample.map((p) => p.name).sort()).toEqual(["Fresh", "Regular"]);
+    const [seg] = await o.d.insert(schema.segments).values({ orgId: o.org.id, name: "s", rules: { match: "all", conditions: [{ field: "last_message", op: "never" }] } }).returning();
+    expect(await summarizeAudience(o.d, o.org.id, { segmentId: seg.id })).toMatchObject({ total: 1, optedOut: 1, criteria: "never messaged us" });
   });
 
   it("stays inside its workspace, and a deleted segment matches nobody", async () => {

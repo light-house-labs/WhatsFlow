@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
-import { Alert, Button, Card, Field, Input, Select } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { Button, Card, Field, Input, Select } from "@/components/ui";
+import { SaveForm, SubmitButton } from "@/components/save-form";
+import { Combobox } from "@/components/combobox";
+import { conditionTags } from "@/lib/segment-tags";
 import type { SegmentCondition, SegmentRules } from "@/db/schema";
 import { formatWaId } from "@/lib/phone";
-import { previewSegment, saveSegment, type SegmentState } from "./actions";
+import { previewSegment, saveSegment } from "./actions";
 
 type FieldKey = SegmentCondition["field"];
 
@@ -63,11 +66,11 @@ const SOURCES = [
   ["woocommerce", "WooCommerce"],
 ];
 
-type Row = { field: FieldKey; op: string; value?: string; key?: string; days?: number };
+type Row = { field: FieldKey; op: string; value?: string; values?: string[]; key?: string; days?: number };
 
-function blank(field: FieldKey, tags: string[], fields: string[]): Row {
+function blank(field: FieldKey, fields: string[]): Row {
   const op = OPS[field][0].value;
-  if (field === "tag") return { field, op, value: tags[0] ?? "" };
+  if (field === "tag") return { field, op, values: [] };
   if (field === "source") return { field, op, value: "whatsapp" };
   if (field === "custom") return { field, op, key: fields[0] ?? "", value: "" };
   if (field === "last_message" || field === "created" || field === "paid_order") return { field, op, days: 30 };
@@ -76,10 +79,12 @@ function blank(field: FieldKey, tags: string[], fields: string[]): Row {
 
 const usesDays = (r: Row) => r.op === "within_days" || r.op === "older_than_days";
 
-export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: string; name: string; rules: SegmentRules }; tags: string[]; fields: string[] }) {
-  const [state, action, pending] = useActionState<SegmentState, FormData>(saveSegment, undefined);
+/** Older segments keep one tag in `value`; the combobox works on `values`. */
+const toRow = (c: SegmentCondition): Row => (c.field === "tag" ? { field: "tag", op: c.op, values: conditionTags(c) } : (c as Row));
+
+export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: string; name: string; rules: SegmentRules }; tags: { tag: string; n: number }[]; fields: string[] }) {
   const [match, setMatch] = useState<"all" | "any">(initial?.rules.match ?? "all");
-  const [rows, setRows] = useState<Row[]>((initial?.rules.conditions as Row[] | undefined) ?? [blank(tags.length ? "tag" : "last_message", tags, fields)]);
+  const [rows, setRows] = useState<Row[]>(initial?.rules.conditions.map(toRow) ?? [blank(tags.length ? "tag" : "last_message", fields)]);
   const [preview, setPreview] = useState<Awaited<ReturnType<typeof previewSegment>> | null>(null);
   const rules = JSON.stringify({ match, conditions: rows.map((r) => (usesDays(r) ? r : { ...r, days: undefined })) });
 
@@ -97,8 +102,7 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[1fr_320px]">
       <Card className="p-5">
-        <form action={action} className="space-y-4">
-          {state?.error && <Alert tone="danger">{state.error}</Alert>}
+        <SaveForm action={(form) => saveSegment(undefined, form)} success="Segment saved" className="space-y-4">
           {initial && <input type="hidden" name="id" value={initial.id} />}
           <input type="hidden" name="rules" value={rules} />
           <Field label="Name" htmlFor="name">
@@ -115,7 +119,7 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
           <ul className="space-y-2">
             {rows.map((r, i) => (
               <li key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-line p-2">
-                <Select aria-label="Condition" value={r.field} onChange={(e) => setRows(rows.map((x, j) => (j === i ? blank(e.target.value as FieldKey, tags, fields) : x)))} className="w-36">
+                <Select aria-label="Condition" value={r.field} onChange={(e) => setRows(rows.map((x, j) => (j === i ? blank(e.target.value as FieldKey, fields) : x)))} className="w-36">
                   {FIELDS.map((f) => (
                     <option key={f.value} value={f.value}>
                       {f.label}
@@ -132,7 +136,20 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
                     </option>
                   ))}
                 </Select>
-                {r.field === "tag" && <Input aria-label="Tag" list="segment-tags" value={r.value ?? ""} onChange={(e) => set(i, { value: e.target.value })} className="w-40" />}
+                {r.field === "tag" && (
+                  <Combobox
+                    label="Tags"
+                    className="w-full min-w-56 flex-1 sm:w-72"
+                    options={tags.map((t) => ({ value: t.tag, count: t.n }))}
+                    value={r.values ?? []}
+                    onChange={(values) => set(i, { values })}
+                    placeholder="Find or create a tag"
+                    allowCreate
+                    normalize={(s) => s.trim().toLowerCase()}
+                    max={20}
+                    emptyText="No tags yet. Type to create one."
+                  />
+                )}
                 {r.field === "source" && (
                   <Select aria-label="Source" value={r.value} onChange={(e) => set(i, { value: e.target.value })} className="w-48">
                     {SOURCES.map(([v, l]) => (
@@ -157,28 +174,23 @@ export function SegmentBuilder({ initial, tags, fields }: { initial?: { id: stri
               </li>
             ))}
           </ul>
-          <datalist id="segment-tags">
-            {tags.map((t) => (
-              <option key={t} value={t} />
-            ))}
-          </datalist>
           <datalist id="segment-fields">
             {fields.map((f) => (
               <option key={f} value={f} />
             ))}
           </datalist>
           {rows.length < 20 && (
-            <button type="button" className="text-sm font-medium hover:underline" onClick={() => setRows([...rows, blank("tag", tags, fields)])}>
+            <button type="button" className="text-sm font-medium hover:underline" onClick={() => setRows([...rows, blank("tag", fields)])}>
               + Add condition
             </button>
           )}
           <div className="flex gap-2">
-            <Button disabled={pending}>{pending ? "Saving…" : "Save segment"}</Button>
+            <SubmitButton>Save segment</SubmitButton>
             <Link href="/contacts/segments" className="self-center text-sm text-muted">
               Cancel
             </Link>
           </div>
-        </form>
+        </SaveForm>
       </Card>
       <Card className="h-fit p-4 text-sm">
         <div className="font-medium">Matches right now</div>

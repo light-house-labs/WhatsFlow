@@ -15,7 +15,7 @@ import { cloudProvider, subscribeApp } from "@/lib/wa/cloud";
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 /** Each settings card posts its own `section`, so saving one card never touches the others' fields. */
-export async function saveInboxSettings(form: FormData) {
+export async function saveInboxSettings(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const section = String(form.get("section"));
   if (section === "business") {
@@ -23,7 +23,7 @@ export async function saveInboxSettings(form: FormData) {
     try {
       new Intl.DateTimeFormat("en", { timeZone: tz });
     } catch {
-      redirect("/settings?error=tz");
+      return { error: "That time zone isn't recognised. Pick one from the list." };
     }
     await ctx.db.update(schema.orgs).set({ timezone: tz, name: String(form.get("orgName") ?? ctx.org.name).trim() || ctx.org.name }).where(eq(schema.orgs.id, ctx.org.id));
   } else {
@@ -50,7 +50,6 @@ export async function saveInboxSettings(form: FormData) {
     await ctx.db.update(schema.inboxSettings).set(set).where(eq(schema.inboxSettings.orgId, ctx.org.id));
   }
   revalidatePath("/settings");
-  redirect("/settings?saved=1");
 }
 
 export async function addQuickReply(form: FormData) {
@@ -91,26 +90,26 @@ export async function invite(_: InviteState, form: FormData): Promise<InviteStat
   return { link: `${process.env.APP_URL ?? "http://localhost:3000"}/invite/${token}` };
 }
 
-export async function changeRole(form: FormData) {
+export async function changeRole(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const userId = String(form.get("userId"));
   const role = String(form.get("role")) as Role;
-  if (userId === ctx.user.id) redirect("/settings/team?error=self");
-  if (role === "owner" && ctx.role !== "owner") redirect("/settings/team?error=owner");
+  if (userId === ctx.user.id) return { error: "You can't change your own role or remove yourself." };
+  if (role === "owner" && ctx.role !== "owner") return { error: "Only an owner can change another owner." };
   const [target] = await ctx.db.select().from(schema.memberships).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId))).limit(1);
-  if (target?.role === "owner" && ctx.role !== "owner") redirect("/settings/team?error=owner");
+  if (target?.role === "owner" && ctx.role !== "owner") return { error: "Only an owner can change another owner." };
   await ctx.db.update(schema.memberships).set({ role }).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId)));
   await audit(ctx, "team.role_changed", userId, { from: target?.role, to: role });
   revalidatePath("/settings/team");
 }
 
-export async function removeMember(form: FormData) {
+export async function removeMember(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const userId = String(form.get("userId"));
-  if (userId === ctx.user.id) redirect("/settings/team?error=self");
+  if (userId === ctx.user.id) return { error: "You can't change your own role or remove yourself." };
   const [target] = await ctx.db.select().from(schema.memberships).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId))).limit(1);
   if (!target) return;
-  if (target.role === "owner" && ctx.role !== "owner") redirect("/settings/team?error=owner");
+  if (target.role === "owner" && ctx.role !== "owner") return { error: "Only an owner can change another owner." };
   // their open chats go back to the unassigned queue
   await ctx.db.update(schema.conversations).set({ assigneeId: null }).where(and(eq(schema.conversations.orgId, ctx.org.id), eq(schema.conversations.assigneeId, userId)));
   await ctx.db.delete(schema.memberships).where(and(eq(schema.memberships.orgId, ctx.org.id), eq(schema.memberships.userId, userId)));
@@ -226,13 +225,13 @@ export async function disconnectNumber(form: FormData) {
 
 // ---------- business profile ----------
 
-export async function saveProfile(form: FormData) {
+export async function saveProfile(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const id = String(form.get("id"));
   const [n] = await ctx.db.select().from(schema.waNumbers).where(and(eq(schema.waNumbers.id, id), eq(schema.waNumbers.orgId, ctx.org.id))).limit(1);
   if (!n) return;
   const v = (k: string, max: number) => String(form.get(k) ?? "").trim().slice(0, max);
-  const back = (msg: string) => redirect(`/settings/whatsapp?n=${id}&profileError=${encodeURIComponent(msg)}`);
+
   const profile = {
     about: v("about", 139),
     description: v("description", 512),
@@ -242,13 +241,13 @@ export async function saveProfile(form: FormData) {
     vertical: v("vertical", 20) in PROFILE_VERTICALS ? v("vertical", 20) : "OTHER",
     photoUrl: v("photoUrl", 2000) || undefined,
   };
-  if (profile.email && !/^\S+@\S+\.\S+$/.test(profile.email)) back("Enter a valid email, or leave it empty.");
-  if (profile.website && !/^https?:\/\/\S+$/.test(profile.website)) back("Websites need to start with https://");
-  if (!profile.about) back("Write a short About line. WhatsApp shows it under your name.");
+  if (profile.email && !/^\S+@\S+\.\S+$/.test(profile.email)) return { error: "Enter a valid email, or leave it empty." };
+  if (profile.website && !/^https?:\/\/\S+$/.test(profile.website)) return { error: "Websites need to start with https://" };
+  if (!profile.about) return { error: "Write a short About line. WhatsApp shows it under your name." };
   // only send the photo to Meta when it changed
   const r = await providerFor(n).updateProfile({ ...profile, photoUrl: profile.photoUrl !== n.profile.photoUrl ? profile.photoUrl : undefined });
-  if (!r.ok) back(`Meta didn't accept it: ${r.error}`);
+  if (!r.ok) return { error: `Meta didn't accept it: ${r.error}` };
   await ctx.db.update(schema.waNumbers).set({ profile }).where(eq(schema.waNumbers.id, n.id));
   await audit(ctx, "profile.updated", n.displayPhone);
-  redirect(`/settings/whatsapp?n=${id}&profileSaved=1`);
+  revalidatePath("/settings/whatsapp");
 }

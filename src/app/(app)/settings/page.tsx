@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { and, asc, count, eq, ne } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { Alert, Button, Field, Input, Textarea } from "@/components/ui";
+import { Alert, Field, Input, Textarea } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { openingStatus } from "@/lib/hours";
 import { FieldGrid, MessageField, SettingsSection, TimezoneSelect, Toggle } from "@/components/settings";
 import { addQuickReply, deleteQuickReply, saveInboxSettings } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Inbox settings" };
 
@@ -20,8 +21,7 @@ const DAYS = [
   ["sun", "Sunday"],
 ] as const;
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function Page() {
   const { db: d, org, role } = await requireOrg();
   const [[s], replies] = await Promise.all([
     d.select().from(schema.inboxSettings).where(eq(schema.inboxSettings.orgId, org.id)),
@@ -34,12 +34,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const autoOn = s.welcomeEnabled || s.awayEnabled;
   return (
     <SettingsPage title="Inbox" summary={`${auto} · ${hours.open ? "Open now" : "Closed"} · ${replies.length} quick ${replies.length === 1 ? "reply" : "replies"}`} status={[{ label: "Opening", value: hours.text, tone: hours.open ? "on" : "off" }, { label: "WhatsApp number", value: wa.n ? "Connected" : "Not connected", tone: wa.n ? "on" : "warn" }, { label: "Auto-replies", value: autoOn ? "On" : "Off", tone: autoOn ? "on" : "off" }]} tips={["Welcome goes out in opening hours, away goes out after them.", "Type / in the inbox to use a quick reply.", "Variables like {name} are filled in per customer."]}>
-      {sp.saved && (
-        <Alert tone="success">Saved.</Alert>
-      )}
-      {sp.error === "tz" && (
-        <Alert tone="danger">That time zone isn&apos;t recognised. Pick one from the list.</Alert>
-      )}
       {admin ? (
         <>
           <SettingsSection title="Business" description="Your business name and the time zone used for opening hours and reports." action={saveInboxSettings} section="business">
@@ -93,21 +87,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               <li key={r.id} className="flex items-start gap-3 py-2 text-sm first:pt-0">
                 <span className="w-28 shrink-0">/{r.shortcut}</span>
                 <span className="flex-1 whitespace-pre-wrap text-muted">{r.body}</span>
-                <form action={deleteQuickReply}>
+                <SaveForm action={deleteQuickReply} success="Quick reply deleted">
                   <input type="hidden" name="id" value={r.id} />
-                  <Button size="sm" variant="ghost">
+                  <SubmitButton size="sm" variant="ghost">
                     Delete
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </SaveForm>
               </li>
             ))}
           </ul>
         )}
-        <form action={addQuickReply} className="flex flex-wrap items-start gap-2">
+        <SaveForm action={addQuickReply} success="Quick reply added" resetOnSuccess className="flex flex-wrap items-start gap-2">
           <Input name="shortcut" placeholder="shortcut" aria-label="Shortcut" className="w-36" required />
           <Textarea name="body" placeholder="Message" aria-label="Quick reply message" className="min-h-9 flex-1 resize-none" required />
-          <Button variant="secondary">Add</Button>
-        </form>
+          <SubmitButton variant="secondary">Add</SubmitButton>
+        </SaveForm>
       </SettingsSection>
     </SettingsPage>
   );

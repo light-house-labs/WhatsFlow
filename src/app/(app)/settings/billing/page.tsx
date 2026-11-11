@@ -12,6 +12,7 @@ import { Alert, Button, ButtonLink, Card, Select, cx } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { SettingsSection } from "@/components/settings";
 import { cancel, choosePlan, resume } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Plan & billing" };
 
@@ -83,11 +84,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
               </Alert>
             )}
             <div className="flex gap-2">
-              <form action={choosePlan}>
+              <SaveForm action={choosePlan} success="Plan updated">
                 <input type="hidden" name="plan" value={preview} />
                 <input type="hidden" name="interval" value={interval} />
-                <Button>Confirm change</Button>
-              </form>
+                <SubmitButton>Confirm change</SubmitButton>
+              </SaveForm>
               <ButtonLink variant="secondary" href="/settings/billing">
                 Back
               </ButtonLink>
@@ -147,12 +148,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
         {owner && org.billingStatus !== "cancelled" && (
           <SettingsSection title="Cancel" description="One click, no call or email needed.">
             {org.cancelAtPeriodEnd ? (
-              <form action={resume} className="mt-2 flex items-center gap-3">
+              <SaveForm action={resume} success="Subscription resumed" className="mt-2 flex items-center gap-3">
                 <p className="flex-1 text-sm text-muted">Already cancelled. Access ends {dateTime(org.currentPeriodEnd)}.</p>
-                <Button variant="secondary">Resume subscription</Button>
-              </form>
+                <SubmitButton variant="secondary">Resume subscription</SubmitButton>
+              </SaveForm>
             ) : (
-              <form action={cancel} className="mt-2 flex flex-wrap items-center gap-3">
+              <SaveForm action={cancel} success="Subscription cancelled" className="mt-2 flex flex-wrap items-center gap-3">
                 <p className="w-full text-sm text-muted">
                   One click, no call or email needed. {org.billingStatus === "trialing" ? "Your trial ends now." : `You keep access until ${dateTime(org.currentPeriodEnd)} and won't be charged again.`} Your data stays exportable.
                 </p>
@@ -164,8 +165,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
                   <option>Not using it enough</option>
                   <option>Problems with WhatsApp or Meta</option>
                 </Select>
-                <Button variant="danger">Cancel subscription</Button>
-              </form>
+                <SubmitButton variant="danger">Cancel subscription</SubmitButton>
+              </SaveForm>
             )}
           </SettingsSection>
         )}

@@ -16,6 +16,47 @@ export function triggerMatches(trigger: FlowTrigger, text: string, isNewConversa
   });
 }
 
+/** Blocks that stop and wait for the customer; a loop through one of these pauses on every lap. */
+export const WAITING_TYPES = ["question", "buttons", "list", "products", "booking"];
+
+/** Ids of blocks caught in a loop made only of pass-through blocks, which would spin forever. */
+export function passThroughLoopNodes(g: Graph): Set<string> {
+  const pass = new Set(g.nodes.filter((n) => !WAITING_TYPES.includes(n.type)).map((n) => n.id));
+  const out = new Map<string, string[]>();
+  for (const e of g.edges) if (pass.has(e.source) && pass.has(e.target)) out.set(e.source, [...(out.get(e.source) ?? []), e.target]);
+  // Tarjan's strongly connected components over the pass-through subgraph
+  const index = new Map<string, number>();
+  const low = new Map<string, number>();
+  const onStack = new Set<string>();
+  const stack: string[] = [];
+  const bad = new Set<string>();
+  let counter = 0;
+  const visit = (v: string) => {
+    index.set(v, counter);
+    low.set(v, counter++);
+    stack.push(v);
+    onStack.add(v);
+    for (const w of out.get(v) ?? []) {
+      if (!index.has(w)) {
+        visit(w);
+        low.set(v, Math.min(low.get(v)!, low.get(w)!));
+      } else if (onStack.has(w)) low.set(v, Math.min(low.get(v)!, index.get(w)!));
+    }
+    if (low.get(v) === index.get(v)) {
+      const comp: string[] = [];
+      let w: string;
+      do {
+        w = stack.pop()!;
+        onStack.delete(w);
+        comp.push(w);
+      } while (w !== v);
+      if (comp.length > 1 || (out.get(v) ?? []).includes(v)) comp.forEach((c) => bad.add(c));
+    }
+  };
+  for (const id of pass) if (!index.has(id)) visit(id);
+  return bad;
+}
+
 /** Problems that stop a flow from going live. */
 export function validateGraph(g: Graph): string[] {
   const problems: string[] = [];
@@ -41,6 +82,7 @@ export function validateGraph(g: Graph): string[] {
     if (n.type === "booking" && !String(n.data.serviceId ?? "")) problems.push("Pick a service for the booking block.");
     if (n.type === "question" && !String(n.data.saveAs ?? "").trim()) problems.push("Question blocks need a field name to save the answer.");
   }
+  if (passThroughLoopNodes(g).size) problems.push("A loop has no question, buttons or list in it, so it would repeat forever. Add one to the loop, or remove the connection back.");
   // reachability: every node except trigger should be reachable
   if (triggers[0]) {
     const seen = new Set<string>([triggers[0].id]);

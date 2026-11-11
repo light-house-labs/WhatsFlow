@@ -4,8 +4,9 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { bookingSettingsFor } from "@/lib/booking";
 import { formatMoney, limitsFor } from "@/lib/plans";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
+import { Badge, Card, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { saveBookingSettings, saveService, toggleService } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Services & hours" };
 
@@ -19,8 +20,7 @@ const DAYS = [
   ["sun", "Sunday"],
 ] as const;
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function Page() {
   const { db: d, org } = await requireOrg("admin");
   const s = await bookingSettingsFor(d, org.id);
   const [services, team, templates] = await Promise.all([
@@ -32,8 +32,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     <>
       <PageHeader title="Services & hours" description={`What customers can book, and when. Up to ${limitsFor(org.plan).appointmentsPerMonth} bookings a month on your plan.`} />
       <div className="max-w-4xl space-y-6 p-6">
-        {sp.saved && <Alert tone="success">Saved.</Alert>}
-        {sp.error === "name" && <Alert tone="danger">Give the service a name.</Alert>}
         <Card className="p-5">
           <h2 className="mb-3 type-heading">Services</h2>
           {services.length > 0 && (
@@ -60,11 +58,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                       <Td>{x.priceMinor ? formatMoney(x.priceMinor) : "—"}</Td>
                       <Td className="text-muted">{[team.find((t) => t.id === x.staffId)?.name, x.branch].filter(Boolean).join(" · ") || "—"}</Td>
                       <Td>
-                        <form action={toggleService}>
+                        <SaveForm action={toggleService} success="Service updated">
                           <input type="hidden" name="id" value={x.id} />
                           <input type="hidden" name="active" value={x.active ? "0" : "1"} />
-                          <Button size="sm" variant="ghost">{x.active ? "Hide" : "Show"}</Button>
-                        </form>
+                          <SubmitButton size="sm" variant="ghost">{x.active ? "Hide" : "Show"}</SubmitButton>
+                        </SaveForm>
                       </Td>
                     </tr>
                   ))}
@@ -72,7 +70,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </Table>
             </div>
           )}
-          <form action={saveService} className="grid gap-3 sm:grid-cols-3">
+          <SaveForm action={saveService} success="Service saved" resetOnSuccess className="grid gap-3 sm:grid-cols-3">
             <Field label="New service" htmlFor="sname">
               <Input id="sname" name="name" placeholder="Dental check-up" required />
             </Field>
@@ -99,11 +97,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               <Input id="branch" name="branch" />
             </Field>
             <div>
-              <Button size="sm">Add service</Button>
+              <SubmitButton size="sm">Add service</SubmitButton>
             </div>
-          </form>
+          </SaveForm>
         </Card>
-        <form action={saveBookingSettings} className="space-y-6">
+        <SaveForm action={saveBookingSettings} success="Hours and reminders saved" className="space-y-6">
           <Card className="p-5">
             <h2 className="mb-3 type-heading">Bookable hours</h2>
             <div className="space-y-2">
@@ -151,8 +149,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </Select>
             </Field>
           </Card>
-          <Button>Save hours & reminders</Button>
-        </form>
+          <SubmitButton>Save hours & reminders</SubmitButton>
+        </SaveForm>
       </div>
     </>
   );

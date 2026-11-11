@@ -8,12 +8,12 @@ import { requireOrg } from "@/lib/auth";
 import { parseMoney } from "@/lib/plans";
 import { assertCatalogRoom, OrderError } from "@/lib/orders";
 
-export async function saveProduct(form: FormData) {
+export async function saveProduct(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const id = String(form.get("id") ?? "");
   const name = String(form.get("name") ?? "").trim();
   const price = parseMoney(String(form.get("price") ?? ""));
-  if (!name || price === null) redirect(`/catalog?error=${encodeURIComponent("Give the product a name and a price.")}${id ? `&edit=${id}` : ""}`);
+  if (!name || price === null) return { error: "Give the product a name and a price." };
   const stockRaw = String(form.get("stock") ?? "").trim();
   const imageUrl = String(form.get("imageUrl") ?? "").trim();
   const values = {
@@ -32,13 +32,13 @@ export async function saveProduct(form: FormData) {
     try {
       await assertCatalogRoom(ctx.db, ctx.org.id, ctx.org.plan);
     } catch (e) {
-      if (e instanceof OrderError) redirect(`/catalog?error=${encodeURIComponent(e.message)}`);
+      if (e instanceof OrderError) return { error: e.message };
       throw e;
     }
     await ctx.db.insert(schema.products).values({ orgId: ctx.org.id, ...values });
   }
   revalidatePath("/catalog");
-  redirect("/catalog?saved=1");
+  redirect("/catalog");
 }
 
 export async function deleteProduct(form: FormData) {

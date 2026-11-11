@@ -8,18 +8,12 @@ import { saveAiSettings } from "./actions";
 
 export const metadata: Metadata = { title: "AI replies" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
-  const sp = await searchParams;
+export default async function Page() {
   const { db: d, org } = await requireOrg("admin");
   const s = await aiSettingsFor(d, org.id);
   return (
     <SettingsPage title="AI replies" summary={`${s.enabled ? "Replies on" : "Replies off"} · ${s.includeCatalog ? "catalog included" : "no catalog"} · hands over after ${s.maxReplies} replies`} status={[{ label: "AI replies", value: s.enabled ? "On" : "Off", tone: s.enabled ? "on" : "off" }, { label: "API key", value: aiAvailable() ? "Set" : "Missing", tone: aiAvailable() ? "on" : "warn" }, { label: "Catalog", value: s.includeCatalog ? "Included" : "Not used", tone: s.includeCatalog ? "on" : "off" }]} tips={["Bot flows always go first; AI only answers what is left.", "It answers only from what you write here.", "Add hours, delivery areas and your cancellation policy."]}>
-      {(sp.saved || !aiAvailable()) && (
-        <div className="space-y-3">
-          {sp.saved && <Alert tone="success">Saved.</Alert>}
-          {!aiAvailable() && <Alert tone="warning">AI replies need ANTHROPIC_API_KEY set on the server. Until then this switch has no effect.</Alert>}
-        </div>
-      )}
+      {!aiAvailable() && <Alert tone="warning">AI replies need ANTHROPIC_API_KEY set on the server. Until then this switch has no effect.</Alert>}
         <SettingsSection
           title="AI replies"
           action={saveAiSettings}

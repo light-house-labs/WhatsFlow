@@ -4,11 +4,13 @@ import { desc, eq } from "drizzle-orm";
 import { Filter } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { countSegment, describeRules } from "@/lib/segments";
-import { Alert, Button, ButtonLink, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
+import { describeRules, summarizeAudience } from "@/lib/segments";
+import { AudiencePreview } from "@/components/audience-preview";
+import { Alert, ButtonLink, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
 import { SegmentBuilder } from "./builder";
 import { builderOptions } from "./data";
 import { deleteSegment } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Segments" };
 
@@ -25,7 +27,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
     );
   }
   const list = await d.select().from(schema.segments).where(eq(schema.segments.orgId, org.id)).orderBy(desc(schema.segments.updatedAt));
-  const counts = await Promise.all(list.map((s) => countSegment(d, org.id, s.rules)));
+  const summaries = await Promise.all(list.map((s) => summarizeAudience(d, org.id, { segmentId: s.id })));
   return (
     <>
       <PageHeader
@@ -63,8 +65,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                         {s.name}
                       </Link>
                     </Td>
-                    <Td className="max-w-md text-muted">{describeRules(s.rules)}</Td>
-                    <Td>{counts[i]}</Td>
+                    <Td className="max-w-md text-muted">
+                      {describeRules(s.rules)}
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs text-ink">Who&apos;s in it</summary>
+                        <div className="mt-2 text-ink">
+                          <AudiencePreview summary={summaries[i]} />
+                        </div>
+                      </details>
+                    </Td>
+                    <Td>
+                      {summaries[i].total}
+                      {summaries[i].optedOut > 0 && <div className="text-xs text-muted">{summaries[i].optedOut} opted out</div>}
+                    </Td>
                     <Td className="text-right">
                       {role !== "agent" && (
                         <div className="flex justify-end gap-2">
@@ -74,12 +87,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                           <ButtonLink href={`/contacts/segments/${s.id}`} size="sm" variant="ghost">
                             Edit
                           </ButtonLink>
-                          <form action={deleteSegment}>
+                          <SaveForm action={deleteSegment} success="Segment deleted">
                             <input type="hidden" name="id" value={s.id} />
-                            <Button size="sm" variant="ghost" aria-label={`Delete ${s.name}`}>
+                            <SubmitButton size="sm" variant="ghost" aria-label={`Delete ${s.name}`}>
                               Delete
-                            </Button>
-                          </form>
+                            </SubmitButton>
+                          </SaveForm>
                         </div>
                       )}
                     </Td>

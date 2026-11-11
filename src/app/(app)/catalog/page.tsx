@@ -5,13 +5,14 @@ import { Package } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatMoney, limitsFor } from "@/lib/plans";
-import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Table, Td, Textarea, Th } from "@/components/ui";
+import { SaveForm, SubmitButton } from "@/components/save-form";
+import { Badge, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Table, Td, Textarea, Th } from "@/components/ui";
 import { UploadField } from "@/components/upload-field";
 import { deleteProduct, saveProduct } from "./actions";
 
 export const metadata: Metadata = { title: "Catalog" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ edit?: string; new?: string; saved?: string; error?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ edit?: string; new?: string }> }) {
   const sp = await searchParams;
   const { db: d, org, role } = await requireOrg();
   const products = await d.select().from(schema.products).where(eq(schema.products.orgId, org.id)).orderBy(asc(schema.products.name));
@@ -27,12 +28,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         actions={admin && !showForm ? <ButtonLink href="/catalog?new=1">Add product</ButtonLink> : undefined}
       />
       <div className="space-y-4 p-6">
-        {sp.saved && <Alert tone="success">Saved.</Alert>}
-        {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         {showForm && (
           <Card className="max-w-2xl p-5">
             <h2 className="mb-4 type-heading">{editing ? "Edit product" : "New product"}</h2>
-            <form action={saveProduct} className="space-y-4">
+            <SaveForm action={saveProduct} success="Product saved" className="space-y-4">
               {editing && <input type="hidden" name="id" value={editing.id} />}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Name" htmlFor="name">
@@ -56,12 +55,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} /> Available to order
               </label>
               <div className="flex gap-2">
-                <Button>Save</Button>
+                <SubmitButton>Save</SubmitButton>
                 <ButtonLink href="/catalog" variant="secondary">
                   Cancel
                 </ButtonLink>
               </div>
-            </form>
+            </SaveForm>
           </Card>
         )}
         {products.length === 0 ? (
@@ -116,12 +115,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                           <ButtonLink href={`/catalog?edit=${p.id}`} size="sm" variant="ghost">
                             Edit
                           </ButtonLink>
-                          <form action={deleteProduct}>
+                          <SaveForm action={deleteProduct} success="Product deleted">
                             <input type="hidden" name="id" value={p.id} />
-                            <Button size="sm" variant="ghost" className="text-danger">
+                            <SubmitButton size="sm" variant="ghost" className="text-danger" savingLabel="Deleting…" savedLabel="Deleted">
                               Delete
-                            </Button>
-                          </form>
+                            </SubmitButton>
+                          </SaveForm>
                         </div>
                       )}
                     </Td>

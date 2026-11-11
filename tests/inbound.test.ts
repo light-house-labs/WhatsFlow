@@ -65,6 +65,41 @@ describe("inbound pipeline", () => {
     expect(conv.waitingSince).not.toBeNull();
   });
 
+  it("loops back through a waiting block, re-asks invalid replies, then hands over", async () => {
+    const { d, org, number } = await makeOrg();
+    await d.update(schema.botFlows).set({ status: "draft" }).where(eq(schema.botFlows.orgId, org.id));
+    await d.insert(schema.botFlows).values({
+      orgId: org.id,
+      name: "Loop",
+      status: "live",
+      trigger: { kind: "keyword", keywords: ["menu"] },
+      graph: {
+        nodes: [
+          { id: "t", type: "trigger", position: { x: 0, y: 0 }, data: {} },
+          { id: "b", type: "buttons", position: { x: 0, y: 0 }, data: { text: "Menu", buttons: ["Again", "Done"], onInvalid: "reask", maxRetries: 1 } },
+          { id: "m", type: "message", position: { x: 0, y: 0 }, data: { text: "Back to the menu" } },
+        ],
+        edges: [
+          { id: "1", source: "t", target: "b" },
+          { id: "2", source: "b", target: "m", sourceHandle: "0" },
+          { id: "3", source: "m", target: "b" },
+        ],
+      },
+    });
+    const from = "919800000009";
+    const r = await customerSays(number, from, "menu");
+    for (let i = 0; i < 30; i++) await customerSays(number, from, "Again", "btn:0");
+    let msgs = await thread(d, r.conversationId!);
+    expect(msgs.filter((m) => m.body === "Back to the menu")).toHaveLength(30);
+    expect(msgs.at(-1)?.type).toBe("buttons");
+    await customerSays(number, from, "huh");
+    msgs = await thread(d, r.conversationId!);
+    expect(msgs.at(-1)?.type).toBe("buttons");
+    await customerSays(number, from, "huh again");
+    const [conv] = await d.select().from(schema.conversations).where(eq(schema.conversations.id, r.conversationId!));
+    expect(conv.handledBy).toBe("human");
+  });
+
   it("honours opt-out and blocks marketing templates afterwards", async () => {
     const { d, org, number } = await makeOrg();
     const r = await customerSays(number, "919800000005", "STOP");

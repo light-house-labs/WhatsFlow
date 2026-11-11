@@ -6,8 +6,9 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { zonedToUtc } from "@/lib/booking";
 import { formatWaId } from "@/lib/phone";
-import { Alert, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, StatusBadge } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, StatusBadge } from "@/components/ui";
 import { bookByStaff, setAppointmentStatus } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Appointments" };
 
@@ -52,7 +53,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
       />
       <div className="grid gap-6 p-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          {sp.error && <Alert tone="danger">{sp.error}</Alert>}
           <div className="flex items-center gap-2">
             <ButtonLink href={`/appointments?date=${shift(date, -1)}`} variant="secondary" size="sm" aria-label="Previous day">
               <ChevronLeft size={16} />
@@ -105,18 +105,18 @@ services.length === 0 ? (
                       {a.notes && <div className="mt-1 whitespace-pre-wrap text-xs text-muted">{a.notes}</div>}
                     </div>
                     <StatusBadge status={a.status} />
-                    <form action={setAppointmentStatus} className="flex gap-1">
+                    <SaveForm action={setAppointmentStatus} success="Appointment updated" className="flex gap-1">
                       <input type="hidden" name="id" value={a.id} />
                       {a.status === "booked" ? (
                         <>
-                          <Button size="sm" variant="ghost" name="status" value="completed">Done</Button>
-                          <Button size="sm" variant="ghost" name="status" value="no_show">No-show</Button>
-                          <Button size="sm" variant="ghost" name="status" value="cancelled" className="text-danger">Cancel</Button>
+                          <SubmitButton size="sm" variant="ghost" name="status" value="completed">Done</SubmitButton>
+                          <SubmitButton size="sm" variant="ghost" name="status" value="no_show">No-show</SubmitButton>
+                          <SubmitButton size="sm" variant="ghost" name="status" value="cancelled" className="text-danger">Cancel</SubmitButton>
                         </>
                       ) : a.status !== "cancelled" ? (
-                        <Button size="sm" variant="ghost" name="status" value="booked">Undo</Button>
+                        <SubmitButton size="sm" variant="ghost" name="status" value="booked">Undo</SubmitButton>
                       ) : null}
-                    </form>
+                    </SaveForm>
                     {a.conversationId && (
                       <Link href={`/inbox?c=${a.conversationId}`} className="link">
                         Chat
@@ -131,7 +131,7 @@ services.length === 0 ? (
         {services.length > 0 && (
         <Card id="booking" className="h-fit p-5">
           <h2 className="mb-3 type-heading">Add a booking</h2>
-            <form action={bookByStaff} className="space-y-3">
+            <SaveForm action={bookByStaff} success="Appointment booked" className="space-y-3">
               <Field label="Customer" htmlFor="contactId">
                 <Select id="contactId" name="contactId" required>
                   <option value="">Choose…</option>
@@ -165,8 +165,8 @@ services.length === 0 ? (
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="notify" defaultChecked /> Send a confirmation on WhatsApp
               </label>
-              <Button className="w-full">Book</Button>
-            </form>
+              <SubmitButton className="w-full">Book</SubmitButton>
+            </SaveForm>
         </Card>
         )}
       </div>

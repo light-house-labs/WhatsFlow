@@ -91,3 +91,15 @@ describe("24h window", () => {
     expect(windowOpen(null)).toBe(false);
   });
 });
+
+describe("flow loops", () => {
+  const node = (id: string, type: string, data = {}) => ({ id, type, position: { x: 0, y: 0 }, data }) as never;
+  const edge = (source: string, target: string) => ({ id: `${source}-${target}`, source, target });
+  it("allows a loop through a waiting block but rejects a pass-through-only loop", () => {
+    const base = [node("t", "trigger"), node("m1", "message", { text: "a" }), node("m2", "message", { text: "b" })];
+    const waiting = validateGraph({ nodes: [...base, node("q", "question", { text: "?", saveAs: "x" })], edges: [edge("t", "m1"), edge("m1", "q"), edge("q", "m2"), edge("m2", "m1")] });
+    expect(waiting.filter((p) => /loop/i.test(p))).toEqual([]);
+    const spin = validateGraph({ nodes: base, edges: [edge("t", "m1"), edge("m1", "m2"), edge("m2", "m1")] });
+    expect(spin.some((p) => /loop/i.test(p))).toBe(true);
+  });
+});

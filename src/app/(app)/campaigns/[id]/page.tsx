@@ -5,8 +5,9 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { dateTime, nowMs } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { Button, Card, PageHeader, Stat, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Card, PageHeader, Stat, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { cancelCampaign } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata = { title: "Campaign" };
 
@@ -55,12 +56,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <>
             <StatusBadge status={c.status} />
             {live && role !== "agent" && (
-              <form action={cancelCampaign}>
+              <SaveForm action={cancelCampaign} success="Campaign cancelled">
                 <input type="hidden" name="id" value={c.id} />
-                <Button variant="secondary" size="sm">
+                <SubmitButton variant="secondary" size="sm">
                   Cancel
-                </Button>
-              </form>
+                </SubmitButton>
+              </SaveForm>
             )}
           </>
         }

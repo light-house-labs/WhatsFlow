@@ -7,13 +7,14 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { PROFILE_VERTICALS, providerFor, type HealthCheck } from "@/lib/wa";
 import { timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, EmptyState, Field, Input, Select, StatusBadge } from "@/components/ui";
+import { Alert, Badge, EmptyState, Field, Input, Select, StatusBadge } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { MessageField, SettingsSection } from "@/components/settings";
 import { UploadField } from "@/components/upload-field";
 import { disconnectNumber, fixSubscription, saveProfile } from "../actions";
 import { ConnectForm } from "./connect-form";
 import { EmbeddedSignup } from "./embedded-signup";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "WhatsApp numbers" };
 
@@ -92,17 +93,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {checks.some((c) => c.id === "subscribed" && !c.ok) && (
-                      <form action={fixSubscription}>
+                      <SaveForm action={fixSubscription} success="Subscription fixed">
                         <input type="hidden" name="id" value={current.id} />
-                        <Button variant="secondary">Fix subscription</Button>
-                      </form>
+                        <SubmitButton variant="secondary">Fix subscription</SubmitButton>
+                      </SaveForm>
                     )}
-                    <form action={disconnectNumber}>
+                    <SaveForm action={disconnectNumber} success="Number disconnected">
                       <input type="hidden" name="id" value={current.id} />
-                      <Button variant="ghost" className="text-danger">
+                      <SubmitButton variant="ghost" className="text-danger">
                         Disconnect and delete token
-                      </Button>
-                    </form>
+                      </SubmitButton>
+                    </SaveForm>
                   </div>
                 </>
               )}
@@ -117,8 +118,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
               action={saveProfile}
               fields={{ id: current.id }}
             >
-              {sp.profileSaved && <Alert tone="success">Profile updated.</Alert>}
-              {sp.profileError && <Alert tone="danger">{sp.profileError}</Alert>}
               <>
                 <Field label="About" htmlFor="about" hint="Up to 139 characters, shown under your name.">
                   <Input id="about" name="about" maxLength={139} defaultValue={current.profile.about ?? ""} required />

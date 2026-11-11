@@ -9,21 +9,15 @@ import { storeConfigFor } from "@/lib/stores";
 import { serviceAccount, SHEET_KINDS } from "@/lib/sheets";
 import type { SheetKind } from "@/db/schema";
 import { timeAgo } from "@/lib/format";
-import { Alert, Badge, Button, EmptyState, Field, Input, Select } from "@/components/ui";
+import { Alert, Badge, EmptyState, Field, Input, Select } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { SettingsSection, Toggle } from "@/components/settings";
 import { connectSheet, removeSheet, removeStore, saveStore, syncSheetNow } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Connected apps" };
 
-const ERRORS: Record<string, string> = {
-  shopify: "Enter your store's .myshopify.com address, e.g. sunrise-books.myshopify.com.",
-  woocommerce: "Enter your shop's full https:// address.",
-  "shopify-secret": "Paste the webhook signing key from Shopify (at least 16 characters).",
-  "woocommerce-secret": "Use a secret of at least 16 characters, and the same one in WooCommerce.",
-};
-
-export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; sheetError?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
   const [rows, [keys], [hooks], [synced], [carts], sheets] = await Promise.all([
@@ -52,7 +46,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     <SettingsPage title="Connected apps" summary={connected ? `${connected} connected · ${synced.n} store orders synced` : "Nothing connected yet"} status={[{ label: "Connected", value: String(connected), tone: connected ? "on" : "off" }, { label: "Store orders synced", value: String(synced.n), tone: synced.n ? "on" : "off" }, { label: "Cart reminders sent", value: String(carts.n), tone: carts.n ? "on" : "off" }]} tips={["Send a test order after connecting a store.", "Store orders can trigger WhatsApp automations.", "Sheets sync needs the service account shared on the sheet."]}>
       <div className="space-y-3 empty:hidden">
         {sp.saved && sp.saved !== "sheets" && <Alert tone="success">Connected. Send a test order to check it.</Alert>}
-        {sp.error && ERRORS[sp.error] && <Alert tone="danger">{ERRORS[sp.error]}</Alert>}
       </div>
       {connected === 0 ? (
         <EmptyState icon={<Plug />} columns={["App", "Status"]} title="No apps connected" description="Connect your store, payments or a spreadsheet to bring orders and data into WhatsFlow." primary={{ label: "Browse apps", href: "#shopify" }} />
@@ -80,7 +73,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </li>
             <li>Copy the signing key Shopify shows under the webhook list and paste it below.</li>
           </ol>
-          <form action={saveStore} className="space-y-4">
+          <SaveForm action={saveStore} success="Store saved" className="space-y-4">
             <input type="hidden" name="kind" value="shopify" />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Store address" htmlFor="shopUrl">
@@ -102,15 +95,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             <p className="text-xs text-muted">
               To message abandoned carts, create an automation on <em>A store checkout is abandoned</em> that sends an approved template with <code>cart_url</code>.
             </p>
-            <Button>{shopify ? "Save changes" : "Connect Shopify"}</Button>
-          </form>
+            <SubmitButton>{shopify ? "Save changes" : "Connect Shopify"}</SubmitButton>
+          </SaveForm>
           {shopify && (
-            <form action={removeStore}>
+            <SaveForm action={removeStore} success="Store disconnected">
               <input type="hidden" name="kind" value="shopify" />
-              <Button size="sm" variant="ghost" className="text-danger">
+              <SubmitButton size="sm" variant="ghost" className="text-danger">
                 Disconnect Shopify
-              </Button>
-            </form>
+              </SubmitButton>
+            </SaveForm>
           )}
         </SettingsSection>
 
@@ -122,7 +115,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </li>
             <li>Use the secret below as each webhook&apos;s Secret.</li>
           </ol>
-          <form action={saveStore} className="space-y-4">
+          <SaveForm action={saveStore} success="Store saved" className="space-y-4">
             <input type="hidden" name="kind" value="woocommerce" />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Shop address" htmlFor="wooUrl">
@@ -132,21 +125,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 <Input id="wooSecret" name="webhookSecret" autoComplete="off" defaultValue={woo ? "" : randomToken(24)} placeholder={woo ? "Leave as is" : ""} required={!woo} />
               </Field>
             </div>
-            <Button>{woo ? "Save changes" : "Connect WooCommerce"}</Button>
-          </form>
+            <SubmitButton>{woo ? "Save changes" : "Connect WooCommerce"}</SubmitButton>
+          </SaveForm>
           {woo && (
-            <form action={removeStore}>
+            <SaveForm action={removeStore} success="Store disconnected">
               <input type="hidden" name="kind" value="woocommerce" />
-              <Button size="sm" variant="ghost" className="text-danger">
+              <SubmitButton size="sm" variant="ghost" className="text-danger">
                 Disconnect WooCommerce
-              </Button>
-            </form>
+              </SubmitButton>
+            </SaveForm>
           )}
         </SettingsSection>
 
         <SettingsSection id="sheets" title="Google Sheets" description="New leads, bookings, orders, enquiries or contacts are added as rows to your sheet within a minute.">
           {sp.saved === "sheets" && <Alert tone="success">Sheet connected. New rows appear within a minute.</Alert>}
-          {sp.sheetError && <Alert tone="danger">{sp.sheetError}</Alert>}
           {!sa ? (
             <Alert tone="warning">Google Sheets needs a Google service account on this server: set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_KEY.</Alert>
           ) : (
@@ -166,24 +158,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                           {s.lastError ?? `${s.rowsSynced} rows sent${s.lastSyncedAt ? ` · last ${timeAgo(s.lastSyncedAt)}` : ""}`}
                         </div>
                       </div>
-                      <form action={syncSheetNow}>
+                      <SaveForm action={syncSheetNow} success="Sync started">
                         <input type="hidden" name="kind" value={s.kind} />
-                        <Button size="sm" variant="secondary">
+                        <SubmitButton size="sm" variant="secondary">
                           Sync now
-                        </Button>
-                      </form>
-                      <form action={removeSheet}>
+                        </SubmitButton>
+                      </SaveForm>
+                      <SaveForm action={removeSheet} success="Sheet disconnected">
                         <input type="hidden" name="kind" value={s.kind} />
-                        <Button size="sm" variant="ghost" className="text-danger">
+                        <SubmitButton size="sm" variant="ghost" className="text-danger">
                           Stop
-                        </Button>
-                      </form>
+                        </SubmitButton>
+                      </SaveForm>
                     </li>
                   ))}
                 </ul>
               )}
               {unsynced.length > 0 && (
-                <form action={connectSheet} className="space-y-3">
+                <SaveForm action={connectSheet} success="Sheet connected" className="space-y-3">
                   <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
                     <li>
                       In your sheet, click Share and add <code className="rounded bg-surface-2 px-1 text-xs text-ink">{sa.email}</code> as an Editor.
@@ -208,8 +200,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                     <Input id="tab" name="tab" maxLength={80} />
                   </Field>
                   <Toggle name="backfill" label="Also send everything from before today" />
-                  <Button>Connect sheet</Button>
-                </form>
+                  <SubmitButton>Connect sheet</SubmitButton>
+                </SaveForm>
               )}
             </>
           )}

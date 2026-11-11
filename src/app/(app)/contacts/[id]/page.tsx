@@ -6,7 +6,8 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { dateTime } from "@/lib/format";
 import { formatMoney } from "@/lib/plans";
-import { Badge, Button, ButtonLink, Card, Field, Input, PageHeader, Select, StatusBadge, Textarea } from "@/components/ui";
+import { Badge, ButtonLink, Card, Field, Input, PageHeader, Select, StatusBadge, Textarea } from "@/components/ui";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 import { deleteContact, setOptOut, updateContact } from "../actions";
 
 export const metadata = { title: "Contact" };
@@ -49,7 +50,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       />
       <div className="grid gap-6 p-6 lg:grid-cols-[1fr_360px]">
         <Card className="p-5">
-          <form action={updateContact} className="grid gap-4 sm:grid-cols-2">
+          <SaveForm action={updateContact} success="Contact saved" className="grid gap-4 sm:grid-cols-2">
             <input type="hidden" name="id" value={contact.id} />
             <Field label="Name" htmlFor="name">
               <Input id="name" name="name" defaultValue={contact.name ?? ""} />
@@ -86,9 +87,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <p className="text-xs text-muted">Use custom fields in broadcasts as variables.</p>
             </div>
             <div className="sm:col-span-2">
-              <Button>Save contact</Button>
+              <SubmitButton>Save contact</SubmitButton>
             </div>
-          </form>
+          </SaveForm>
         </Card>
         <div className="space-y-4">
           <Card className="p-5">
@@ -96,13 +97,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <p className="mt-1 text-sm text-muted">
               {contact.optedOutAt ? `Opted out on ${dateTime(contact.optedOutAt)}. They won't get marketing broadcasts.` : "Subscribed. They can reply STOP at any time."}
             </p>
-            <form action={setOptOut} className="mt-3">
+            <SaveForm action={setOptOut} success={contact.optedOutAt ? "Marked as subscribed" : "Opted out"} className="mt-3">
               <input type="hidden" name="id" value={contact.id} />
               <input type="hidden" name="optOut" value={contact.optedOutAt ? "0" : "1"} />
-              <Button size="sm" variant="secondary">
+              <SubmitButton size="sm" variant="secondary" savedLabel="Done">
                 {contact.optedOutAt ? "Mark as subscribed (they asked)" : "Opt them out"}
-              </Button>
-            </form>
+              </SubmitButton>
+            </SaveForm>
           </Card>
           <Card className="p-5">
             <div className="mb-3 flex items-center justify-between">
@@ -170,12 +171,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </Card>
           {contact.source === "ad" && <Badge tone="accent">Came from an ad</Badge>}
           {role !== "agent" && (
-            <form action={deleteContact}>
+            <SaveForm action={deleteContact} success="Contact deleted">
               <input type="hidden" name="id" value={contact.id} />
-              <Button size="sm" variant="ghost" className="text-danger">
+              <SubmitButton size="sm" variant="ghost" className="text-danger">
                 Delete contact and their chats
-              </Button>
-            </form>
+              </SubmitButton>
+            </SaveForm>
           )}
         </div>
       </div>

@@ -5,9 +5,10 @@ import { Workflow } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
-import { Button, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { createAutomation } from "./actions";
 import { TRIGGER_LABEL } from "./labels";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Automations" };
 
@@ -29,9 +30,9 @@ export default async function Page() {
         description="When something happens, then do this: follow-ups, thank-yous, tags and assignments that run on their own."
         actions={
           role !== "agent" ? (
-            <form action={createAutomation}>
-              <Button>New automation</Button>
-            </form>
+            <SaveForm action={createAutomation}>
+              <SubmitButton>New automation</SubmitButton>
+            </SaveForm>
           ) : undefined
         }
       />

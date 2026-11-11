@@ -12,20 +12,20 @@ import { storeConfigFor, type StoreConfig } from "@/lib/stores";
 import { enqueue, kickJobs } from "@/lib/jobs";
 import { prepareSheet, runSheetSync, SHEET_KINDS, spreadsheetIdFrom } from "@/lib/sheets";
 
-export async function saveStore(form: FormData) {
+export async function saveStore(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const kind = String(form.get("kind")) as StoreKind;
   const v = (k: string) => String(form.get(k) ?? "").trim();
   let storeUrl = v("storeUrl").replace(/\/+$/, "");
   if (kind === "shopify") {
     storeUrl = storeUrl.replace(/^https?:\/\//, "");
-    if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(storeUrl)) redirect("/settings/integrations?error=shopify");
+    if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(storeUrl)) return { error: "Enter your store's .myshopify.com address, e.g. sunrise-books.myshopify.com." };
   } else if (kind === "woocommerce") {
-    if (!/^https:\/\/[^\s/]+/i.test(storeUrl)) redirect("/settings/integrations?error=woocommerce");
+    if (!/^https:\/\/[^\s/]+/i.test(storeUrl)) return { error: "Enter your shop's full https:// address." };
   } else return;
   // a blank secret keeps the saved one
   const webhookSecret = v("webhookSecret") || (await storeConfigFor(ctx.db, ctx.org.id, kind))?.webhookSecret || "";
-  if (webhookSecret.length < 16) redirect(`/settings/integrations?error=${kind}-secret`);
+  if (webhookSecret.length < 16) return { error: kind === "shopify" ? "Paste the webhook signing key from Shopify (at least 16 characters)." : "Use a secret of at least 16 characters, and the same one in WooCommerce." };
   const config: StoreConfig = {
     storeUrl,
     webhookSecret,
@@ -53,18 +53,18 @@ export async function removeStore(form: FormData) {
 
 const SHEET_KIND_LIST: SheetKind[] = ["leads", "appointments", "orders", "enquiries", "contacts"];
 
-export async function connectSheet(form: FormData) {
+export async function connectSheet(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
   const kind = String(form.get("kind")) as SheetKind;
   if (!SHEET_KIND_LIST.includes(kind)) return;
   const spreadsheetId = spreadsheetIdFrom(String(form.get("sheet") ?? ""));
-  if (!spreadsheetId) redirect("/settings/integrations?sheetError=Paste+the+sheet's+link+from+your+browser's+address+bar#sheets");
+  if (!spreadsheetId) return { error: "Paste the sheet's link from your browser's address bar." };
   const tab = String(form.get("tab") ?? "").trim().slice(0, 80) || SHEET_KINDS[kind].tab;
   let title = "";
   try {
     title = await prepareSheet(spreadsheetId, tab, kind);
   } catch (e) {
-    redirect(`/settings/integrations?sheetError=${encodeURIComponent((e as Error).message)}#sheets`);
+    return { error: (e as Error).message };
   }
   // "From now on" by default; "include existing" backfills everything.
   const cursorAt = form.get("backfill") === "on" ? new Date(0) : new Date();

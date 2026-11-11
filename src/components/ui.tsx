@@ -3,6 +3,7 @@ import { clsx } from "clsx";
 import { AlertCircle, ArrowDown, ArrowRight, Search } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { HelpButton } from "@/components/help-drawer";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const cx = clsx;
 
@@ -226,9 +227,9 @@ function EmptyButton({ a, variant, defaultLabel }: { a: EmptyAction; variant: Bt
   const label = a.label ?? defaultLabel;
   if (a.action) {
     return (
-      <form action={a.action}>
-        <Button variant={variant}>{label}</Button>
-      </form>
+      <SaveForm action={a.action}>
+        <SubmitButton variant={variant}>{label}</SubmitButton>
+      </SaveForm>
     );
   }
   if (a.href) return <ButtonLink href={a.href} variant={variant}>{label}</ButtonLink>;

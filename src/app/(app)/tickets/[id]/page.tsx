@@ -5,8 +5,9 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { dateTime } from "@/lib/format";
-import { Button, ButtonLink, Card, Field, Input, PageHeader, Select, Textarea, cx } from "@/components/ui";
+import { ButtonLink, Card, Field, Input, PageHeader, Select, Textarea, cx } from "@/components/ui";
 import { updateTicket } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata = { title: "Ticket" };
 
@@ -54,7 +55,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         </Card>
         <Card className="p-5">
-          <form action={updateTicket} className="space-y-4">
+          <SaveForm action={updateTicket} success="Ticket saved" className="space-y-4">
             <input type="hidden" name="id" value={t.id} />
             <Field label="Subject" htmlFor="subject">
               <Input id="subject" name="subject" defaultValue={t.subject} />
@@ -111,8 +112,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="notify" defaultChecked /> Message the customer when I mark it resolved
             </label>
-            <Button>Save ticket</Button>
-          </form>
+            <SubmitButton>Save ticket</SubmitButton>
+          </SaveForm>
         </Card>
       </div>
     </>

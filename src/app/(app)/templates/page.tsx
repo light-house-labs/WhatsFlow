@@ -4,14 +4,14 @@ import { FileText, Plus } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
-import { Alert, Button, ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 import { deleteTemplate, submitTemplate } from "./actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata: Metadata = { title: "Templates" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const sp = await searchParams;
+export default async function Page() {
   const { db: d, org, role } = await requireOrg();
   const rows = await d.select().from(schema.templates).where(eq(schema.templates.orgId, org.id)).orderBy(desc(schema.templates.createdAt));
   const pending = rows.some((r) => r.status === "pending");
@@ -30,7 +30,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         }
       />
       <div className="space-y-4 p-6">
-        {sp.error === "used" && <Alert tone="danger">That template is used by a campaign, so it can&apos;t be deleted.</Alert>}
         {rows.length === 0 ? (
 <EmptyState
             icon={<FileText />}
@@ -73,19 +72,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                       {role !== "agent" && (
                         <div className="flex gap-1">
                           {(t.status === "draft" || t.status === "rejected") && (
-                            <form action={submitTemplate}>
+                            <SaveForm action={submitTemplate} success="Submitted for approval">
                               <input type="hidden" name="id" value={t.id} />
-                              <Button size="sm" variant="secondary">
+                              <SubmitButton size="sm" variant="secondary" savingLabel="Submitting…" savedLabel="Submitted">
                                 Submit for approval
-                              </Button>
-                            </form>
+                              </SubmitButton>
+                            </SaveForm>
                           )}
-                          <form action={deleteTemplate}>
+                          <SaveForm action={deleteTemplate} success="Template deleted">
                             <input type="hidden" name="id" value={t.id} />
-                            <Button size="sm" variant="ghost" aria-label={`Delete ${t.name}`}>
+                            <SubmitButton size="sm" variant="ghost" aria-label={`Delete ${t.name}`} savingLabel="Deleting…" savedLabel="Deleted">
                               Delete
-                            </Button>
-                          </form>
+                            </SubmitButton>
+                          </SaveForm>
                         </div>
                       )}
                     </Td>

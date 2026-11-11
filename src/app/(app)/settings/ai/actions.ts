@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+
 import { eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
@@ -28,5 +28,4 @@ export async function saveAiSettings(form: FormData) {
   } else return;
   await ctx.db.update(schema.aiSettings).set(set).where(eq(schema.aiSettings.orgId, ctx.org.id));
   revalidatePath("/settings/ai");
-  redirect("/settings/ai?saved=1");
 }

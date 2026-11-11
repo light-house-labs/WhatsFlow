@@ -6,9 +6,10 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { limitsFor } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
-import { Button, ButtonLink, Card, EmptyState, PageHeader, SectionLabel, StatusBadge, Table, Td, Th } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, PageHeader, SectionLabel, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { STARTERS } from "@/lib/starter-flows";
 import { createFlow, createFromStarter, toggleFlow } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Bot flows" };
 
@@ -24,11 +25,11 @@ export default async function Page() {
         description={`Automatic conversations that answer, ask, tag and hand over to your team. ${live} of ${limit >= 1000 ? "unlimited" : limit} live.`}
         actions={
           role !== "agent" && (
-            <form action={createFlow}>
-              <Button>
+            <SaveForm action={createFlow}>
+              <SubmitButton>
                 <Plus size={15} strokeWidth={1.75} /> New flow
-              </Button>
-            </form>
+              </SubmitButton>
+            </SaveForm>
           )
         }
       />
@@ -40,7 +41,7 @@ export default async function Page() {
           </summary>
           <div className="grid border-t border-line md:grid-cols-2 xl:grid-cols-4">
             {Object.values(STARTERS).map((s) => (
-              <form
+              <SaveForm
                 key={s.key}
                 action={createFromStarter}
                 className="flex flex-col border-line px-6 py-5 max-md:border-b md:border-r md:[&:nth-child(2n)]:border-r-0 xl:[&:nth-child(2n)]:border-r xl:[&:nth-child(4n)]:border-r-0 md:max-xl:[&:nth-child(-n+2)]:border-b"
@@ -48,10 +49,10 @@ export default async function Page() {
                 <input type="hidden" name="starter" value={s.key} />
                 <div className="type-heading">{s.name}</div>
                 <p className="mt-1.5 flex-1 text-13 leading-relaxed text-muted">{s.description}</p>
-                <Button size="sm" variant="secondary" className="mt-4 self-start">
+                <SubmitButton size="sm" variant="secondary" className="mt-4 self-start">
                   Use this
-                </Button>
-              </form>
+                </SubmitButton>
+              </SaveForm>
             ))}
           </div>
         </details>
@@ -105,12 +106,12 @@ export default async function Page() {
                         <ButtonLink href={`/bots/${f.id}`} variant="ghost" size="sm">
                           Edit
                         </ButtonLink>
-                        <form action={toggleFlow}>
+                        <SaveForm action={toggleFlow}>
                           <input type="hidden" name="id" value={f.id} />
-                          <Button size="sm" variant={f.status === "live" ? "secondary" : "primary"}>
+                          <SubmitButton size="sm" variant={f.status === "live" ? "secondary" : "primary"}>
                             {f.status === "live" ? "Pause" : "Set live"}
-                          </Button>
-                        </form>
+                          </SubmitButton>
+                        </SaveForm>
                       </div>
                     </Td>
                   )}

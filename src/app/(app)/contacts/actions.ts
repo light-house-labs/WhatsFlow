@@ -10,16 +10,16 @@ import { toWaId } from "@/lib/phone";
 
 const tagList = (s: string) => [...new Set(s.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 20);
 
-export async function createContact(form: FormData) {
+export async function createContact(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg();
   const waId = toWaId(String(form.get("phone") ?? ""));
-  if (!waId) redirect("/contacts?error=phone");
+  if (!waId) return { error: "That doesn't look like a phone number." };
   const [c] = await ctx.db
     .insert(schema.contacts)
     .values({ orgId: ctx.org.id, waId, name: String(form.get("name") ?? "").trim() || null, tags: tagList(String(form.get("tags") ?? "")), source: "manual" })
     .onConflictDoNothing()
     .returning();
-  if (!c) redirect("/contacts?error=exists");
+  if (!c) return { error: "A contact with that number already exists." };
   redirect(`/contacts/${c.id}`);
 }
 

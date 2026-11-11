@@ -110,17 +110,18 @@ async function submit(ctx: Awaited<ReturnType<typeof requireOrg>>, templateId: s
   return null;
 }
 
-export async function submitTemplate(form: FormData) {
+export async function submitTemplate(form: FormData): Promise<{ error: string } | undefined> {
   const ctx = await requireOrg("admin");
-  await submit(ctx, String(form.get("id")));
+  const err = await submit(ctx, String(form.get("id")));
   revalidatePath("/templates");
+  if (err) return { error: err };
 }
 
 export async function deleteTemplate(form: FormData) {
   const ctx = await requireOrg("admin");
   const id = String(form.get("id"));
   const used = await ctx.db.select({ id: schema.campaigns.id }).from(schema.campaigns).where(eq(schema.campaigns.templateId, id)).limit(1);
-  if (used.length) redirect("/templates?error=used");
+  if (used.length) return { error: "A campaign uses this template, so it can't be deleted." };
   await ctx.db.delete(schema.templates).where(and(eq(schema.templates.id, id), eq(schema.templates.orgId, ctx.org.id)));
   revalidatePath("/templates");
 }

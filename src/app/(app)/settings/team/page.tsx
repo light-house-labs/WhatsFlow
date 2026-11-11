@@ -5,18 +5,16 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { limitsFor } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
-import { Alert, Button, Select, Table, Td, Th } from "@/components/ui";
+import { Select, Table, Td, Th } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { SettingsSection } from "@/components/settings";
 import { changeRole, removeMember, revokeInvite } from "../actions";
 import { InviteForm, InviteMemberButton } from "./invite-form";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Team" };
 
-const ERR: Record<string, string> = { self: "You can't change your own role or remove yourself.", owner: "Only an owner can change another owner." };
-
-export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const sp = await searchParams;
+export default async function Page() {
   const { db: d, org, user, role } = await requireOrg("admin");
   const [members, invites] = await Promise.all([
     d.select({ m: schema.memberships, u: schema.users }).from(schema.memberships).innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId)).where(eq(schema.memberships.orgId, org.id)),
@@ -25,9 +23,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
   const seats = limitsFor(org.plan).seats;
   return (
     <SettingsPage title="Team" summary={`${members.length} of ${seats} seats used · ${invites.length} pending ${invites.length === 1 ? "invite" : "invites"} · you are ${role}`} status={[{ label: "Seats used", value: `${members.length} of ${seats}`, tone: members.length >= seats ? "warn" : "on" }, { label: "Pending invites", value: String(invites.length), tone: invites.length ? "warn" : "off" }, { label: "Your role", value: role, tone: "on" }]} tips={["Agents work the inbox; admins also change settings.", "Only an owner can make another owner.", "Revoke an invite if it went to the wrong address."]}>
-      {sp.error && (
-        <Alert tone="danger">{ERR[sp.error] ?? "Something went wrong."}</Alert>
-      )}
       <SettingsSection title="Members" description={`${members.length} of ${seats} seats used on your plan. Everyone with access to this workspace.`} flush>
           <Table>
             <thead>
@@ -50,27 +45,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                     {u.id === user.id || (m.role === "owner" && role !== "owner") ? (
                       m.role
                     ) : (
-                      <form action={changeRole} className="flex gap-1">
+                      <SaveForm action={changeRole} success="Role changed" className="flex gap-1">
                         <input type="hidden" name="userId" value={u.id} />
                         <Select name="role" defaultValue={m.role} aria-label={`Role for ${u.name}`} className="h-8 w-32 text-13">
                           <option value="agent">Agent</option>
                           <option value="admin">Admin</option>
                           {role === "owner" && <option value="owner">Owner</option>}
                         </Select>
-                        <Button size="sm" variant="secondary">
+                        <SubmitButton size="sm" variant="secondary">
                           Save
-                        </Button>
-                      </form>
+                        </SubmitButton>
+                      </SaveForm>
                     )}
                   </Td>
                   <Td>
                     {u.id !== user.id && !(m.role === "owner" && role !== "owner") && (
-                      <form action={removeMember}>
+                      <SaveForm action={removeMember} success="Member removed">
                         <input type="hidden" name="userId" value={u.id} />
-                        <Button size="sm" variant="ghost" className="text-danger">
+                        <SubmitButton size="sm" variant="ghost" className="text-danger">
                           Remove
-                        </Button>
-                      </form>
+                        </SubmitButton>
+                      </SaveForm>
                     )}
                   </Td>
                 </tr>
@@ -99,12 +94,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                   <span className="flex-1">
                     {i.email} · {i.role} · sent {timeAgo(i.createdAt)}
                   </span>
-                  <form action={revokeInvite}>
+                  <SaveForm action={revokeInvite} success="Invite revoked">
                     <input type="hidden" name="id" value={i.id} />
-                    <Button size="sm" variant="ghost">
+                    <SubmitButton size="sm" variant="ghost">
                       Revoke
-                    </Button>
-                  </form>
+                    </SubmitButton>
+                  </SaveForm>
                 </li>
               ))}
             </ul>

@@ -26,6 +26,7 @@ import { Button, Field, Input, SectionLabel, Select, StatusBadge, Textarea, cx }
 import { HelpButton } from "@/components/help-drawer";
 import { Tour, type TourStep } from "@/components/tour";
 import { saveFlow } from "../actions";
+import { passThroughLoopNodes } from "@/lib/flows/graph";
 import { nowMs } from "@/lib/format";
 
 type Kind = FlowNode["type"];
@@ -49,7 +50,7 @@ const META: Record<Kind, { label: string; icon: typeof Bot; hint: string }> = {
 const TOUR: TourStep[] = [
   { target: ['[data-tour="palette"]'], side: "right", title: "Your blocks", body: "Everything a flow can do: send messages, ask questions, take orders, book times and hand over to your team." },
   { target: ['[data-tour="add-block"]'], side: "right", title: "Add a block", body: "Click any block to drop it on the canvas, to the right of the last one. You can drag it anywhere after." },
-  { target: ['.react-flow__node[data-id="t"]', '[data-tour="canvas"]'], side: "right", title: "Connect blocks", body: "Drag from the dot on the right of a block to the left edge of the next. Each button or option gets its own dot." },
+  { target: ['.react-flow__node[data-id="t"]', '[data-tour="canvas"]'], side: "right", title: "Connect blocks", body: "Drag from the dot on the right of a block to the left edge of the next. Each button or option gets its own dot. You can connect back to an earlier block to loop, as long as the loop has a question, buttons or list in it." },
   { target: ['[data-tour="settings"]'], side: "left", title: "Edit its settings", body: "Click a block to change its message, buttons or saved answer here. With nothing selected, this sets when the flow starts." },
   { target: ['[data-tour="test"]'], side: "bottom", title: "Test it", body: "Saves the flow and opens the sandbox phone so you can chat with it. Drafts work too, so test before setting it live." },
 ];
@@ -79,7 +80,8 @@ function BlockNode({ data, selected }: NodeProps<Node<Data>>) {
   const options = kind === "buttons" ? ((data.buttons as string[]) ?? []) : kind === "list" ? ((data.rows as string[]) ?? []) : [];
   const preview =
     kind === "tag" ? `#${data.tag || "…"}` : kind === "lead" ? String(data.title ?? "") : kind === "ticket" ? String(data.subject ?? "") : kind === "condition" ? `${data.variable || "?"} = “${data.equals ?? ""}”` : String(data.text ?? "");
-  const ring = selected ? "outline-2 outline-accent" : "";
+  const loopError = data.loopError === true;
+  const ring = loopError ? "outline-2 outline-danger" : selected ? "outline-2 outline-accent" : "";
   // Start/trigger: solid green pill
   if (kind === "trigger") {
     return (
@@ -101,6 +103,11 @@ function BlockNode({ data, selected }: NodeProps<Node<Data>>) {
         {kind === "handover" && <span className="section-label text-xs text-muted">End</span>}
       </div>
       <div className={cx("line-clamp-3 px-3 py-2.5 text-13 leading-snug", preview ? "font-semibold" : "text-muted")}>{preview || "Click to edit"}</div>
+      {loopError && (
+        <div role="alert" className="bg-danger-soft px-3 py-1.5 text-xs text-danger">
+          Loops forever: add a question, buttons or list to this loop.
+        </div>
+      )}
       {options.length > 0 ? (
         <div className="pb-1">
           {options.map((o, i) => (
@@ -169,6 +176,11 @@ export function Builder(props: {
   );
 
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId]);
+  // Display only: blocks in a loop that never waits for the customer.
+  const shownNodes = useMemo(() => {
+    const bad = passThroughLoopNodes({ nodes: nodes.map(fromRf), edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })) });
+    return bad.size ? nodes.map((n) => (bad.has(n.id) ? { ...n, data: { ...n.data, loopError: true } } : n)) : nodes;
+  }, [nodes, edges]);
   // Display only: edges in and out of the selected block read as the active path.
   const shownEdges = useMemo(
     () => (selectedId ? edges.map((e) => (e.source === selectedId || e.target === selectedId ? { ...e, className: "wf-path" } : e)) : edges),
@@ -280,7 +292,7 @@ export function Builder(props: {
         </aside>
         <div data-tour="canvas" className="wf-canvas min-w-0 flex-1 bg-canvas">
           <ReactFlow
-            nodes={nodes}
+            nodes={shownNodes}
             edges={shownEdges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
@@ -345,7 +357,7 @@ function TriggerPanel({ trigger, setTrigger }: { trigger: FlowTrigger; setTrigge
         </Field>
       )}
       <p className="border-t border-line pt-4 text-xs leading-relaxed text-muted">
-        Keyword flows win over “any new conversation” flows. While a bot is waiting for an answer, the customer&apos;s reply goes to the bot. If they reply with something that isn&apos;t one of the options, the chat is handed to your team.
+        Keyword flows win over “any new conversation” flows. While a bot is waiting for an answer, the customer&apos;s reply goes to the bot. If they reply with something that isn&apos;t one of the options, the chat is handed to your team, unless that block is set to ask again.
       </p>
     </div>
   );
@@ -439,6 +451,21 @@ function NodePanel({ data, update, remove }: { data: Data; update: (p: Record<st
         <Field label="Save the answer as" htmlFor="sa" hint="Letters, numbers and underscores. Appears in lead notes.">
           <Input id="sa" value={String(data.saveAs ?? "")} onChange={(e) => update({ saveAs: e.target.value.replace(/\W/g, "_") })} />
         </Field>
+      )}
+      {(kind === "question" || kind === "buttons" || kind === "list") && (
+        <>
+          <Field label="If the reply is invalid" htmlFor="oi" hint={kind === "question" ? "An empty reply, such as a photo or sticker, counts as invalid." : "Anything that isn't one of the options counts as invalid."}>
+            <Select id="oi" value={data.onInvalid === "reask" ? "reask" : "handover"} onChange={(e) => update({ onInvalid: e.target.value })}>
+              <option value="handover">Hand over to the team</option>
+              <option value="reask">Ask again</option>
+            </Select>
+          </Field>
+          {data.onInvalid === "reask" && (
+            <Field label="Ask again up to" htmlFor="mr" hint="After this many extra tries, the chat is handed to your team.">
+              <Input id="mr" type="number" min={1} max={5} value={String(data.maxRetries ?? 2)} onChange={(e) => update({ maxRetries: Math.min(5, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })} />
+            </Field>
+          )}
+        </>
       )}
       {kind === "condition" && (
         <>

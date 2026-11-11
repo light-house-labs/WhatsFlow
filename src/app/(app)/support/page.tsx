@@ -6,8 +6,9 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { dateTime, timeAgo } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { Alert, Button, ButtonLink, Card, Field, Input, PageHeader, StatusBadge, Textarea, cx } from "@/components/ui";
+import { ButtonLink, Card, Field, Input, PageHeader, StatusBadge, Textarea, cx } from "@/components/ui";
 import { openThread, reply } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Talk to a person" };
 
@@ -66,24 +67,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               ))}
               {current.status === "open" && <p className="text-center text-xs text-muted">Waiting for our team. You&apos;ll see the reply here.</p>}
             </div>
-            <form action={reply} className="mt-4 flex gap-2">
+            <SaveForm action={reply} success="Message sent" resetOnSuccess className="mt-4 flex gap-2">
               <input type="hidden" name="threadId" value={current.id} />
               <Textarea name="body" aria-label="Reply" className="min-h-9 flex-1" required />
-              <Button>Send</Button>
-            </form>
+              <SubmitButton>Send</SubmitButton>
+            </SaveForm>
           </Card>
         ) : (
           <Card className="p-5">
-            {sp.error && <Alert tone="danger">Write your question first.</Alert>}
-            <form action={openThread} className="space-y-4">
+            <SaveForm action={openThread} success="Sent to our team" className="space-y-4">
               <Field label="Subject" htmlFor="subject">
                 <Input id="subject" name="subject" placeholder="e.g. My number won't connect" />
               </Field>
               <Field label="What's happening?" htmlFor="body" hint="Screenshots help: paste a link. For billing, include what you expected to be charged.">
                 <Textarea id="body" name="body" rows={6} required />
               </Field>
-              <Button>Send to our team</Button>
-            </form>
+              <SubmitButton>Send to our team</SubmitButton>
+            </SaveForm>
           </Card>
         )}
       </div>

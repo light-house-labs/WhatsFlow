@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
-import { Alert, Button, Card, Field, Input, Select } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { Alert, Card, Field, Input, Select } from "@/components/ui";
 import { placeholderCount, render } from "@/lib/template-render";
 import { estimateCost } from "@/lib/meta-pricing";
 import { formatMoney } from "@/lib/plans";
-import { audienceSize, createCampaign, type CampaignState } from "../actions";
+import { AudiencePreview } from "@/components/audience-preview";
+import type { AudienceSummary } from "@/lib/segments";
+import { SaveForm, SubmitButton } from "@/components/save-form";
+import { audiencePreview, audienceSize, createCampaign } from "../actions";
 
 type Tpl = { id: string; name: string; body: string; category: "MARKETING" | "UTILITY" | "AUTHENTICATION"; headerText: string | null; headerType: string | null; footer: string | null };
 
@@ -27,13 +30,15 @@ export function Composer({
   segments: { id: string; name: string }[];
   initialSegment?: string;
 }) {
-  const [state, action, pending] = useActionState<CampaignState, FormData>(createCampaign, undefined);
   const [tplId, setTplId] = useState(templates[0].id);
   const [chosen, setChosen] = useState<string[]>(initialTags);
   const [segmentId, setSegmentId] = useState(initialSegment ?? "");
   const [when, setWhen] = useState("now");
   const [vars, setVars] = useState<Record<number, { src: string; text: string }>>({});
   const [size, setSize] = useState<{ total: number; reachable: number } | null>(null);
+  const [previewTag, setPreviewTag] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ key: string; data: AudienceSummary } | null>(null);
+  const previewKey = segmentId ? `s:${segmentId}` : previewTag ? `t:${previewTag}` : null;
   const tpl = templates.find((t) => t.id === tplId)!;
   const n = placeholderCount(tpl.body);
   const number = numbers[0];
@@ -45,6 +50,16 @@ export function Composer({
       live = false;
     };
   }, [chosen, tpl.category, segmentId]);
+
+  useEffect(() => {
+    if (!previewKey) return;
+    let live = true;
+    audiencePreview(segmentId ? { segmentId } : { tag: previewTag! }).then((data) => live && setPreview({ key: previewKey, data }));
+    return () => {
+      live = false;
+    };
+  }, [previewKey, segmentId, previewTag]);
+  const shownPreview = preview && preview.key === previewKey ? preview.data : null;
 
   const sample = Array.from({ length: n }, (_, i) => {
     const v = vars[i + 1];
@@ -59,8 +74,7 @@ export function Composer({
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[1fr_340px]">
       <Card className="p-5">
-        <form action={action} className="space-y-5">
-          {state?.error && <Alert tone="danger">{state.error}</Alert>}
+        <SaveForm action={(form) => createCampaign(undefined, form)} success={when === "now" ? "Campaign started" : "Campaign scheduled"} className="space-y-5">
           <Field label="Campaign name" htmlFor="name">
             <Input id="name" name="name" required placeholder="November reminders" />
           </Field>
@@ -100,9 +114,12 @@ export function Composer({
               </div>
             )}
             {segmentId ? (
-              <p className="text-xs text-muted">
-                Everyone who matches the segment when the campaign sends. <Link className="link" href={`/contacts/segments/${segmentId}`}>Edit segment</Link>
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted">
+                  Everyone who matches the segment when the campaign sends. <Link className="link" href={`/contacts/segments/${segmentId}`}>Edit segment</Link>
+                </p>
+                <div aria-live="polite">{shownPreview ? <AudiencePreview summary={shownPreview} marketing={tpl.category === "MARKETING"} /> : <p className="text-xs text-muted">Loading who&apos;s in it…</p>}</div>
+              </div>
             ) : (
             <>
             <p className="mb-2 text-xs text-muted">
@@ -121,6 +138,22 @@ export function Composer({
                 </label>
               ))}
             </div>
+            {tags.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <label htmlFor="previewTag">See who&apos;s in a list</label>
+                  <Select id="previewTag" value={previewTag ?? ""} onChange={(e) => setPreviewTag(e.target.value || null)} className="w-56">
+                    <option value="">Choose a tag…</option>
+                    {tags.map((t) => (
+                      <option key={t.tag} value={t.tag}>
+                        {t.tag}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div aria-live="polite">{previewTag && (shownPreview ? <AudiencePreview summary={shownPreview} marketing={tpl.category === "MARKETING"} /> : <p className="text-xs text-muted">Loading who&apos;s in it…</p>)}</div>
+              </div>
+            )}
             </>
             )}
           </fieldset>
@@ -158,8 +191,15 @@ export function Composer({
               {when === "later" && <Input type="datetime-local" name="scheduledAt" aria-label="Send at" className="w-56" required />}
             </div>
           </fieldset>
-          <Button disabled={pending || !size?.reachable}>{pending ? "Starting…" : when === "now" ? "Send campaign" : "Schedule campaign"}</Button>
-        </form>
+          <div className="flex flex-wrap items-center gap-3">
+            <SubmitButton disabled={!size?.reachable} savingLabel={when === "now" ? "Starting…" : "Scheduling…"} savedLabel={when === "now" ? "Started" : "Scheduled"}>
+              {when === "now" ? "Send campaign" : "Schedule campaign"}
+            </SubmitButton>
+            <span role="status" className="text-sm text-muted">
+              {size ? (size.reachable ? `Will go to ${size.reachable} ${size.reachable === 1 ? "person" : "people"}.` : "Nobody in this audience can receive it.") : "Counting recipients…"}
+            </span>
+          </div>
+        </SaveForm>
       </Card>
       <div className="space-y-4">
         <Card className="p-4 text-sm">

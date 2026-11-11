@@ -7,7 +7,7 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { formatMoney } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
-import { Alert, ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Orders" };
 
@@ -44,7 +44,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
     <>
       <PageHeader title="Orders" description="Orders taken in chat, with payment and delivery status." actions={<ButtonLink href="/orders/new">New order</ButtonLink>} />
       <div className="space-y-4 p-6">
-        {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         <div className={segmentedTrack}>
           {tab("all", "All")}
           {tab("unpaid", "Awaiting payment")}

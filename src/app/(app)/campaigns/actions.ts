@@ -8,7 +8,7 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { enqueue, kickJobs } from "@/lib/jobs";
 import { placeholderCount } from "@/lib/template-render";
-import { audienceWhere } from "@/lib/segments";
+import { audienceWhere, summarizeAudience, type AudienceSummary } from "@/lib/segments";
 
 export type CampaignState = { error?: string } | undefined;
 
@@ -24,6 +24,12 @@ export async function audienceSize(tags: string[], templateCategory: string, seg
   if (templateCategory !== "MARKETING") return { total: Number(all.n), reachable: Number(all.n) };
   const [ok] = await ctx.db.select({ n: sql<number>`count(*)` }).from(schema.contacts).where(and(where, isNull(schema.contacts.optedOutAt)));
   return { total: Number(all.n), reachable: Number(ok.n) };
+}
+
+/** For the campaign wizard: what one tag or saved segment holds. */
+export async function audiencePreview(list: { tag?: string; segmentId?: string }): Promise<AudienceSummary> {
+  const ctx = await requireOrg();
+  return summarizeAudience(ctx.db, ctx.org.id, list);
 }
 
 export async function createCampaign(_: CampaignState, form: FormData): Promise<CampaignState> {

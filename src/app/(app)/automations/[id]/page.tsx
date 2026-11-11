@@ -5,9 +5,10 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { dateTime } from "@/lib/format";
-import { Button, Card, PageHeader, StatusBadge } from "@/components/ui";
+import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { deleteAutomation } from "../actions";
 import { Editor } from "./editor";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Automation" };
 
@@ -61,12 +62,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </ul>
             )}
           </Card>
-          <form action={deleteAutomation}>
+          <SaveForm action={deleteAutomation} success="Automation deleted">
             <input type="hidden" name="id" value={a.id} />
-            <Button variant="ghost" size="sm" className="text-danger">
+            <SubmitButton variant="ghost" size="sm" className="text-danger">
               Delete automation
-            </Button>
-          </form>
+            </SubmitButton>
+          </SaveForm>
         </div>
       </div>
     </>

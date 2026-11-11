@@ -1,10 +1,11 @@
 "use client";
 
+import { SaveForm, SubmitButton } from "@/components/save-form";
 import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { DndContext, PointerSensor, KeyboardSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CalendarClock, Columns3, Plus, X } from "lucide-react";
-import { Button, ButtonLink, Card, EmptyState, Field, Input, Select, Textarea, cx } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { formatMoney } from "@/lib/plans";
 import { addStage, deleteLead, deleteStage, moveLead, renameStage, updateLead } from "./actions";
 
@@ -69,7 +70,7 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
         })}
       </DndContext>
       {canEditStages && (
-        <form id="new-stage" action={addStage} className="w-64 shrink-0 space-y-2">
+        <SaveForm id="new-stage" action={addStage} success="Stage added" resetOnSuccess className="w-64 shrink-0 space-y-2">
           <Input name="name" placeholder="New stage" aria-label="New stage name" />
           <div className="flex gap-2">
             <Select name="kind" aria-label="Stage type" className="h-8 text-13">
@@ -77,11 +78,11 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
               <option value="won">Won</option>
               <option value="lost">Lost</option>
             </Select>
-            <Button size="sm" variant="secondary">
+            <SubmitButton size="sm" variant="secondary" savedLabel="Added">
               Add
-            </Button>
+            </SubmitButton>
           </div>
-        </form>
+        </SaveForm>
       )}
       {open && <LeadDrawer lead={open} members={members} onClose={() => setOpen(null)} />}
     </div>
@@ -171,7 +172,7 @@ function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: str
             <X size={16} strokeWidth={1.75} />
           </button>
         </div>
-        <form action={async (f) => { await updateLead(f); onClose(); }} className="space-y-4">
+        <SaveForm action={updateLead} success="Lead saved" onSaved={onClose} className="space-y-4">
           <input type="hidden" name="id" value={lead.id} />
           <Field label="Title" htmlFor="title">
             <Input id="title" name="title" defaultValue={lead.title} />
@@ -197,20 +198,20 @@ function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: str
           </Field>
           <p className="section-label text-faint">Source: {lead.source}</p>
           <div className="flex gap-2">
-            <Button>Save</Button>
+            <SubmitButton>Save</SubmitButton>
             {lead.conversationId && (
               <ButtonLink href={`/inbox?c=${lead.conversationId}`} variant="ghost" className="ml-2">
                 Open chat
               </ButtonLink>
             )}
           </div>
-        </form>
-        <form action={async (f) => { await deleteLead(f); onClose(); }} className="mt-8 border-t border-line pt-4">
+        </SaveForm>
+        <SaveForm action={deleteLead} success="Lead deleted" onSaved={onClose} className="mt-8 border-t border-line pt-4">
           <input type="hidden" name="id" value={lead.id} />
-          <Button variant="ghost" size="sm" className="text-danger">
+          <SubmitButton variant="ghost" size="sm" className="text-danger" savingLabel="Deleting…" savedLabel="Deleted">
             Delete lead
-          </Button>
-        </form>
+          </SubmitButton>
+        </SaveForm>
       </Card>
     </div>
   );

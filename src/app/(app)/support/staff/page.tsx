@@ -3,8 +3,9 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { dateTime } from "@/lib/format";
-import { Button, Card, PageHeader, StatusBadge, Textarea, cx } from "@/components/ui";
+import { Card, PageHeader, StatusBadge, Textarea, cx } from "@/components/ui";
 import { reply } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 /** Support queue for WhatsFlow staff (users with is_staff). Customers never see this. */
 export const metadata = { title: "Support queue" };
@@ -45,11 +46,11 @@ export default async function Page() {
                   </div>
                 ))}
               </div>
-              <form action={reply} className="mt-3 flex gap-2">
+              <SaveForm action={reply} success="Reply sent" resetOnSuccess className="mt-3 flex gap-2">
                 <input type="hidden" name="threadId" value={x.t.id} />
                 <Textarea name="body" aria-label="Staff reply" className="min-h-9 flex-1" required />
-                <Button>Reply</Button>
-              </form>
+                <SubmitButton>Reply</SubmitButton>
+              </SaveForm>
             </Card>
           ))}
       </div>

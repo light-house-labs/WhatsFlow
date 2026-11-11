@@ -4,14 +4,15 @@ import { eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { sandboxPaymentsAllowed } from "@/lib/payments";
-import { Alert, Badge, Button, EmptyState, Field, Input } from "@/components/ui";
+import { Alert, Badge, EmptyState, Field, Input } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
 import { SettingsSection } from "@/components/settings";
 import { removePaymentProvider, savePaymentProvider, saveReminder } from "./actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "Payments" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const sp = await searchParams;
   const { db: d, org } = await requireOrg("admin");
   const rows = await d.select().from(schema.integrations).where(eq(schema.integrations.orgId, org.id));
@@ -45,9 +46,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     <SettingsPage title="Payments" summary={rows.length ? `${rows.length} ${rows.length === 1 ? "provider" : "providers"} connected · reminders ${org.paymentReminderHours ? `after ${org.paymentReminderHours}h` : "off"}` : "No provider connected"} status={[{ label: "Razorpay", value: hasRzp ? "Connected" : "Not connected", tone: hasRzp ? "on" : "off" }, { label: "Stripe", value: hasStripe ? "Connected" : "Not connected", tone: hasStripe ? "on" : "off" }, { label: "Reminder", value: org.paymentReminderHours ? `After ${org.paymentReminderHours}h` : "Off", tone: org.paymentReminderHours ? "on" : "off" }]} tips={["Money goes straight to your own account.", "Add the webhook URL so paid links update orders.", "If both are connected, Razorpay is used."]}>
       <div className="space-y-3 empty:hidden">
         {sp.saved === "1" && <Alert tone="success">Connected. New payment links will use it.</Alert>}
-        {sp.saved === "reminder" && <Alert tone="success">Reminder setting saved.</Alert>}
-        {sp.error === "razorpay" && <Alert tone="danger">Check the Razorpay key ID (starts rzp_live_ or rzp_test_), key secret and webhook secret.</Alert>}
-        {sp.error === "stripe" && <Alert tone="danger">Check the Stripe secret key (sk_ or rk_) and webhook signing secret (whsec_).</Alert>}
       </div>
       <p className="text-sm text-muted">Send payment links in chat. Money goes straight to your own Razorpay or Stripe account; we never touch it.</p>
       {!rows.length && (
@@ -69,7 +67,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 <div className="mb-1 text-muted">{p.webhookHelp}</div>
                 <code className="break-all">{`${base}/api/webhooks/payments/${p.kind}/${org.id}`}</code>
               </div>
-              <form action={savePaymentProvider} className="space-y-3">
+              <SaveForm action={savePaymentProvider} success="Payment provider saved" className="space-y-3">
                 <input type="hidden" name="kind" value={p.kind} />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {p.fields.map(([name, label, hint]) => (
@@ -79,16 +77,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm">{row ? "Replace keys" : "Connect"}</Button>
+                  <SubmitButton size="sm">{row ? "Replace keys" : "Connect"}</SubmitButton>
                 </div>
-              </form>
+              </SaveForm>
               {row && (
-                <form action={removePaymentProvider}>
+                <SaveForm action={removePaymentProvider} success="Payment provider removed">
                   <input type="hidden" name="kind" value={p.kind} />
-                  <Button size="sm" variant="ghost" className="text-danger">
+                  <SubmitButton size="sm" variant="ghost" className="text-danger">
                     Disconnect {p.name}
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </SaveForm>
               )}
             </SettingsSection>
           );

@@ -5,12 +5,13 @@ import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { formatMoney } from "@/lib/plans";
-import { Alert, Button, Card, EmptyState, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Card, EmptyState, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { createOrderAction } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
 
 export const metadata: Metadata = { title: "New order" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ contact?: string; error?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ contact?: string }> }) {
   const sp = await searchParams;
   const { db: d, org, role } = await requireOrg();
   const [products, contacts] = await Promise.all([
@@ -21,7 +22,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     <>
       <PageHeader title="New order" description="Pick the customer and the products. Prices come from your catalog." />
       <div className="max-w-2xl space-y-4 p-6">
-        {sp.error && <Alert tone="danger">{sp.error}</Alert>}
         {products.length === 0 ? (
           <EmptyState
             icon={<Package />}
@@ -31,7 +31,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
             askAdmin="add products"
           />
         ) : (
-          <form action={createOrderAction} className="space-y-4">
+          <SaveForm action={createOrderAction} success="Order created" className="space-y-4">
             <Card className="space-y-4 p-5">
               <Field label="Customer" htmlFor="contactId">
                 <Select id="contactId" name="contactId" defaultValue={sp.contact ?? ""} required>
@@ -64,8 +64,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                 <input type="checkbox" name="sendLink" defaultChecked /> Send the order summary and a payment link in the chat
               </label>
             </Card>
-            <Button>Create order</Button>
-          </form>
+            <SubmitButton>Create order</SubmitButton>
+          </SaveForm>
         )}
       </div>
     </>

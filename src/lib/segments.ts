@@ -1,13 +1,21 @@
-import { and, arrayOverlaps, eq, inArray, isNotNull, isNull, not, or, sql, type SQL } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, inArray, isNotNull, isNull, not, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 import type { Audience, SegmentCondition, SegmentRules } from "@/db/schema";
+import { conditionTags } from "@/lib/segment-tags";
 
 const days = z.coerce.number().int().min(1).max(3650);
 
 export const ConditionSchema = z.discriminatedUnion("field", [
-  z.object({ field: z.literal("tag"), op: z.enum(["has", "lacks"]), value: z.string().trim().min(1).max(40) }),
+  z
+    .object({
+      field: z.literal("tag"),
+      op: z.enum(["has", "lacks"]),
+      value: z.string().trim().min(1).max(40).optional(),
+      values: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+    })
+    .refine((x) => Boolean(x.value) || Boolean(x.values?.length), { message: "Choose at least one tag.", path: ["values"] }),
   z.object({ field: z.literal("source"), op: z.enum(["is", "is_not"]), value: z.string().trim().min(1).max(40) }),
   z.object({
     field: z.literal("custom"),
@@ -36,7 +44,7 @@ function paidOrderExists(sinceDays?: number) {
 function conditionSql(x: SegmentCondition): SQL {
   switch (x.field) {
     case "tag":
-      return x.op === "has" ? sql`${x.value} = any(${c.tags})` : sql`not (${x.value} = any(${c.tags}))`;
+      return x.op === "has" ? arrayOverlaps(c.tags, conditionTags(x)) : not(arrayOverlaps(c.tags, conditionTags(x)));
     case "source":
       return x.op === "is" ? eq(c.source, x.value) : not(eq(c.source, x.value));
     case "custom": {
@@ -87,8 +95,10 @@ const SOURCE_LABEL: Record<string, string> = { whatsapp: "WhatsApp", ad: "an ad"
 /** Plain-English description of a condition, for lists and previews. */
 export function describeCondition(x: SegmentCondition): string {
   switch (x.field) {
-    case "tag":
-      return x.op === "has" ? `tagged ${x.value}` : `not tagged ${x.value}`;
+    case "tag": {
+      const tags = conditionTags(x).join(" or ");
+      return x.op === "has" ? `tagged ${tags}` : `not tagged ${tags}`;
+    }
     case "source":
       return `${x.op === "is" ? "came from" : "didn't come from"} ${SOURCE_LABEL[x.value] ?? x.value}`;
     case "custom":
@@ -115,4 +125,33 @@ export function describeRules(r: SegmentRules) {
 export async function countSegment(d: DB, orgId: string, rules: SegmentRules) {
   const [row] = await d.select({ n: sql<number>`count(*)` }).from(c).where(segmentWhere(orgId, rules));
   return Number(row.n);
+}
+
+export type AudienceSummary = {
+  total: number;
+  optedOut: number;
+  /** The filter in plain words. */
+  criteria: string;
+  sample: { id: string; name: string | null; waId: string }[];
+  /** Where "View all" goes. */
+  href: string;
+};
+
+/** What a list holds: who it is, how many, how many are opted out, and the first few people. */
+export async function summarizeAudience(d: DB, orgId: string, audience: { tag?: string; segmentId?: string }): Promise<AudienceSummary> {
+  const where = await audienceWhere(d, orgId, audience.segmentId ? { segmentId: audience.segmentId } : { tags: [audience.tag ?? ""] });
+  const [countRows, sample, segRows] = await Promise.all([
+    d.select({ total: sql<number>`count(*)`, optedOut: sql<number>`count(${c.optedOutAt})` }).from(c).where(where),
+    d.select({ id: c.id, name: c.name, waId: c.waId }).from(c).where(where).orderBy(desc(c.createdAt)).limit(5),
+    audience.segmentId ? d.select().from(schema.segments).where(and(eq(schema.segments.id, audience.segmentId), eq(schema.segments.orgId, orgId))).limit(1) : Promise.resolve([]),
+  ]);
+  const counts = countRows[0];
+  const seg = segRows[0];
+  return {
+    total: Number(counts.total),
+    optedOut: Number(counts.optedOut),
+    criteria: audience.segmentId ? (seg ? describeRules(seg.rules) : "This segment no longer exists") : `tagged ${audience.tag}`,
+    sample,
+    href: audience.segmentId ? `/contacts?segment=${audience.segmentId}` : `/contacts?tag=${encodeURIComponent(audience.tag ?? "")}`,
+  };
 }

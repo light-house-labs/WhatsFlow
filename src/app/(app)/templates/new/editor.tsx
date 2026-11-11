@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { FileText, Film, ImageIcon } from "lucide-react";
-import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { UploadField } from "@/components/upload-field";
 import { placeholderCount, render } from "@/lib/template-render";
-import { createTemplate, type TplState } from "../actions";
+import { SaveForm, SubmitButton } from "@/components/save-form";
+import { createTemplate } from "../actions";
 
 type Btn = { type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER"; text: string; value: string };
 
@@ -17,7 +18,6 @@ const STARTERS = [
 ];
 
 export function TemplateEditor() {
-  const [state, action, pending] = useActionState<TplState, FormData>(createTemplate, undefined);
   const [body, setBody] = useState("");
   const [header, setHeader] = useState("");
   const [headerType, setHeaderType] = useState<"none" | "text" | "image" | "video" | "document">("none");
@@ -30,8 +30,7 @@ export function TemplateEditor() {
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[1fr_340px]">
       <Card className="p-5">
-        <form action={action} className="space-y-4">
-          {state?.error && <Alert tone="danger">{state.error}</Alert>}
+        <SaveForm action={(form) => createTemplate(undefined, form)} success="Template saved" className="space-y-4">
           <div className="flex flex-wrap gap-1.5">
             <span className="text-xs text-muted">Start from:</span>
             {STARTERS.map((s) => (
@@ -145,14 +144,14 @@ export function TemplateEditor() {
             {category === "MARKETING" && <p className="text-xs text-muted">We add a “Stop offers” button to marketing templates so customers can opt out in one tap.</p>}
           </div>
           <div className="flex gap-2">
-            <Button name="submit" value="1" disabled={pending}>
-              {pending ? "Submitting…" : "Submit for approval"}
-            </Button>
-            <Button name="submit" value="0" variant="secondary" disabled={pending}>
+            <SubmitButton name="submit" value="1" savingLabel="Submitting…" savedLabel="Submitted">
+              Submit for approval
+            </SubmitButton>
+            <SubmitButton name="submit" value="0" variant="secondary">
               Save draft
-            </Button>
+            </SubmitButton>
           </div>
-        </form>
+        </SaveForm>
       </Card>
       <div className="space-y-3">
         <div className="section-label text-faint">Preview</div>
