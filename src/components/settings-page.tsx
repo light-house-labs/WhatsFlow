@@ -29,7 +29,7 @@ export function SettingsPage({
   const card = "rounded-xl border border-line bg-surface p-4";
   return (
     <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <aside className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:order-2 xl:grid-cols-1 xl:self-start">
+      <aside className="grid gap-4 max-md:order-2 md:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:order-2 xl:grid-cols-1 xl:self-start">
         <div className={cx(card, "hidden lg:block")}>
           <h2 className="section-label mb-2 text-faint">On this page</h2>
           <SettingsToc />
@@ -60,13 +60,13 @@ export function SettingsPage({
           </Link>
         </div>
       </aside>
-      <div className="flex min-w-0 max-w-[760px] flex-col gap-4 xl:order-1">
+      <div className="flex min-w-0 max-w-[760px] flex-col gap-4 max-md:order-1 xl:order-1">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="type-title text-ink">{title}</h2>
+            <h2 className="type-title text-ink max-md:sr-only">{title}</h2>
             <p className="mt-0.5 text-sm text-muted">{summary}</p>
           </div>
-          <HelpButton className="shrink-0" />
+          <HelpButton className="shrink-0 max-md:hidden" />
         </header>
         {children}
       </div>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Filter, Upload, Users } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
@@ -10,6 +10,8 @@ import { describeRules, segmentWhere } from "@/lib/segments";
 import { SaveForm, SubmitButton } from "@/components/save-form";
 import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
 import { bulkTag, createContact } from "./actions";
+import { DesktopOnly, MobileOnly } from "@/components/mobile/grouped";
+import { MobileContacts, MobileNewContact } from "./mobile-contacts";
 
 export const metadata: Metadata = { title: "Contacts" };
 
@@ -22,14 +24,33 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const segments = await d.select().from(schema.segments).where(eq(schema.segments.orgId, org.id)).orderBy(schema.segments.name);
   const segment = segments.find((x) => x.id === sp.segment);
   if (segment) where.push(segmentWhere(org.id, segment.rules));
-  const [rows, tagRows, [count]] = await Promise.all([
+  const [rows, tagRows, [count], az] = await Promise.all([
     d.select().from(schema.contacts).where(and(...where)).orderBy(desc(schema.contacts.createdAt)).limit(200),
     d.execute(sql`select t as tag, count(*)::int as n from contacts, unnest(tags) t where org_id = ${org.id} group by t order by n desc limit 30`),
     d.select({ n: sql<number>`count(*)` }).from(schema.contacts).where(eq(schema.contacts.orgId, org.id)),
+    // The phone list is alphabetical with an A-Z scrubber, so it gets its own ordering.
+    d
+      .select({ id: schema.contacts.id, name: schema.contacts.name, waId: schema.contacts.waId, tags: schema.contacts.tags, optedOutAt: schema.contacts.optedOutAt })
+      .from(schema.contacts)
+      .where(and(...where))
+      .orderBy(sql`lower(coalesce(${schema.contacts.name}, '~'))`, asc(schema.contacts.waId))
+      .limit(1000),
   ]);
   const tags = ((tagRows as unknown as { rows?: { tag: string; n: number }[] }).rows ?? (tagRows as unknown as { tag: string; n: number }[]));
   return (
     <>
+      <MobileOnly className="min-h-full">
+        {sp.new ? (
+          <MobileNewContact name={sp.name} phone={sp.phone} />
+        ) : (
+          <MobileContacts
+            q={sp.q ?? ""}
+            total={Number(count.n)}
+            contacts={az.map((c) => ({ id: c.id, name: c.name, waId: c.waId, tags: c.tags, optedOut: Boolean(c.optedOutAt) }))}
+          />
+        )}
+      </MobileOnly>
+      <DesktopOnly>
       <PageHeader
         title="Contacts"
         description={`${Number(count.n)} people. Everyone who messages you is saved automatically.`}
@@ -157,6 +178,7 @@ sp.q || sp.tag || segment ? (
           </Card>
 )}
       </div>
+      </DesktopOnly>
     </>
   );
 }

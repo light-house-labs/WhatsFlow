@@ -14,7 +14,8 @@ const btn: Record<BtnVariant, string> = {
   ghost: "text-ink px-2! hover:bg-fill disabled:text-faint disabled:hover:bg-transparent",
   danger: "bg-danger-soft text-danger hover:bg-danger-hover disabled:bg-fill disabled:text-faint",
 };
-const btnSize = { sm: "h-8 px-3 text-13", md: "h-9 px-4 text-sm" };
+// Phones get 44px tap targets; desktop sizes are unchanged.
+const btnSize = { sm: "h-8 px-3 text-13 max-md:h-11", md: "h-9 px-4 text-sm max-md:h-11 max-md:text-base" };
 const btnBase =
   "inline-flex items-center justify-center gap-2 rounded-md font-medium tracking-[-0.005em] transition-surface disabled:cursor-not-allowed active:translate-y-px";
 
@@ -63,13 +64,13 @@ const field =
   "w-full rounded-md border border-line-strong bg-field px-3 text-sm text-ink placeholder:text-placeholder transition-surface disabled:bg-fill disabled:text-faint";
 
 export function Input({ className, ...p }: ComponentProps<"input">) {
-  return <input className={cx(field, "h-9", className)} {...p} />;
+  return <input className={cx(field, "h-9 max-md:h-11", className)} {...p} />;
 }
 export function Textarea({ className, ...p }: ComponentProps<"textarea">) {
   return <textarea className={cx(field, "py-2 min-h-20 leading-relaxed", className)} {...p} />;
 }
 export function Select({ className, ...p }: ComponentProps<"select">) {
-  return <select className={cx(field, "h-9 pr-8", className)} {...p} />;
+  return <select className={cx(field, "h-9 pr-8 max-md:h-11", className)} {...p} />;
 }
 
 /** Field label: sans 12/16/600. */
@@ -194,14 +195,15 @@ export const navIcon = (on: boolean) => cx("shrink-0", on ? "text-accent" : "tex
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line bg-surface px-6 pb-4 pt-6">
-      <div className="min-w-0">
+    // On a phone the shell's header carries the title and help lives under More, so only the actions remain.
+    <div className={cx("flex flex-wrap items-end justify-between gap-4 border-b border-line bg-surface px-6 pb-4 pt-6 max-md:px-4 max-md:py-3", !actions && "max-md:hidden")}>
+      <div className="min-w-0 max-md:hidden">
         <h1 className="type-title text-ink">{title}</h1>
         {description && <p className="mt-2 max-w-[68ch] text-sm text-muted">{description}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {actions}
-        <HelpButton />
+        <HelpButton className="max-md:hidden" />
       </div>
     </div>
   );

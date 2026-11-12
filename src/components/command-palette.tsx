@@ -172,11 +172,11 @@ export function SearchButton() {
         onClick={open}
         aria-label="Search"
         aria-keyshortcuts={isApple ? "Meta+K" : "Control+K"}
-        className="flex h-8 w-full items-center gap-2 rounded-md border border-line-input bg-surface px-2.5 text-left text-13 text-faint shadow-xs transition-surface hover:border-line-strong hover:text-muted"
+        className="flex h-8 w-full items-center gap-2 rounded-md border border-line-input bg-surface px-2.5 text-left text-13 text-faint shadow-xs transition-surface hover:border-line-strong hover:text-muted md:max-lg:justify-center md:max-lg:px-0"
       >
         <Search size={14} strokeWidth={1.75} aria-hidden className="shrink-0" />
-        <span className="flex-1 truncate">Search...</span>
-        <Kbd keys={SHORTCUTS.search} variant="plain" />
+        <span className="flex-1 truncate md:max-lg:hidden">Search...</span>
+        <Kbd keys={SHORTCUTS.search} variant="plain" className="shrink-0 font-sans text-xs text-faint md:max-lg:hidden" />
       </button>
     </Tip>
   );
@@ -571,9 +571,11 @@ function Palette({
         role="dialog"
         aria-modal="true"
         aria-label="Search"
-        className="absolute left-1/2 top-[15vh] w-[640px] max-w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-[12px] border border-line bg-surface shadow-[0_16px_48px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.06)]"
+        // Phone: a full-screen sheet with the field under the status bar and a Cancel button.
+        className="absolute left-1/2 top-[15vh] w-[640px] max-w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-[12px] border border-line bg-surface shadow-[0_16px_48px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.06)] max-md:inset-0 max-md:top-0 max-md:left-0 max-md:w-full max-md:max-w-none max-md:translate-x-0 max-md:rounded-none max-md:border-0 max-md:pt-[env(safe-area-inset-top)] max-md:shadow-none"
       >
         <Command
+          className="max-md:flex max-md:h-full max-md:flex-col"
           label="Search"
           shouldFilter={false}
           loop
@@ -582,7 +584,7 @@ function Palette({
           onValueChange={setValue}
           onKeyDown={onKeyDown}
         >
-          <div className="flex h-12 items-center gap-2.5 border-b border-line px-4">
+          <div className="flex h-12 items-center gap-2.5 border-b border-line px-4 max-md:h-14 max-md:shrink-0">
             <Search
               size={16}
               strokeWidth={1.75}
@@ -606,6 +608,9 @@ function Palette({
               ref={input}
               data-bare
               autoFocus
+              enterKeyHint="search"
+              autoCapitalize="none"
+              autoCorrect="off"
               value={query}
               onValueChange={setQuery}
               placeholder={
@@ -628,10 +633,13 @@ function Palette({
                 <X size={14} strokeWidth={1.75} />
               </button>
             )}
+            <button type="button" onClick={onClose} className="tap -mr-1 h-11 shrink-0 px-1 text-base text-accent-text md:hidden">
+              Cancel
+            </button>
           </div>
           <Command.List
             ref={list}
-            className="max-h-[min(60vh,calc(85vh-96px))] overflow-y-auto overscroll-contain p-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:leading-4 [&_[cmdk-group-heading]]:text-faint"
+            className="max-h-[min(60vh,calc(85vh-96px))] overflow-y-auto overscroll-contain p-2 max-md:max-h-none max-md:min-h-0 max-md:flex-1 max-md:pb-[env(safe-area-inset-bottom)] [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:leading-4 [&_[cmdk-group-heading]]:text-faint"
           >
             {!text &&
               !messagesOnly &&

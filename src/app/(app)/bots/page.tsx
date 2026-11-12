@@ -10,6 +10,7 @@ import { ButtonLink, Card, EmptyState, PageHeader, SectionLabel, StatusBadge, Ta
 import { STARTERS } from "@/lib/starter-flows";
 import { createFlow, createFromStarter, toggleFlow } from "./actions";
 import { SaveForm, SubmitButton } from "@/components/save-form";
+import { DesktopOnly, Group, GroupEmpty, MobileOnly, MobileScreen, Row } from "@/components/mobile/grouped";
 
 export const metadata: Metadata = { title: "Bot flows" };
 
@@ -18,8 +19,30 @@ export default async function Page() {
   const flows = await d.select().from(schema.botFlows).where(eq(schema.botFlows.orgId, org.id)).orderBy(desc(schema.botFlows.updatedAt));
   const live = flows.filter((f) => f.status === "live").length;
   const limit = limitsFor(org.plan).botFlows;
+  const trigger = (f: (typeof flows)[number]) =>
+    f.trigger.kind === "keyword" ? (f.trigger.keywords.length ? `Says: ${f.trigger.keywords.join(", ")}` : "No trigger keywords yet") : "Every new conversation";
   return (
     <>
+      <MobileOnly>
+        <MobileScreen>
+          {flows.length === 0 ? (
+            <GroupEmpty icon={<Bot />} title="No flows yet" description="Bot flows are built on a computer. Open WhatsFlow there to create your first one." />
+          ) : (
+            <Group title={`${live} of ${limit >= 1000 ? "unlimited" : limit} live`} footer="Flows are edited on a computer. Here you can check them and switch them on or off.">
+              {flows.map((f) => (
+                <Row
+                  key={f.id}
+                  href={`/bots/${f.id}`}
+                  title={f.name}
+                  meta={`${trigger(f)} · ${f.runs} runs`}
+                  trailing={<StatusBadge status={f.status} />}
+                />
+              ))}
+            </Group>
+          )}
+        </MobileScreen>
+      </MobileOnly>
+      <DesktopOnly>
       <PageHeader
         title="Bot flows"
         description={`Automatic conversations that answer, ask, tag and hand over to your team. ${live} of ${limit >= 1000 ? "unlimited" : limit} live.`}
@@ -121,6 +144,7 @@ export default async function Page() {
           </Table></Card>
         </div>
       )}
+      </DesktopOnly>
     </>
   );
 }

@@ -8,6 +8,8 @@ import { openingStatus } from "@/lib/hours";
 import { FieldGrid, MessageField, SettingsSection, TimezoneSelect, Toggle } from "@/components/settings";
 import { addQuickReply, deleteQuickReply, saveInboxSettings } from "./actions";
 import { SaveForm, SubmitButton } from "@/components/save-form";
+import { vapidPublicKey } from "@/lib/push";
+import { NotificationsToggle } from "../more/more-client";
 
 export const metadata: Metadata = { title: "Inbox settings" };
 
@@ -80,6 +82,9 @@ export default async function Page() {
       ) : (
         <Alert tone="accent">Only owners and admins can change automatic replies and hours. You can manage quick replies below.</Alert>
       )}
+      <SettingsSection title="Notifications" description="Push notifications for new customer messages and chats assigned to you. Each phone or computer is switched on separately.">
+        <NotificationsToggle vapidKey={vapidPublicKey()} variant="card" />
+      </SettingsSection>
       <SettingsSection title="Quick replies" description="Type / in the inbox to use them.">
         {replies.length > 0 && (
           <ul className="divide-y divide-line">

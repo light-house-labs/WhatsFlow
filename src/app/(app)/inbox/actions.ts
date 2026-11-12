@@ -7,6 +7,7 @@ import { sendInConversation, SendError } from "@/lib/wa/outbound";
 import { stopBot } from "@/lib/flows/engine";
 import { nextTicketNumber } from "@/lib/crm";
 import { emit } from "@/lib/events";
+import { queuePush } from "@/lib/push";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -91,6 +92,17 @@ export async function assign(conversationId: string, userId: string | null): Pro
   await ctx.db
     .update(schema.conversations)
     .set({ assigneeId: userId, ...(userId ? { handledBy: "human" as const } : {}) })
+    .where(eq(schema.conversations.id, conversationId));
+  if (userId && userId !== ctx.user.id) await queuePush(ctx.db, "assigned", { conversationId, byUserId: ctx.user.id }).catch(() => {});
+  return { ok: true };
+}
+
+/** Swipe action on mobile: puts the unread dot back so the chat is picked up later. */
+export async function markUnread(conversationId: string): Promise<Result> {
+  const { ctx } = await ownedConversation(conversationId);
+  await ctx.db
+    .update(schema.conversations)
+    .set({ unreadCount: sql`greatest(${schema.conversations.unreadCount}, 1)` })
     .where(eq(schema.conversations.id, conversationId));
   return { ok: true };
 }

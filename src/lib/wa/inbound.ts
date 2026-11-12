@@ -7,6 +7,7 @@ import { runBot } from "@/lib/flows/engine";
 import { aiReply } from "@/lib/ai";
 import { emit, startAutomations } from "@/lib/events";
 import { routeConversation } from "@/lib/routing";
+import { queuePush } from "@/lib/push";
 import { availableSlots, bookAppointment, BookingError, cancelAppointment, nextAppointment, slotLabel } from "@/lib/booking";
 import { sendInConversation, windowOpen } from "./outbound";
 import type { WaNumber } from "./index";
@@ -36,6 +37,13 @@ export type InboundMessage = {
  * Idempotent on waMessageId: a retried webhook is a no-op.
  */
 export async function handleInbound(d: DB, number: WaNumber, m: InboundMessage, opts: { testFlowId?: string } = {}) {
+  const r = await receive(d, number, m, opts);
+  // After the bot and routing have run, so the push goes to whoever now owns the chat.
+  if (!r.duplicate && !opts.testFlowId) await queuePush(d, "inbound", { conversationId: r.conversationId }).catch((e) => console.error("[push]", e));
+  return r;
+}
+
+async function receive(d: DB, number: WaNumber, m: InboundMessage, opts: { testFlowId?: string }) {
   const [dupe] = await d
     .select({ id: schema.messages.id })
     .from(schema.messages)

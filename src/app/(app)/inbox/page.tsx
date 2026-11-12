@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { and, eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { InboxApp } from "./inbox-app";
+import { InboxSwitch } from "./inbox-switch";
 
 export const metadata: Metadata = { title: "Inbox" };
 
@@ -23,5 +23,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     d.select({ provider: schema.waNumbers.provider, status: schema.waNumbers.status }).from(schema.waNumbers).where(eq(schema.waNumbers.orgId, org.id)),
   ]);
   const hasRealNumber = numbers.some((n) => n.provider !== "sandbox" && n.status !== "disconnected");
-  return <InboxApp me={user.id} members={members} quickReplies={quickReplies} templates={templates} initialId={c ?? null} hasRealNumber={hasRealNumber} isAdmin={role !== "agent"} />;
+  return <InboxSwitch me={user.id} members={members} quickReplies={quickReplies} templates={templates} initialId={c ?? null} hasRealNumber={hasRealNumber} isAdmin={role !== "agent"} />;
 }

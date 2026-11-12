@@ -9,6 +9,7 @@ import { formatMoney } from "@/lib/plans";
 import { AudiencePreview } from "@/components/audience-preview";
 import type { AudienceSummary } from "@/lib/segments";
 import { SaveForm, SubmitButton } from "@/components/save-form";
+import { stickyBar } from "@/components/mobile/grouped";
 import { audiencePreview, audienceSize, createCampaign } from "../actions";
 
 type Tpl = { id: string; name: string; body: string; category: "MARKETING" | "UTILITY" | "AUTHENTICATION"; headerText: string | null; headerType: string | null; footer: string | null };
@@ -191,7 +192,7 @@ export function Composer({
               {when === "later" && <Input type="datetime-local" name="scheduledAt" aria-label="Send at" className="w-56" required />}
             </div>
           </fieldset>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className={`flex flex-wrap items-center gap-3 max-md:flex-col-reverse max-md:items-stretch max-md:gap-2 ${stickyBar}`}>
             <SubmitButton disabled={!size?.reachable} savingLabel={when === "now" ? "Starting…" : "Scheduling…"} savedLabel={when === "now" ? "Started" : "Scheduled"}>
               {when === "now" ? "Send campaign" : "Schedule campaign"}
             </SubmitButton>

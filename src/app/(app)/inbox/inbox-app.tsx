@@ -65,11 +65,11 @@ import {
   takeOver,
 } from "./actions";
 
-type Member = { id: string; name: string };
-type QuickReply = { shortcut: string; body: string };
-type Tpl = { id: string; name: string; body: string; category: string };
+export type Member = { id: string; name: string };
+export type QuickReply = { shortcut: string; body: string };
+export type Tpl = { id: string; name: string; body: string; category: string };
 
-type ListItem = {
+export type ListItem = {
   id: string;
   status: string;
   handledBy: "bot" | "human";
@@ -83,7 +83,7 @@ type ListItem = {
   contactWaId: string;
 };
 
-type Message = {
+export type Message = {
   id: string;
   direction: "in" | "out";
   type: string;
@@ -102,7 +102,7 @@ type Note = {
   createdAt: string;
 };
 
-type Thread = {
+export type Thread = {
   conversation: {
     id: string;
     status: string;
@@ -145,6 +145,11 @@ type Thread = {
 
 // Whether this browser's agent is mid-reply; sent with each poll for the collision indicator.
 let typingNow = false;
+/** For the mobile composer, which shares the collision indicator. */
+export const setTyping = (v: boolean) => {
+  typingNow = v;
+};
+export const isTyping = () => typingNow;
 
 const FILTERS = [
   { id: "open", label: "All" },
@@ -155,11 +160,11 @@ const FILTERS = [
 ];
 
 // Waiting time stays text-3, turns amber past 30 minutes, red past the reply SLA.
-const WAIT_AMBER_MIN = 30;
-const SLA_MIN = 120;
+export const WAIT_AMBER_MIN = 30;
+export const SLA_MIN = 120;
 
 /** Compact age for list rows: 5m, 17h, 3d. */
-function shortAge(from: string): string {
+export function shortAge(from: string): string {
   const min = Math.max(
     0,
     Math.floor((nowMs() - new Date(from).getTime()) / 60000),
@@ -171,7 +176,7 @@ function shortAge(from: string): string {
 }
 
 /** "Today", "Yesterday", or a short date, in the viewer's time zone. */
-function dayLabel(iso: string): string {
+export function dayLabel(iso: string): string {
   const d = new Date(iso);
   const day = (x: Date) =>
     new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -185,7 +190,7 @@ function dayLabel(iso: string): string {
     ...(diff > 300 ? { year: "numeric" } : {}),
   });
 }
-const dayKey = (iso: string) => {
+export const dayKey = (iso: string) => {
   const d = new Date(iso);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
@@ -278,7 +283,7 @@ export function InboxApp({
     <div className="flex h-full bg-surface">
       {/* list */}
       <section
-        className="flex w-80 shrink-0 flex-col border-r border-line bg-surface"
+        className="flex w-80 shrink-0 flex-col border-r border-line bg-surface max-lg:w-72"
         aria-label="Conversations"
       >
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-line px-4">
@@ -506,7 +511,7 @@ export function InboxApp({
   );
 }
 
-function Ticks({ status }: { status: string }) {
+export function Ticks({ status }: { status: string }) {
   if (status === "failed")
     return (
       <AlertTriangle size={12} className="text-danger" aria-label="Failed" />
@@ -664,7 +669,7 @@ function ThreadView({
             )}
             <span
               className={cx(
-                "inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
+                "inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium max-lg:hidden",
                 conv.handledBy === "bot"
                   ? "bg-accent-soft text-accent-text"
                   : "bg-fill text-muted",
@@ -682,7 +687,7 @@ function ThreadView({
             )}
             <Select
               aria-label="Assignee"
-              className="w-40"
+              className="w-40 max-lg:w-32"
               value={conv.assigneeId ?? ""}
               onChange={(e) => act(assign(id, e.target.value || null))}
             >
@@ -1019,7 +1024,7 @@ function ThreadView({
   );
 }
 
-function MessageBubble({
+export function MessageBubble({
   m,
   who,
   contactName,
@@ -1061,7 +1066,7 @@ function MessageBubble({
       )}
       <div
         className={cx(
-          "max-w-[65%] rounded-lg px-3 py-2 text-sm text-ink",
+          "max-w-[65%] rounded-lg px-3 py-2 text-sm text-ink max-md:max-w-[82%] max-md:text-[15px] max-md:leading-5",
           !out
             ? "border border-line bg-bubble-in"
             : agent
@@ -1235,23 +1240,7 @@ function ContactPanel({
   thread: Thread;
   act: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean>;
 }) {
-  const { conversation: conv, contact } = thread;
-  const [label, setLabel] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [leadTitle, setLeadTitle] = useState("");
-  const [leadValue, setLeadValue] = useState("");
-  const [ticketSubject, setTicketSubject] = useState("");
-  const [priority, setPriority] = useState("normal");
-  // One section open at a time
-  const [open, setOpen] = useState<"lead" | "orders" | "ticket" | null>(null);
-  const toggle = (k: "lead" | "orders" | "ticket") =>
-    setOpen((o) => (o === k ? null : k));
-  const money = (o: Thread["orders"][number]) =>
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: o.currency,
-      maximumFractionDigits: 0,
-    }).format(o.totalMinor / 100);
+  const { contact } = thread;
   return (
     <aside
       className="hidden w-80 shrink-0 overflow-y-auto bg-surface xl:block"
@@ -1265,7 +1254,40 @@ function ContactPanel({
           {formatWaId(contact.waId)}
         </div>
       </div>
+      <ContactDetails thread={thread} act={act} />
+    </aside>
+  );
+}
 
+/** Tags, labels and the lead / orders / ticket accordions. The desktop right panel and the mobile contact sheet both render this. */
+export function ContactDetails({
+  thread,
+  act,
+  initialOpen = null,
+}: {
+  thread: Thread;
+  act: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean>;
+  initialOpen?: "lead" | "orders" | "ticket" | null;
+}) {
+  const { conversation: conv, contact } = thread;
+  const [label, setLabel] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [leadTitle, setLeadTitle] = useState("");
+  const [leadValue, setLeadValue] = useState("");
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [priority, setPriority] = useState("normal");
+  // One section open at a time
+  const [open, setOpen] = useState<"lead" | "orders" | "ticket" | null>(initialOpen);
+  const toggle = (k: "lead" | "orders" | "ticket") =>
+    setOpen((o) => (o === k ? null : k));
+  const money = (o: Thread["orders"][number]) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: o.currency,
+      maximumFractionDigits: 0,
+    }).format(o.totalMinor / 100);
+  return (
+    <>
       <div className="border-b border-line px-4 py-4">
         <div className="flex flex-wrap gap-1">
           {contact.tags.map((t) => (
@@ -1507,6 +1529,6 @@ function ContactPanel({
           </div>
         </form>
       </PanelSection>
-    </aside>
+    </>
   );
 }

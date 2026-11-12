@@ -99,15 +99,24 @@ export function Sidebar({ org, orgs, user, role, unread, trialDaysLeft, trialTot
       sessionStorage.setItem(LAST_APP_ROUTE, path + window.location.search);
     } catch {}
   }, [inSettings, path]);
-  if (inSettings) return <SettingsSidebar orgName={org.name} role={role} hasSandbox={hasSandbox} />;
+  if (inSettings)
+    return (
+      <div className="contents max-md:hidden">
+        <SettingsSidebar orgName={org.name} role={role} hasSandbox={hasSandbox} />
+      </div>
+    );
   const active = (href: string) => path === href || path.startsWith(href + "/");
+  // Tablet (768-1023): a 64px icon rail; the labels stay for screen readers. Phones use the bottom tab bar instead.
+  const rail = (on: boolean) => cx(item(on), "relative md:max-lg:justify-center md:max-lg:px-0");
   return (
-    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-line bg-app text-ink">
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2">
+    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-line bg-app text-ink max-md:hidden md:max-lg:w-16">
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2 md:max-lg:justify-center">
         <Link href="/dashboard" aria-label="WhatsFlow home" className="grid size-8 shrink-0 place-items-center rounded-md hover:bg-hover">
           <Logo compact />
         </Link>
-        <WorkspaceSwitcher org={org} orgs={orgs} />
+        <div className="contents md:max-lg:hidden">
+          <WorkspaceSwitcher org={org} orgs={orgs} />
+        </div>
       </div>
       <div className="shrink-0 px-2 pt-3">
         <SearchButton />
@@ -118,12 +127,12 @@ export function Sidebar({ org, orgs, user, role, unread, trialDaysLeft, trialTot
           if (!items.length) return null;
           return (
             <div key={g.label || "top"} className={g.label ? "pt-4" : undefined}>
-              {g.label && <div className="section-label px-2 pb-1.5 text-faint">{g.label}</div>}
+              {g.label && <div className="section-label px-2 pb-1.5 text-faint md:max-lg:sr-only">{g.label}</div>}
               {items.map(({ href, label, icon: Icon, badge }) => (
-                <Link key={href} href={href} aria-current={active(href) ? "page" : undefined} className={item(active(href))}>
+                <Link key={href} href={href} aria-current={active(href) ? "page" : undefined} className={rail(active(href))}>
                   <Icon size={16} strokeWidth={1.75} aria-hidden className={icon(active(href))} />
-                  <span className="flex-1">{label}</span>
-                  {badge && unread > 0 && <span className="count-badge">{unread}</span>}
+                  <span className="flex-1 md:max-lg:sr-only">{label}</span>
+                  {badge && unread > 0 && <span className="count-badge md:max-lg:absolute md:max-lg:-top-1 md:max-lg:right-0.5">{unread}</span>}
                 </Link>
               ))}
             </div>
@@ -131,18 +140,18 @@ export function Sidebar({ org, orgs, user, role, unread, trialDaysLeft, trialTot
         })}
       </nav>
       <div className="border-t border-line px-2 py-2">
-        <Link href="/settings" aria-current={active("/settings") ? "page" : undefined} className={item(active("/settings"))}>
+        <Link href="/settings" aria-current={active("/settings") ? "page" : undefined} className={rail(active("/settings"))}>
           <Settings size={16} strokeWidth={1.75} aria-hidden className={icon(active("/settings"))} />
-          <span className="flex-1">Settings</span>
+          <span className="flex-1 md:max-lg:sr-only">Settings</span>
         </Link>
-        <Link href="/support" aria-current={active("/support") ? "page" : undefined} className={item(active("/support"))}>
+        <Link href="/support" aria-current={active("/support") ? "page" : undefined} className={rail(active("/support"))}>
           <LifeBuoy size={16} strokeWidth={1.75} aria-hidden className={icon(active("/support"))} />
-          <span className="flex-1">Talk to a person</span>
+          <span className="flex-1 md:max-lg:sr-only">Talk to a person</span>
         </Link>
       </div>
       <div className="flex flex-col gap-3 border-t border-line p-3">
         {trialDaysLeft !== null && (
-          <Link href="/settings/billing" className="block rounded-lg border border-line bg-surface p-3 transition-surface hover:bg-hover">
+          <Link href="/settings/billing" className="block rounded-lg border border-line bg-surface p-3 transition-surface hover:bg-hover md:max-lg:hidden">
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="font-medium text-ink tabular-nums">{trialDaysLeft} days left</span>
               <span className="text-faint">Free trial</span>
@@ -230,9 +239,9 @@ function UserRow({ name, role }: { name: string; role: string }) {
     };
   }, [open]);
   return (
-    <div ref={box} className="relative flex items-center gap-2.5">
+    <div ref={box} className="relative flex items-center gap-2.5 md:max-lg:flex-col md:max-lg:gap-1">
       <Avatar name={name} size={32} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 md:max-lg:sr-only">
         <div className="truncate text-13 font-medium leading-4">{name}</div>
         <div className="truncate text-xs leading-4 text-faint capitalize">{role}</div>
       </div>
@@ -247,7 +256,7 @@ function UserRow({ name, role }: { name: string; role: string }) {
         <MoreHorizontal size={16} strokeWidth={1.75} />
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 w-44 rounded-lg bg-surface p-1 shadow-menu" role="menu">
+        <div className="absolute bottom-full right-0 mb-2 w-44 rounded-lg bg-surface p-1 shadow-menu md:max-lg:right-auto md:max-lg:left-0" role="menu">
           <div className="section-label px-2.5 pb-1 pt-1.5 text-faint">Theme</div>
           {([["light", "Light", Sun], ["dark", "Dark", Moon]] as const).map(([value, label, Icon]) => (
             <button

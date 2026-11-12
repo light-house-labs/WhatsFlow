@@ -94,10 +94,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   return (
     <>
       <PageHeader title="Dashboard" description="Last 7 days" actions={<ButtonLink href="/inbox">Open inbox</ButtonLink>} />
-      <div className="space-y-6 p-6">
+      {/* Phone: the number cards lead; the checklist follows them. */}
+      <div className="flex flex-col gap-6 p-6 max-md:p-4">
         {sp.denied && <Alert tone="danger">You don&apos;t have permission to open that page. Ask an owner or admin.</Alert>}
-        {role !== "agent" && !hidden && <GetStarted cookie={hideCookie} steps={steps} />}
-        <div className="grid grid-cols-2 gap-x-8 gap-y-8 lg:grid-cols-4">
+        {role !== "agent" && !hidden && (
+          <div className="max-md:order-2">
+            <GetStarted cookie={hideCookie} steps={steps} />
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-8 max-md:order-1 max-md:gap-3 lg:grid-cols-4 max-md:[&>*]:rounded-xl max-md:[&>*]:bg-app max-md:[&>*]:p-3">
           <Stat label="Enquiries" value={total} hint={`${botShare}% answered by bot`} />
           <Stat label="Avg first human reply" value={duration(enq.avgFirst ? Math.round(Number(enq.avgFirst)) : null)} hint={`${Number(enq.waiting)} still waiting`} />
           <Stat label="Open conversations" value={Number(convs.open)} hint={`${Number(convs.unassigned)} unassigned`} />
@@ -107,7 +112,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
           <Stat label="Messages in" value={Number(msgs.inbound)} />
           <Stat label="Messages out" value={Number(msgs.outbound)} />
         </div>
-        <Card className="p-5">
+        <Card className="p-5 max-md:order-3">
           <h2 className="mb-4 type-heading">Customer messages per day</h2>
           {dayRows.length === 0 ? (
             <p className="text-sm text-muted">No messages yet this week.</p>

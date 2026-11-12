@@ -9,6 +9,8 @@ import { formatWaId } from "@/lib/phone";
 import { ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, StatusBadge } from "@/components/ui";
 import { bookByStaff, setAppointmentStatus } from "./actions";
 import { SaveForm, SubmitButton } from "@/components/save-form";
+import { DesktopOnly, Group, GroupEmpty, MobileOnly, MobileScreen } from "@/components/mobile/grouped";
+import { BookingRow, MobileBookingForm } from "./mobile-bookings";
 
 export const metadata: Metadata = { title: "Appointments" };
 
@@ -20,7 +22,7 @@ function shift(date: string, days: number) {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ date?: string; error?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ date?: string; error?: string; new?: string }> }) {
   const sp = await searchParams;
   const { db: d, org, role } = await requireOrg();
   const tz = org.timezone;
@@ -44,8 +46,74 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const time = (at: Date) => new Intl.DateTimeFormat("en-IN", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(at);
   const heading = new Intl.DateTimeFormat("en-IN", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T00:00:00Z`));
   const booked = rows.filter((r) => r.a.status === "booked").length;
+  const dayNav = "tap grid size-10 place-items-center rounded-full bg-surface text-ink active:bg-fill";
   return (
     <>
+      <MobileOnly>
+        {sp.new ? (
+          services.length ? (
+            <MobileBookingForm
+              date={date}
+              services={services.map((s) => ({ id: s.id, name: s.name, durationMinutes: s.durationMinutes }))}
+              contacts={contacts.map((c) => ({ id: c.id, label: c.name ?? formatWaId(c.waId) }))}
+            />
+          ) : (
+            <MobileScreen>
+              <GroupEmpty icon={<CalendarDays />} title="No services yet" description="Add the services customers can book on a computer first: Appointments, Services & hours." />
+            </MobileScreen>
+          )
+        ) : (
+          <MobileScreen>
+            <div className="flex items-center gap-2">
+              <Link href={`/appointments?date=${shift(date, -1)}`} replace data-nav="none" aria-label="Previous day" className={dayNav}>
+                <ChevronLeft size={20} />
+              </Link>
+              <div className="min-w-0 flex-1 text-center">
+                <div className="truncate text-base font-semibold">{heading}</div>
+                <div className="text-13 text-faint">
+                  {booked} booked
+                  {date !== todayIn(tz) && (
+                    <>
+                      {" · "}
+                      <Link href="/appointments" replace data-nav="none" className="font-medium text-accent-text">
+                        Today
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+              <Link href={`/appointments?date=${shift(date, 1)}`} replace data-nav="none" aria-label="Next day" className={dayNav}>
+                <ChevronRight size={20} />
+              </Link>
+            </div>
+            {rows.length === 0 ? (
+              <GroupEmpty
+                icon={<CalendarDays />}
+                title={services.length ? "Nothing booked" : "No services yet"}
+                description={services.length ? "No bookings for this day yet. Tap + to add one." : "Add the services customers can book first."}
+              />
+            ) : (
+              <Group>
+                {rows.map(({ a, s, c, staff }) => (
+                  <BookingRow
+                    key={a.id}
+                    b={{
+                      id: a.id,
+                      time: time(a.startAt),
+                      customer: c.name ?? formatWaId(c.waId),
+                      detail: `${s.name} · ${s.durationMinutes} min${staff ? ` · ${staff}` : ""}${s.branch ? ` · ${s.branch}` : ""}`,
+                      notes: a.notes,
+                      status: a.status,
+                      conversationId: a.conversationId,
+                    }}
+                  />
+                ))}
+              </Group>
+            )}
+          </MobileScreen>
+        )}
+      </MobileOnly>
+      <DesktopOnly>
       <PageHeader
         title="Appointments"
         description="Bookings made in WhatsApp or by your team."
@@ -170,6 +238,7 @@ services.length === 0 ? (
         </Card>
         )}
       </div>
+      </DesktopOnly>
     </>
   );
 }

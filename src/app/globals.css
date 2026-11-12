@@ -198,8 +198,11 @@
   text-underline-offset: 3px;
   text-decoration-color: color-mix(in srgb, var(--wf-ink) 40%, transparent);
   transition: text-decoration-color 150ms;
-  &:hover {
-    text-decoration-color: var(--wf-ink);
+  /* Gated so a tap on a phone doesn't leave the underline stuck dark. */
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      text-decoration-color: var(--wf-ink);
+    }
   }
 }
 
@@ -500,4 +503,150 @@ a {
 .wf-canvas .react-flow__node:focus-visible > div {
   outline: 2px solid var(--wf-accent);
   outline-offset: 2px;
+}
+
+/* ---------- Touch and the mobile shell (< 768px) ----------
+   Everything here is either a no-op with a mouse or scoped below the md
+   breakpoint, so desktop (1024px+) renders exactly as before. */
+
+html {
+  /* The gray flash iOS/Android paint over anything tappable. Controls bring their own :active state. */
+  -webkit-tap-highlight-color: transparent;
+  /* No font inflation when an iPhone rotates to landscape. */
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (max-width: 767.98px) {
+  /* The shell owns scrolling: no pull-to-refresh or rubber band on the page behind it. */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  body {
+    font-size: 16px;
+    line-height: 24px;
+  }
+}
+
+/* iOS zooms the page into any field under 16px and never zooms back. Unlayered, so it beats text-13/text-sm. */
+@media (max-width: 1023.98px), (pointer: coarse) and (hover: none) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+@media (pointer: coarse) {
+  /* Skip the double-tap-zoom wait so taps fire immediately. */
+  a,
+  button,
+  summary,
+  label,
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation;
+  }
+  /* A long press on a control shouldn't select its label or pop the callout. Content text stays selectable. */
+  button,
+  summary,
+  [role="button"],
+  [role="tab"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Tappable row or icon button in the mobile UI: no selection on long press, instant tap, press feedback via active: classes. */
+@utility tap {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  transition-property: background-color, color, transform, opacity;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Press feedback that lands with the finger, not on release. */
+@utility press {
+  transition: transform 120ms cubic-bezier(0.25, 1, 0.5, 1);
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* Mobile type: row titles 16/500, meta 13/18. */
+@utility row-title {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+}
+@utility row-meta {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--wf-text-faint);
+}
+
+/* ---------- Page transitions (View Transitions API) ----------
+   The shell wraps each page in <ViewTransition enter/exit="wf-page">. <html data-nav>
+   says which way to slide: push (deeper), pop (back), none (tab switch, desktop). */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.wf-page),
+::view-transition-new(.wf-page) {
+  animation: none;
+}
+@media (max-width: 767.98px) and (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 160ms;
+  }
+  html[data-nav="push"]::view-transition-new(.wf-page) {
+    animation: wf-from-right 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav="push"]::view-transition-old(.wf-page) {
+    animation: wf-to-left 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav="pop"]::view-transition-new(.wf-page) {
+    animation: wf-from-left 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav="pop"]::view-transition-old(.wf-page) {
+    animation: wf-to-right 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav="pop"]::view-transition-old(.wf-page) {
+    z-index: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+@keyframes wf-from-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes wf-to-left {
+  to {
+    transform: translateX(-28%);
+    opacity: 0.6;
+  }
+}
+@keyframes wf-from-left {
+  from {
+    transform: translateX(-28%);
+    opacity: 0.6;
+  }
+}
+@keyframes wf-to-right {
+  to {
+    transform: translateX(100%);
+  }
 }

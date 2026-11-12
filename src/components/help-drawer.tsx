@@ -1,5 +1,6 @@
 "use client";
 
+import { usePlatform } from "@/lib/platform";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -100,6 +101,7 @@ function HelpDrawer({ onClose, onShortcuts }: { onClose: () => void; onShortcuts
   const path = usePathname();
   const h = helpFor(path);
   const panel = useRef<HTMLDivElement>(null);
+  const { isTouchOnly } = usePlatform();
   useShortcut(SHORTCUTS.close, onClose, { inFields: true });
   useFocusTrap(panel);
   const takeTour = useCallback(() => {
@@ -117,8 +119,10 @@ function HelpDrawer({ onClose, onShortcuts }: { onClose: () => void; onShortcuts
         aria-modal="true"
         aria-labelledby="help-title"
         tabIndex={-1}
-        className="absolute inset-y-0 right-0 flex w-[400px] max-w-full flex-col border-l border-line bg-surface shadow-[0_16px_48px_rgba(0,0,0,0.16)] outline-none"
+        // Phone: a bottom sheet (grabber, 16px radius) instead of a side drawer.
+        className="absolute inset-y-0 right-0 flex w-[400px] max-w-full flex-col border-l border-line bg-surface shadow-[0_16px_48px_rgba(0,0,0,0.16)] outline-none max-md:inset-x-0 max-md:top-auto max-md:h-[88dvh] max-md:w-full max-md:rounded-t-2xl max-md:border-l-0 max-md:pb-[env(safe-area-inset-bottom)]"
       >
+        <div aria-hidden className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-line-strong md:hidden" />
         <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-5">
           <div className="min-w-0">
             <div className="text-xs text-faint">Help</div>
@@ -130,13 +134,13 @@ function HelpDrawer({ onClose, onShortcuts }: { onClose: () => void; onShortcuts
             type="button"
             aria-label="Close help"
             onClick={onClose}
-            className="grid size-8 shrink-0 place-items-center rounded-md text-faint transition-surface hover:bg-fill hover:text-ink"
+            className="grid size-8 max-md:size-11 shrink-0 place-items-center rounded-md text-faint transition-surface hover:bg-fill hover:text-ink"
           >
             <X size={16} strokeWidth={1.75} />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-5">
           <p className="text-sm text-ink">{h.purpose}</p>
 
           {h.tour && (
@@ -184,6 +188,8 @@ function HelpDrawer({ onClose, onShortcuts }: { onClose: () => void; onShortcuts
             </section>
           )}
 
+          {/* Touch-only devices have no keyboard to press these on. */}
+          {!isTouchOnly && (
           <section>
             <h3 className={heading}>Shortcuts</h3>
             <ul className="divide-y divide-line">
@@ -199,6 +205,7 @@ function HelpDrawer({ onClose, onShortcuts }: { onClose: () => void; onShortcuts
               All keyboard shortcuts
             </button>
           </section>
+          )}
 
           {h.links.length > 0 && (
             <section>

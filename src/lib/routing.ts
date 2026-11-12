@@ -1,3 +1,4 @@
+import { queuePush } from "./push";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { rowsOf, schema } from "@/db";
@@ -82,5 +83,6 @@ export async function routeConversation(d: DB, orgId: string, conversationId: st
     })
     .where(eq(schema.conversations.id, conversationId));
   await d.update(schema.routingRules).set({ hits: sql`${schema.routingRules.hits} + 1` }).where(eq(schema.routingRules.id, rule.id));
+  if (assigneeId) await queuePush(d, "assigned", { conversationId }).catch(() => {});
   return { rule, assigneeId };
 }

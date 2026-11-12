@@ -8,6 +8,8 @@ import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th } 
 import { SaveForm, SubmitButton } from "@/components/save-form";
 import { deleteTemplate, submitTemplate } from "./actions";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { DesktopOnly, Group, GroupEmpty, MobileOnly, MobileScreen } from "@/components/mobile/grouped";
+import { TemplateRow } from "./mobile-templates";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -18,6 +20,24 @@ export default async function Page() {
   return (
     <>
       {pending && <AutoRefresh ms={4000} />}
+      <MobileOnly>
+        <MobileScreen>
+          {rows.length === 0 ? (
+            <GroupEmpty icon={<FileText />} title="No templates yet" description="Templates are written on a computer. Approval usually takes minutes." />
+          ) : (
+            <Group footer="WhatsApp requires an approved template to start a chat or reply after 24 hours.">
+              {rows.map((t) => (
+                <TemplateRow
+                  key={t.id}
+                  canEdit={role !== "agent"}
+                  t={{ id: t.id, name: t.name, category: t.category, language: t.language, body: t.body, status: t.status, rejectionReason: t.rejectionReason, updated: timeAgo(t.updatedAt) }}
+                />
+              ))}
+            </Group>
+          )}
+        </MobileScreen>
+      </MobileOnly>
+      <DesktopOnly>
       <PageHeader
         title="Message templates"
         description="WhatsApp requires an approved template to start a conversation or reply after 24 hours."
@@ -95,6 +115,7 @@ export default async function Page() {
           </Card>
 )}
       </div>
+      </DesktopOnly>
     </>
   );
 }

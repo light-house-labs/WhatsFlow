@@ -8,6 +8,7 @@ import { formatWaId } from "@/lib/phone";
 import { formatMoney } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
 import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
+import { ChipBar, ChipLink, DesktopOnly, Group, GroupEmpty, MobileOnly, MobileScreen, Row, dayBucket, groupBy } from "@/components/mobile/grouped";
 
 export const metadata: Metadata = { title: "Orders" };
 
@@ -40,8 +41,52 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
       {label}
     </Link>
   );
+  const labels = { all: "All", unpaid: "Awaiting payment", paid: "Paid", to_ship: "To ship", shipped: "Shipped" } as const;
   return (
     <>
+      <MobileOnly>
+        <MobileScreen>
+          <ChipBar>
+            {(Object.keys(labels) as (keyof typeof labels)[]).map((k) => (
+              <ChipLink key={k} href={k === "all" ? "/orders" : `/orders?f=${k}`} on={f === k}>
+                {labels[k]}
+              </ChipLink>
+            ))}
+          </ChipBar>
+          {list.length === 0 ? (
+            <GroupEmpty
+              icon={<ShoppingBag />}
+              title={rows.length > 0 ? "No matches" : "No orders yet"}
+              description={rows.length > 0 ? "No orders in this view." : productCount === 0 ? "Add the products you sell first, then orders can be taken in chat." : "Orders taken in chat appear here with payment and delivery status."}
+              action={rows.length === 0 && productCount > 0 ? <ButtonLink href="/orders/new">New order</ButtonLink> : undefined}
+            />
+          ) : (
+            groupBy(list, ({ o }) => dayBucket(o.createdAt)).map(([day, items]) => (
+              <Group key={day} title={day}>
+                {items.map(({ o, name, waId }) => (
+                  <Row
+                    key={o.id}
+                    href={`/orders/${o.id}`}
+                    title={
+                      <>
+                        #{o.number} · {name ?? formatWaId(waId)}
+                      </>
+                    }
+                    meta={o.items.map((i) => `${i.qty} × ${i.name}`).join(", ")}
+                    trailing={
+                      <span className="flex flex-col items-end gap-1">
+                        <span className="text-[15px] font-medium text-ink tabular-nums">{formatMoney(o.totalMinor, o.currency)}</span>
+                        <StatusBadge status={o.paymentStatus === "paid" ? o.status : o.paymentStatus} />
+                      </span>
+                    }
+                  />
+                ))}
+              </Group>
+            ))
+          )}
+        </MobileScreen>
+      </MobileOnly>
+      <DesktopOnly>
       <PageHeader title="Orders" description="Orders taken in chat, with payment and delivery status." actions={<ButtonLink href="/orders/new">New order</ButtonLink>} />
       <div className="space-y-4 p-6">
         <div className={segmentedTrack}>
@@ -116,6 +161,7 @@ rows.length > 0 ? (
           </Card>
 )}
       </div>
+      </DesktopOnly>
     </>
   );
 }

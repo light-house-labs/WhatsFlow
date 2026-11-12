@@ -42,6 +42,26 @@ export const HELP: Record<string, HelpEntry> = {
     ],
   },
 
+  "/more": {
+    title: "More",
+    purpose: "On a phone, everything that isn't Inbox, Sales or Contacts: insights, marketing, automation, settings and your account.",
+    howTo: [
+      { step: "Open a section", detail: "Tap a row. Dashboard and Analytics lead with the numbers." },
+      { step: "Switch workspace", detail: "Tap another workspace under Workspace. The app reloads in it." },
+      { step: "Install the app", detail: "Install app adds WhatsFlow to your home screen, full screen, with notifications." },
+    ],
+    tips: [
+      "Turn notifications on per device under Settings, This device.",
+      "Bot flows and templates are edited on a computer; on a phone you can check them and switch flows on or off.",
+      "Search from the magnifier at the top of any tab.",
+    ],
+    shortcuts: [],
+    links: [
+      { label: "Inbox settings", href: "/settings" },
+      { label: "Talk to a person", href: "/support" },
+    ],
+  },
+
   "/inbox": {
     title: "Inbox",
     purpose: "Every WhatsApp conversation in one place, shared by your whole team.",

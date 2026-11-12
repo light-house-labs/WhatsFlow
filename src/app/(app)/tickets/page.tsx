@@ -7,6 +7,7 @@ import { requireOrg } from "@/lib/auth";
 import { formatWaId } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
 import { Card, EmptyState, PageHeader, StatusBadge, Table, Td, Th, filterChip, segmentedTrack } from "@/components/ui";
+import { ChipBar, ChipLink, DesktopOnly, Group, GroupEmpty, MobileOnly, MobileScreen, Row, groupBy } from "@/components/mobile/grouped";
 
 export const metadata: Metadata = { title: "Tickets" };
 
@@ -33,8 +34,54 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       {label}
     </Link>
   );
+  const groupLabel: Record<string, string> = { open: "Open", pending: "Waiting on customer", resolved: "Resolved", closed: "Closed" };
   return (
     <>
+      <MobileOnly>
+        <MobileScreen>
+          <ChipBar>
+            <ChipLink href="/tickets" on={view === "open" && !sp.mine}>
+              Open
+            </ChipLink>
+            <ChipLink href="/tickets?mine=1" on={Boolean(sp.mine)}>
+              Assigned to me
+            </ChipLink>
+            <ChipLink href="/tickets?view=resolved" on={view === "resolved"}>
+              Resolved
+            </ChipLink>
+          </ChipBar>
+          {rows.length === 0 ? (
+            <GroupEmpty
+              icon={<Ticket />}
+              title={sp.mine || view === "resolved" ? "No matches" : "No tickets yet"}
+              description={sp.mine || view === "resolved" ? "Nothing in this view." : "Open a ticket from any conversation: tap + and choose New ticket."}
+            />
+          ) : (
+            groupBy(rows, ({ t }) => t.status).map(([status, items]) => (
+              <Group key={status} title={groupLabel[status] ?? status}>
+                {items.map(({ t, name, waId, assignee }) => {
+                  const overdue = t.dueAt && t.dueAt < new Date() && view === "open";
+                  return (
+                    <Row
+                      key={t.id}
+                      href={`/tickets/${t.id}`}
+                      title={t.subject}
+                      meta={
+                        <>
+                          #{t.number} · {name ?? formatWaId(waId)} · {assignee ?? "Unassigned"}
+                          {t.dueAt && <span className={overdue ? "font-medium text-danger" : undefined}> · due {t.dueAt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>}
+                        </>
+                      }
+                      trailing={t.priority !== "normal" ? <StatusBadge status={t.priority} /> : <span className="text-13 text-faint">{timeAgo(t.createdAt)}</span>}
+                    />
+                  );
+                })}
+              </Group>
+            ))
+          )}
+        </MobileScreen>
+      </MobileOnly>
+      <DesktopOnly>
       <PageHeader title="Tickets" description="Support requests with an owner, a status and the chat that started them." />
       <div className="space-y-4 p-6">
         <div className={segmentedTrack}>
@@ -103,6 +150,7 @@ sp.mine || view === "resolved" ? (
           </Card>
 )}
       </div>
+      </DesktopOnly>
     </>
   );
 }

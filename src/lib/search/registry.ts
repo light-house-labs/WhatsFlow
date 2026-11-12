@@ -134,6 +134,11 @@ const SETTINGS: SettingsPageDef[] = [
         ],
       },
       {
+        title: "Notifications",
+        help: "Push notifications for new messages and assignments, switched on per device.",
+        synonyms: ["push", "push notifications", "alerts on phone", "notify me", "mobile notifications", "browser notifications", "sound"],
+      },
+      {
         title: "Quick replies",
         help: "Type / in the inbox to use them.",
         synonyms: ["canned responses", "saved replies", "snippets", "macros", "shortcuts", "templates for agents"],

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { navIcon, navItem } from "@/components/ui";
 import { SearchButton } from "@/components/command-palette";
+import { Group, Row, RowIcon } from "@/components/mobile/grouped";
 
 type NavLink = { href: string; label: string; icon: LucideIcon; exact?: boolean; admin?: boolean; sandbox?: boolean };
 
@@ -123,11 +124,36 @@ export function SettingsSidebar({ orgName, role, hasSandbox }: { orgName: string
   );
 }
 
-/** 56px top bar: "Settings / <page>". */
+/** Phone: the settings pages as grouped rows, reached from More. */
+export function SettingsIndex({ role, hasSandbox, children }: { role: string; hasSandbox: boolean; children?: React.ReactNode }) {
+  return (
+    <>
+      {children}
+      {visibleGroups(role, hasSandbox).map((g) => (
+        <Group key={g.label} title={g.label}>
+          {g.items.map(({ href, label, icon: Icon }) => (
+            <Row
+              key={href}
+              href={href}
+              title={label}
+              leading={
+                <RowIcon>
+                  <Icon />
+                </RowIcon>
+              }
+            />
+          ))}
+        </Group>
+      ))}
+    </>
+  );
+}
+
+/** 56px top bar: "Settings / <page>". The phone shell has its own header, so it's hidden there. */
 export function SettingsTopbar() {
   const path = usePathname();
   return (
-    <div className="flex h-14 shrink-0 items-center border-b border-line bg-app px-8 text-sm">
+    <div className="flex h-14 shrink-0 items-center border-b border-line bg-app px-8 text-sm max-md:hidden">
       <nav aria-label="Breadcrumb" className="flex items-center gap-2">
         <span className="text-muted">Settings</span>
         <span aria-hidden className="text-faint">/</span>

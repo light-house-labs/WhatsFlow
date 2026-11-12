@@ -3,11 +3,14 @@
 import { SaveForm, SubmitButton } from "@/components/save-form";
 import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
-import { DndContext, PointerSensor, KeyboardSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, MouseSensor, TouchSensor, KeyboardSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CalendarClock, Columns3, Plus, X } from "lucide-react";
 import { ButtonLink, Card, EmptyState, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { formatMoney } from "@/lib/plans";
 import { addStage, deleteLead, deleteStage, moveLead, renameStage, updateLead } from "./actions";
+import { BottomSheet } from "@/components/bottom-sheet";
+import { haptic } from "@/lib/haptics";
+import { useViewport } from "@/lib/viewport";
 
 type Stage = { id: string; name: string; kind: "open" | "won" | "lost" };
 type Lead = {
@@ -28,7 +31,12 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
   const [optimistic, move] = useOptimistic(leads, (state, p: { id: string; stageId: string }) => state.map((l) => (l.id === p.id ? { ...l, stageId: p.stageId } : l)));
   const [, start] = useTransition();
   const [open, setOpen] = useState<Lead | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
+  // Mouse drags after 5px as before; on touch a card lifts after a 300ms hold so a swipe still scrolls the columns.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
 
   function onDragEnd(e: DragEndEvent) {
     const stageId = e.over?.id as string | undefined;
@@ -56,8 +64,8 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
   return (
     <>
     {empty}
-    <div className="flex gap-4 overflow-x-auto p-6">
-      <DndContext id="pipeline-board" sensors={sensors} onDragEnd={onDragEnd}>
+    <div className="flex gap-4 overflow-x-auto p-6 max-md:snap-x max-md:snap-mandatory max-md:scroll-px-4 max-md:gap-3 max-md:overscroll-x-contain max-md:px-4 max-md:py-4">
+      <DndContext id="pipeline-board" sensors={sensors} onDragStart={() => haptic("longPress")} onDragEnd={onDragEnd}>
         {stages.map((s) => {
           const items = optimistic.filter((l) => l.stageId === s.id);
           return (
@@ -70,7 +78,7 @@ export function Board({ stages, leads, members, canEditStages }: { stages: Stage
         })}
       </DndContext>
       {canEditStages && (
-        <SaveForm id="new-stage" action={addStage} success="Stage added" resetOnSuccess className="w-64 shrink-0 space-y-2">
+        <SaveForm id="new-stage" action={addStage} success="Stage added" resetOnSuccess className="w-64 shrink-0 space-y-2 max-md:snap-start">
           <Input name="name" placeholder="New stage" aria-label="New stage name" />
           <div className="flex gap-2">
             <Select name="kind" aria-label="Stage type" className="h-8 text-13">
@@ -94,7 +102,7 @@ function Column({ stage, total, count, canEdit, children }: { stage: Stage; tota
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const [editing, setEditing] = useState(false);
   return (
-    <section ref={setNodeRef} className={cx("flex w-72 shrink-0 flex-col rounded-lg border border-line bg-canvas p-2 transition-colors duration-150", isOver && "bg-accent-soft")} aria-label={stage.name}>
+    <section ref={setNodeRef} className={cx("flex w-72 shrink-0 flex-col rounded-lg border border-line bg-canvas p-2 transition-colors duration-150 max-md:w-[84vw] max-md:snap-start max-md:rounded-xl", isOver && "bg-accent-soft")} aria-label={stage.name}>
       <header className="flex items-center gap-2 py-2">
         {editing ? (
           <form action={renameStage} onSubmit={() => setEditing(false)} className="flex flex-1 gap-1">
@@ -143,7 +151,7 @@ function LeadCard({ lead, owner, onOpen }: { lead: Lead; owner?: string; onOpen:
       {...listeners}
       {...attributes}
       style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
-      className={cx("cursor-grab rounded-lg border border-line bg-surface p-3 transition-colors duration-150", isDragging && "z-10 opacity-90")}
+      className={cx("cursor-grab rounded-lg border border-line bg-surface p-3 transition-colors duration-150 max-md:select-none max-md:[-webkit-touch-callout:none]", isDragging && "z-10 opacity-90 max-md:scale-[1.03] max-md:shadow-menu")}
       onClick={onOpen}
       onKeyDown={(e) => e.key === "Enter" && onOpen()}
     >
@@ -162,7 +170,16 @@ function LeadCard({ lead, owner, onOpen }: { lead: Lead; owner?: string; onOpen:
   );
 }
 
+/** Side drawer on tablet and desktop; a bottom sheet with snap points on a phone. */
 function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: string; name: string }[]; onClose: () => void }) {
+  if (useViewport() === "mobile")
+    return (
+      <BottomSheet title={lead.contact} onClose={onClose} snaps={[0.7, 0.94]}>
+        <div className="px-4 pb-6">
+          <LeadForm lead={lead} members={members} onClose={onClose} />
+        </div>
+      </BottomSheet>
+    );
   return (
     <div className="fixed inset-0 z-20 flex justify-end bg-[var(--wf-scrim)]" onClick={onClose}>
       <Card className="h-full w-full max-w-md overflow-y-auto rounded-none p-6" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit lead">
@@ -172,6 +189,15 @@ function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: str
             <X size={16} strokeWidth={1.75} />
           </button>
         </div>
+        <LeadForm lead={lead} members={members} onClose={onClose} />
+      </Card>
+    </div>
+  );
+}
+
+function LeadForm({ lead, members, onClose }: { lead: Lead; members: { id: string; name: string }[]; onClose: () => void }) {
+  return (
+    <>
         <SaveForm action={updateLead} success="Lead saved" onSaved={onClose} className="space-y-4">
           <input type="hidden" name="id" value={lead.id} />
           <Field label="Title" htmlFor="title">
@@ -212,8 +238,7 @@ function LeadDrawer({ lead, members, onClose }: { lead: Lead; members: { id: str
             Delete lead
           </SubmitButton>
         </SaveForm>
-      </Card>
-    </div>
+    </>
   );
 }
 

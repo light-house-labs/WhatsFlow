@@ -18,6 +18,12 @@ import { bookingSettingsFor, slotLabel } from "./booking";
 import { startAutomations } from "./events";
 import { SendError } from "./wa/outbound";
 import type { RunLogEntry } from "@/db/schema";
+import { notifyConversation } from "./push";
+
+// Web push for a new inbound message or an assignment.
+registerJob("push.notify", async (d, p) => {
+  await notifyConversation(d, { kind: p.kind, conversationId: p.conversationId, byUserId: p.byUserId });
+});
 
 // Sandbox: delivered, then read a moment later.
 registerJob("sandbox.status", async (d, p) => {

@@ -96,8 +96,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   return (
     <>
       <PageHeader title="Analytics" description={`Last ${days} days${user ? ` · ${team.find((t) => t.id === user)?.name}` : ""}`} />
-      <div className="space-y-6 p-6">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="space-y-6 p-6 max-md:space-y-4 max-md:p-4">
+        <div className="flex flex-wrap items-center gap-3 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]">
           <div className={segmentedTrack}>
           {RANGES.map((r) => (
             <Link key={r} href={link({ days: r })} className={filterChip(days === r)}>
@@ -125,7 +125,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
           />
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-8 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-8 max-md:gap-3 lg:grid-cols-4 max-md:[&>*]:rounded-xl max-md:[&>*]:bg-app max-md:[&>*]:p-3">
               <Stat label="Chats started" value={total} hint={`${total ? Math.round((Number(chats.bot) / total) * 100) : 0}% answered by bot or AI`} />
               <Stat label="First reply (average)" value={duration(first.avg)} hint={`median ${duration(first.p50)}`} />
               <Stat label="Time to close a chat" value={duration(resolution.chats)} hint={`tickets: ${duration(resolution.tickets)}`} />

@@ -13,10 +13,18 @@ export async function GET(req: NextRequest) {
   const label = req.nextUrl.searchParams.get("label");
   const c = schema.conversations;
   const where = [eq(c.orgId, ctx.org.id)];
+  const [settings] = await ctx.db.select({ wait: schema.inboxSettings.waitAlertMinutes }).from(schema.inboxSettings).where(eq(schema.inboxSettings.orgId, ctx.org.id));
+  const waitAlertMinutes = settings?.wait ?? 15;
   if (filter === "mine") where.push(eq(c.assigneeId, ctx.user.id), ne(c.status, "closed"));
   else if (filter === "unassigned") where.push(isNull(c.assigneeId), ne(c.status, "closed"), eq(c.handledBy, "human"));
   else if (filter === "bot") where.push(eq(c.handledBy, "bot"), ne(c.status, "closed"));
   else if (filter === "closed") where.push(eq(c.status, "closed"));
+  // Customer waiting on a person for longer than the workspace's alert threshold.
+  else if (filter === "overdue")
+    where.push(ne(c.status, "closed"), eq(c.handledBy, "human"), sql`${c.waitingSince} < now() - make_interval(mins => ${waitAlertMinutes})`);
+  // An enquiry on this chat still needs a person.
+  else if (filter === "enquiries")
+    where.push(ne(c.status, "closed"), sql`exists (select 1 from enquiries e where e.conversation_id = ${c.id} and e.status = 'needs_human')`);
   else where.push(ne(c.status, "closed"));
   if (label) where.push(sql`${label} = any(${c.labels})`);
   if (q) {
@@ -43,6 +51,5 @@ export async function GET(req: NextRequest) {
     .where(and(...where))
     .orderBy(desc(c.lastMessageAt))
     .limit(200);
-  const [settings] = await ctx.db.select({ wait: schema.inboxSettings.waitAlertMinutes }).from(schema.inboxSettings).where(eq(schema.inboxSettings.orgId, ctx.org.id));
-  return NextResponse.json({ conversations: rows, waitAlertMinutes: settings?.wait ?? 15 });
+  return NextResponse.json({ conversations: rows, waitAlertMinutes });
 }

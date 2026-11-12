@@ -1,3 +1,4 @@
+import { stickyBar } from "@/components/mobile/grouped";
 import { Package } from "lucide-react";
 import type { Metadata } from "next";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -21,7 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   return (
     <>
       <PageHeader title="New order" description="Pick the customer and the products. Prices come from your catalog." />
-      <div className="max-w-2xl space-y-4 p-6">
+      <div className="max-w-2xl space-y-4 p-6 max-md:p-4 max-md:pb-0">
         {products.length === 0 ? (
           <EmptyState
             icon={<Package />}
@@ -53,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                         {p.stock !== null && ` · ${p.stock} in stock`}
                       </div>
                     </div>
-                    <Input type="number" name={`qty_${p.id}`} min={0} max={p.stock ?? 999} defaultValue={0} aria-label={`Quantity of ${p.name}`} className="w-20" />
+                    <Input type="number" name={`qty_${p.id}`} min={0} max={p.stock ?? 999} defaultValue={0} aria-label={`Quantity of ${p.name}`} inputMode="numeric" className="w-20 max-md:h-11" />
                   </div>
                 ))}
               </div>
@@ -64,7 +65,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                 <input type="checkbox" name="sendLink" defaultChecked /> Send the order summary and a payment link in the chat
               </label>
             </Card>
-            <SubmitButton>Create order</SubmitButton>
+            <div className={stickyBar}>
+              <SubmitButton>Create order</SubmitButton>
+            </div>
           </SaveForm>
         )}
       </div>

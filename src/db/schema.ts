@@ -1148,3 +1148,20 @@ export const apiRequests = pgTable(
   },
   (t) => [index().on(t.orgId, t.createdAt)],
 );
+
+/** One row per browser/device a user turned notifications on for. The endpoint identifies the device. */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("push_subscriptions_endpoint_idx").on(t.endpoint), index().on(t.userId)],
+);

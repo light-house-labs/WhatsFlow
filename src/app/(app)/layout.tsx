@@ -8,6 +8,7 @@ import { CommandPaletteProvider } from "@/components/command-palette";
 import { HelpProvider } from "@/components/help-drawer";
 import { nowMs } from "@/lib/format";
 import { TRIAL_DAYS } from "@/lib/org-setup";
+import { vapidPublicKey } from "@/lib/push";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireOrg();
@@ -35,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <HelpProvider userId={user.id}>
     <CommandPaletteProvider role={role} hasSandbox={sandbox.length > 0}>
-      <div className="flex min-h-screen bg-app">
+      <div className="flex min-h-screen bg-app pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
         <Sidebar
           org={{ id: org.id, name: org.name }}
           orgs={orgs}
@@ -47,9 +48,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           hasSandbox={sandbox.length > 0}
         />
         <Shell
+          mobile={{ unread: Number(waiting[0]?.n ?? 0), userId: user.id, vapidKey: vapidPublicKey() }}
           banner={
             org.billingStatus === "cancelled" ? (
-              <div className="border-b border-line bg-warning-soft px-4 py-2 text-sm">
+              <div className="border-b border-line bg-warning-soft px-4 py-2 text-sm max-md:text-13">
                 This workspace&apos;s plan has ended. Your data is safe and the inbox still works.{" "}
                 <Link href="/settings/billing" className="font-medium link">
                   Choose a plan
