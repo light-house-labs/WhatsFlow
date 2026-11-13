@@ -2,72 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Phone,
-  Code2,
-  CreditCard,
-  Database,
-  History,
-  Inbox,
-
-  Plug,
-  Route,
-  Smartphone,
-  Sparkles,
-  Users,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { navIcon, navItem } from "@/components/ui";
 import { SearchButton } from "@/components/command-palette";
 import { Group, Row, RowIcon } from "@/components/mobile/grouped";
-
-type NavLink = { href: string; label: string; icon: LucideIcon; exact?: boolean; admin?: boolean; sandbox?: boolean };
-
-const GROUPS: { label: string; items: NavLink[] }[] = [
-  {
-    label: "Workspace",
-    items: [
-      { href: "/settings", label: "Inbox", icon: Inbox, exact: true },
-      { href: "/settings/team", label: "Team", icon: Users, admin: true },
-      { href: "/settings/routing", label: "Chat routing", icon: Route, admin: true },
-    ],
-  },
-  {
-    label: "Channels",
-    items: [
-      { href: "/settings/whatsapp", label: "WhatsApp numbers", icon: Smartphone, admin: true },
-      { href: "/settings/sandbox", label: "Sandbox phone", icon: Phone, sandbox: true },
-    ],
-  },
-  { label: "AI", items: [{ href: "/settings/ai", label: "AI replies", icon: Sparkles, admin: true }] },
-  {
-    label: "Integrations",
-    items: [
-      { href: "/settings/payments", label: "Payments", icon: Wallet, admin: true },
-      { href: "/settings/integrations", label: "Connected apps", icon: Plug, admin: true },
-      { href: "/settings/developers", label: "API & webhooks", icon: Code2, admin: true },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { href: "/settings/billing", label: "Plan & billing", icon: CreditCard, admin: true },
-      { href: "/settings/data", label: "Your data", icon: Database, admin: true },
-      { href: "/settings/audit", label: "Audit log", icon: History, admin: true },
-    ],
-  },
-];
+import { GROUPS, visibleGroups } from "./settings-groups";
 
 export const LAST_APP_ROUTE = "wf:last-app-route";
-
-function visibleGroups(role: string, hasSandbox: boolean) {
-  return GROUPS.map((g) => ({
-    ...g,
-    items: g.items.filter((l) => (role !== "agent" || !l.admin) && (!l.sandbox || hasSandbox)),
-  })).filter((g) => g.items.length);
-}
 
 /** Label of the settings page at `path`, for the breadcrumb. */
 export function settingsPageLabel(path: string) {
