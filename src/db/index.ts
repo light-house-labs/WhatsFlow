@@ -12,11 +12,25 @@ const MIGRATIONS = path.join(process.cwd(), "drizzle");
 // One connection per server process, kept across dev hot reloads.
 const g = globalThis as unknown as { __wfDb?: Promise<DB> };
 
+/**
+ * Hosted Postgres (Supabase, Neon) needs TLS. Remote hosts always get verified
+ * TLS; set DATABASE_CA to the provider's CA certificate when it isn't in Node's
+ * trust store (Supabase: Project Settings > Database > SSL certificate).
+ * A `sslmode` in the URL is dropped so it can't override this.
+ */
+function poolConfig(raw: string) {
+  const u = new URL(raw);
+  u.searchParams.delete("sslmode");
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+  const ca = process.env.DATABASE_CA?.replace(/\\n/g, "\n");
+  return { connectionString: u.toString(), ssl: local ? false : ca ? { ca } : true, max: Number(process.env.DATABASE_POOL_MAX ?? 5) };
+}
+
 async function connect(): Promise<DB> {
   const url = process.env.DATABASE_URL;
   if (url) {
     const { Pool } = await import("pg");
-    const db = drizzlePg(new Pool({ connectionString: url, max: 5 }), { schema });
+    const db = drizzlePg(new Pool(poolConfig(url)), { schema });
     await migratePg(db, { migrationsFolder: MIGRATIONS });
     return db;
   }

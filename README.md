@@ -36,7 +36,8 @@ Copy `.env.example` to `.env.local`.
 
 | variable | what for |
 | --- | --- |
-| `DATABASE_URL` | Postgres for production (Neon or any Postgres). Empty means PGlite locally. |
+| `DATABASE_URL` | Postgres for production (Supabase, Neon or any Postgres). Empty means PGlite locally. |
+| `DATABASE_CA` | CA certificate for the database's TLS, if Node doesn't trust it (Supabase). |
 | `ENCRYPTION_KEY` | Encrypts WhatsApp access tokens at rest. **Required in production.** |
 | `APP_URL` | Public URL, used in invite links, reset emails and webhook instructions. |
 | `META_APP_SECRET` | Verifies `X-Hub-Signature-256` on webhooks. **Required in production.** |
