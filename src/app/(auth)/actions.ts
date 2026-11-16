@@ -10,6 +10,7 @@ import { sendMail } from "@/lib/mail";
 import { createWorkspace } from "@/lib/org-setup";
 import { limitsFor } from "@/lib/plans";
 import { clientIp, hit } from "@/lib/rate-limit";
+import { NO_LOCAL_PASSWORD, sbCreateUser, sbEnsureUser, sbSetPassword, sbSignIn, supabaseAuthEnabled } from "@/lib/supabase-auth";
 
 const SLOW_DOWN = "Too many attempts. Wait a few minutes and try again.";
 
@@ -37,12 +38,62 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
   if (!(await hit(d, `signup-ip:${await clientIp()}`, 10, 3600)).ok) return { error: SLOW_DOWN, fields: keep };
   const [exists] = await d.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, v.email)).limit(1);
   if (exists) return { error: "An account with this email already exists. Log in instead.", fields: keep };
+  let credential: { passwordHash: string; authUserId: string | null } = { passwordHash: await hashPassword(v.password), authUserId: null };
+  if (supabaseAuthEnabled()) {
+    const created = await sbCreateUser(v.email, v.password, v.name);
+    if ("error" in created) {
+      return {
+        error: created.error === "exists" ? "An account with this email already exists. Log in instead." : "Sign-up is temporarily unavailable. Try again in a minute.",
+        fields: keep,
+      };
+    }
+    credential = { passwordHash: NO_LOCAL_PASSWORD, authUserId: created.id };
+  }
   const [user] = await d
     .insert(schema.users)
-    .values({ name: v.name, email: v.email, phone: v.phone || null, passwordHash: await hashPassword(v.password), marketingOptIn: v.marketing === "on" })
+    .values({ name: v.name, email: v.email, phone: v.phone || null, ...credential, marketingOptIn: v.marketing === "on" })
     .returning();
   await createSession(user.id, null);
   redirect(v.next?.startsWith("/invite/") ? v.next : "/onboarding");
+}
+
+type AppUser = typeof schema.users.$inferSelect;
+type AuthResult = { status: "ok"; user: AppUser } | { status: "invalid" } | { status: "unavailable" };
+
+/** Checks an email and password against the credential store and returns the app's user row. */
+async function authenticate(d: Awaited<ReturnType<typeof db>>, email: string, password: string): Promise<AuthResult> {
+  const [local] = await d.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+  if (!supabaseAuthEnabled()) {
+    return local && (await verifyPassword(password, local.passwordHash)) ? { status: "ok", user: local } : { status: "invalid" };
+  }
+
+  const sb = await sbSignIn(email, password);
+  if (sb.status === "unavailable") return sb;
+
+  if (sb.status === "ok") {
+    const [linked] = await d.select().from(schema.users).where(eq(schema.users.authUserId, sb.id)).limit(1);
+    if (linked) return { status: "ok", user: linked };
+    // Identities are linked by id, never by email: an existing app account must not be claimed
+    // by whoever registered the same address in Supabase.
+    if (local) return { status: "invalid" };
+    // Created straight in Supabase (dashboard or API): give them an app profile on first login.
+    const [created] = await d
+      .insert(schema.users)
+      .values({ email: sb.email, name: sb.name ?? sb.email.split("@")[0], passwordHash: NO_LOCAL_PASSWORD, authUserId: sb.id })
+      .onConflictDoNothing()
+      .returning();
+    return created ? { status: "ok", user: created } : { status: "invalid" };
+  }
+
+  // Not in Supabase with this password. An account from before Supabase Auth still has a local hash:
+  // if that matches, move the credential across now so the next login goes straight through.
+  if (local && !local.authUserId && (await verifyPassword(password, local.passwordHash))) {
+    const authUserId = await sbEnsureUser(d, local.email, password, local.name);
+    if (!authUserId) return { status: "unavailable" };
+    await d.update(schema.users).set({ authUserId, passwordHash: NO_LOCAL_PASSWORD }).where(eq(schema.users.id, local.id));
+    return { status: "ok", user: { ...local, authUserId, passwordHash: NO_LOCAL_PASSWORD } };
+  }
+  return { status: "invalid" };
 }
 
 export async function login(_: FormState, form: FormData): Promise<FormState> {
@@ -53,10 +104,10 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   // per account and per network, so neither one guessed password list nor one busy office gets through
   const [byEmail, byIp] = [await hit(d, `login:${email}`, 10, 900), await hit(d, `login-ip:${await clientIp()}`, 50, 900)];
   if (!byEmail.ok || !byIp.ok) return { error: SLOW_DOWN, fields: { email } };
-  const [user] = await d.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return { error: "That email and password don't match.", fields: { email } };
-  }
+  const result = await authenticate(d, email, password);
+  if (result.status === "unavailable") return { error: "Login is temporarily unavailable. Try again in a minute.", fields: { email } };
+  if (result.status === "invalid") return { error: "That email and password don't match.", fields: { email } };
+  const user = result.user;
   const [m] = await d.select().from(schema.memberships).where(eq(schema.memberships.userId, user.id)).limit(1);
   await createSession(user.id, m?.orgId ?? null);
   if (next.startsWith("/") && !next.startsWith("//")) redirect(next);
@@ -145,7 +196,18 @@ export async function resetPassword(_: FormState, form: FormData): Promise<FormS
     .where(and(eq(schema.passwordResets.tokenHash, sha256(token)), isNull(schema.passwordResets.usedAt)))
     .limit(1);
   if (!row || row.expiresAt < new Date()) return { error: "This link has expired or was already used. Ask for a new one." };
-  await d.update(schema.users).set({ passwordHash: await hashPassword(password) }).where(eq(schema.users.id, row.userId));
+  if (supabaseAuthEnabled()) {
+    const [u] = await d.select().from(schema.users).where(eq(schema.users.id, row.userId)).limit(1);
+    if (!u) return { error: "This link has expired or was already used. Ask for a new one." };
+    // Linked accounts get their Supabase password replaced; older ones are moved across now.
+    const authUserId = u.authUserId
+      ? (await sbSetPassword(u.authUserId, password)) ? u.authUserId : null
+      : await sbEnsureUser(d, u.email, password, u.name);
+    if (!authUserId) return { error: "We couldn't save your new password right now. Try again in a minute." };
+    await d.update(schema.users).set({ authUserId, passwordHash: NO_LOCAL_PASSWORD }).where(eq(schema.users.id, u.id));
+  } else {
+    await d.update(schema.users).set({ passwordHash: await hashPassword(password) }).where(eq(schema.users.id, row.userId));
+  }
   await d.update(schema.passwordResets).set({ usedAt: new Date() }).where(eq(schema.passwordResets.id, row.id));
   // sign out everywhere else
   await d.delete(schema.sessions).where(eq(schema.sessions.userId, row.userId));

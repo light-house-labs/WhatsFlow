@@ -31,12 +31,14 @@ export const users = pgTable(
     email: text("email").notNull(),
     name: text("name").notNull(),
     phone: text("phone"),
+    // "!" once the credential lives in Supabase Auth (see lib/supabase-auth.ts); never verifies.
     passwordHash: text("password_hash").notNull(),
+    authUserId: uuid("auth_user_id"),
     marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
     isStaff: boolean("is_staff").notNull().default(false),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_auth_user_id_idx").on(t.authUserId)],
 );
 
 export const sessions = pgTable(

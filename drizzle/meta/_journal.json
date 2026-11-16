@@ -64,6 +64,13 @@
       "when": 1794550261641,
       "tag": "0008_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794861402711,
+      "tag": "0009_supabase_auth",
+      "breakpoints": true
     }
   ]
 }
