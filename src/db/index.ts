@@ -34,6 +34,11 @@ async function connect(): Promise<DB> {
     await migratePg(db, { migrationsFolder: MIGRATIONS });
     return db;
   }
+  // Serverless file systems are read-only and per-instance, so the embedded
+  // database can't work there. Fail with a clear message instead of ENOENT.
+  if (process.env.VERCEL) {
+    throw new Error("DATABASE_URL is not set for this Vercel environment. Add it in Project Settings > Environment Variables and redeploy.");
+  }
   const [{ PGlite }, { pg_trgm }, { unaccent }] = await Promise.all([
     import("@electric-sql/pglite"),
     import("@electric-sql/pglite/contrib/pg_trgm"),
