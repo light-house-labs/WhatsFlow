@@ -17,7 +17,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return new Response(new Uint8Array(body), {
     headers: {
       "Content-Type": f.contentType,
-      "Content-Disposition": `${f.contentType.startsWith("image/") ? "inline" : "attachment"}; filename="${f.name}"`,
+      "Content-Disposition": `${f.contentType.startsWith("image/") ? "inline" : "attachment"}; filename="${f.name.replace(/[^\w.\- ]/g, "_")}"`,
       "Cache-Control": "private, max-age=3600",
       "X-Content-Type-Options": "nosniff",
     },

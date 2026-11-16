@@ -46,6 +46,7 @@ import {
 } from "@/components/ui";
 import { SHORTCUTS } from "@/lib/shortcuts";
 import { usePlatform } from "@/lib/platform";
+import { usePoll } from "@/lib/use-poll";
 import { Kbd, Tip, useShortcutMatcher } from "@/components/shortcuts";
 import { HelpButton } from "@/components/help-drawer";
 import { formatWaId } from "@/lib/phone";
@@ -220,6 +221,12 @@ export function InboxApp({
   const [thread, setThread] = useState<Thread | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // What the screen is showing now, so a slow answer for an earlier filter or chat is dropped instead of flashing in.
+  const view = useRef({ filter, q, selected });
+  useEffect(() => {
+    view.current = { filter, q, selected };
+  }, [filter, q, selected]);
+
   const loadList = useCallback(async () => {
     const r = await fetch(
       `/api/inbox/conversations?filter=${filter}&q=${encodeURIComponent(q)}`,
@@ -227,7 +234,7 @@ export function InboxApp({
     );
     if (!r.ok) return;
     const j = await r.json();
-    setList(j.conversations);
+    if (view.current.filter === filter && view.current.q === q) setList(j.conversations);
   }, [filter, q]);
 
   const loadThread = useCallback(async () => {
@@ -239,26 +246,12 @@ export function InboxApp({
       `/api/inbox/conversations/${selected}?typing=${typingNow ? 1 : 0}`,
       { cache: "no-store" },
     );
-    if (r.ok) setThread(await r.json());
+    if (r.ok && view.current.selected === selected) setThread(await r.json());
   }, [selected]);
 
-  useEffect(() => {
-    const first = setTimeout(loadList, 0);
-    const t = setInterval(loadList, 3000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(t);
-    };
-  }, [loadList]);
+  usePoll(loadList, 3000);
+  usePoll(loadThread, 2500);
 
-  useEffect(() => {
-    const first = setTimeout(loadThread, 0);
-    const t = setInterval(loadThread, 2500);
-    return () => {
-      clearTimeout(first);
-      clearInterval(t);
-    };
-  }, [loadThread]);
 
   useEffect(() => {
     if (selected) markRead(selected).then(loadList);
@@ -461,7 +454,7 @@ export function InboxApp({
       </section>
 
       {/* thread */}
-      {thread && selected ? (
+      {thread && selected && thread.conversation.id === selected ? (
         <ThreadView
           key={selected}
           me={me}
@@ -473,6 +466,19 @@ export function InboxApp({
           clearError={() => setError(null)}
           act={act}
         />
+      ) : selected ? (
+        // The chosen chat is still loading. Never show the previous chat here: a reply typed now would go to the wrong person.
+        <div className="flex min-w-0 flex-1 flex-col bg-canvas" aria-busy="true" aria-label="Loading conversation">
+          <div className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
+            <span className="size-9 animate-pulse rounded-full bg-fill" />
+            <span className="h-3.5 w-40 animate-pulse rounded bg-fill" />
+          </div>
+          <div className="flex flex-1 flex-col justify-end gap-3 p-6">
+            {["w-56", "w-72 self-end", "w-44", "w-64 self-end"].map((w) => (
+              <span key={w} className={cx("h-9 animate-pulse rounded-2xl bg-fill", w)} />
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="flex min-w-0 flex-1 flex-col bg-canvas">
           <div

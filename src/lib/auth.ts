@@ -40,14 +40,17 @@ export async function destroySession() {
   store.delete(COOKIE);
 }
 
+/** One query per request: the session, its user, and (when a workspace is selected) the membership and workspace. */
 export const getSession = cache(async () => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   const d = await db();
   const [row] = await d
-    .select({ session: schema.sessions, user: schema.users })
+    .select({ session: schema.sessions, user: schema.users, org: schema.orgs, role: schema.memberships.role })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
+    .leftJoin(schema.memberships, and(eq(schema.memberships.orgId, schema.sessions.orgId), eq(schema.memberships.userId, schema.sessions.userId)))
+    .leftJoin(schema.orgs, eq(schema.orgs.id, schema.memberships.orgId))
     .where(and(eq(schema.sessions.tokenHash, sha256(token)), gt(schema.sessions.expiresAt, new Date())))
     .limit(1);
   return row ?? null;
@@ -69,17 +72,8 @@ export type OrgContext = Awaited<ReturnType<typeof loadOrgContext>>;
 
 const loadOrgContext = cache(async () => {
   const s = await requireUser();
-  const d = await db();
-  const orgId = s.session.orgId;
-  if (!orgId) return null;
-  const [row] = await d
-    .select({ org: schema.orgs, role: schema.memberships.role })
-    .from(schema.memberships)
-    .innerJoin(schema.orgs, eq(schema.orgs.id, schema.memberships.orgId))
-    .where(and(eq(schema.memberships.orgId, orgId), eq(schema.memberships.userId, s.user.id)))
-    .limit(1);
-  if (!row) return null;
-  return { user: s.user, org: row.org, role: row.role, db: d };
+  if (!s.org || !s.role) return null;
+  return { user: s.user, org: s.org, role: s.role, db: await db() };
 });
 
 /**

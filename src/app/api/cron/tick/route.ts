@@ -4,7 +4,7 @@ import { enqueuePeriodic, runDueJobs } from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
 
-/** Vercel Cron calls this every minute. */
+/** Called by Vercel Cron or any external scheduler. `heartbeat` in lib/jobs covers the gaps between calls. */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {

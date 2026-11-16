@@ -2,19 +2,23 @@ import { NextResponse, type NextRequest } from "next/server";
 import { and, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { schema } from "@/db";
 import { orgOrNull } from "@/lib/auth";
+import { heartbeat } from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const ctx = await orgOrNull();
   if (!ctx) return NextResponse.json({ error: "unauthorised" }, { status: 401 });
+  heartbeat(ctx.db); // the open inbox polls this, which keeps reminders and campaigns moving
   const filter = req.nextUrl.searchParams.get("filter") ?? "open";
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const label = req.nextUrl.searchParams.get("label");
   const c = schema.conversations;
   const where = [eq(c.orgId, ctx.org.id)];
-  const [settings] = await ctx.db.select({ wait: schema.inboxSettings.waitAlertMinutes }).from(schema.inboxSettings).where(eq(schema.inboxSettings.orgId, ctx.org.id));
-  const waitAlertMinutes = settings?.wait ?? 15;
+  // Only the overdue filter needs the threshold before the list query; otherwise both run together.
+  const settingsQuery = ctx.db.select({ wait: schema.inboxSettings.waitAlertMinutes }).from(schema.inboxSettings).where(eq(schema.inboxSettings.orgId, ctx.org.id));
+  const early = filter === "overdue" ? await settingsQuery : null;
+  let waitAlertMinutes = early?.[0]?.wait ?? 15;
   if (filter === "mine") where.push(eq(c.assigneeId, ctx.user.id), ne(c.status, "closed"));
   else if (filter === "unassigned") where.push(isNull(c.assigneeId), ne(c.status, "closed"), eq(c.handledBy, "human"));
   else if (filter === "bot") where.push(eq(c.handledBy, "bot"), ne(c.status, "closed"));
@@ -31,7 +35,7 @@ export async function GET(req: NextRequest) {
     const like = `%${q}%`;
     where.push(or(ilike(schema.contacts.name, like), ilike(schema.contacts.waId, like), ilike(c.lastMessagePreview, like))!);
   }
-  const rows = await ctx.db
+  const rowsQuery = ctx.db
     .select({
       id: c.id,
       status: c.status,
@@ -51,5 +55,7 @@ export async function GET(req: NextRequest) {
     .where(and(...where))
     .orderBy(desc(c.lastMessageAt))
     .limit(200);
+  const [rows, late] = await Promise.all([rowsQuery, early ? null : settingsQuery]);
+  if (late) waitAlertMinutes = late[0]?.wait ?? 15;
   return NextResponse.json({ conversations: rows, waitAlertMinutes });
 }

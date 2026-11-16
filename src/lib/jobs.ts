@@ -1,6 +1,8 @@
-import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { after } from "next/server";
+import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
+import { hit } from "./rate-limit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each handler reads its own payload shape
 export type JobHandler = (d: DB, payload: Record<string, any>) => Promise<void>;
@@ -16,6 +18,9 @@ export async function enqueue(d: DB, kind: string, payload: Record<string, unkno
 }
 
 const MAX_ATTEMPTS = 5;
+// Long enough for a full campaign batch on a slow day: a second runner claiming
+// the same job mid-flight would message the same people twice.
+const LOCK_MS = 5 * 60_000;
 
 /** Run due jobs. Safe to call from many places: each job is claimed with a lock. */
 export async function runDueJobs(d: DB, limit = 25): Promise<number> {
@@ -37,7 +42,7 @@ export async function runDueJobs(d: DB, limit = 25): Promise<number> {
   for (const job of due) {
     const claimed = await d
       .update(schema.jobs)
-      .set({ lockedUntil: new Date(Date.now() + 60_000), attempts: sql`${schema.jobs.attempts} + 1` })
+      .set({ lockedUntil: new Date(Date.now() + LOCK_MS), attempts: sql`${schema.jobs.attempts} + 1` })
       .where(
         and(
           eq(schema.jobs.id, job.id),
@@ -48,6 +53,8 @@ export async function runDueJobs(d: DB, limit = 25): Promise<number> {
     if (!claimed.length) continue;
     const handler = handlers.get(job.kind);
     try {
+      // the run that held the lock died (timeout, crash) every time: stop retrying
+      if (job.attempts >= MAX_ATTEMPTS) throw new Error(job.error ?? "Gave up: the job never finished");
       if (!handler) throw new Error(`No handler for job kind ${job.kind}`);
       await handler(d, job.payload);
       await d.update(schema.jobs).set({ doneAt: new Date(), error: null }).where(eq(schema.jobs.id, job.id));
@@ -69,14 +76,44 @@ export async function runDueJobs(d: DB, limit = 25): Promise<number> {
   return ran;
 }
 
-/** Fire-and-forget drain after enqueueing, so dev and low-traffic prod don't wait for cron. */
-export function kickJobs(d: DB) {
-  setTimeout(() => {
-    runDueJobs(d).catch((e) => console.error("[jobs]", e));
-  }, 0);
+/** Run `fn` once the response is sent. Serverless hosts freeze a bare timer; `after` keeps the function alive. */
+function defer(fn: () => Promise<unknown>) {
+  const run = () => fn().catch((e) => console.error("[jobs]", e));
+  try {
+    after(run);
+  } catch {
+    setTimeout(run, 0); // not in a request: scripts, tests, the in-process timer
+  }
 }
 
-/** Housekeeping jobs queued by cron (prod) or the in-process timer (dev). */
+/** Drain the queue after enqueueing, so nothing waits for the next cron tick. */
+export function kickJobs(d: DB) {
+  defer(() => runDueJobs(d));
+}
+
+const PERIODIC = ["lead.followups", "billing.period_end", "automation.no_reply", "ratelimits.prune", "sheets.sync"];
+
+/** Housekeeping jobs queued by cron, the in-process timer (dev), or `heartbeat`. One of each kind at a time. */
 export async function enqueuePeriodic(d: DB) {
-  for (const kind of ["lead.followups", "billing.period_end", "automation.no_reply", "ratelimits.prune", "sheets.sync"]) await enqueue(d, kind, {});
+  const waiting = await d.select({ kind: schema.jobs.kind }).from(schema.jobs).where(and(isNull(schema.jobs.doneAt), inArray(schema.jobs.kind, PERIODIC)));
+  const have = new Set(waiting.map((j) => j.kind));
+  for (const kind of PERIODIC) if (!have.has(kind)) await enqueue(d, kind, {});
+}
+
+let lastBeat = 0;
+
+/**
+ * Keeps time without a per-minute cron (Vercel's free plan only runs cron daily):
+ * app traffic and incoming webhooks call this, and at most once a minute across
+ * all instances it queues the periodic jobs and drains the queue.
+ */
+export function heartbeat(d: DB) {
+  if (!process.env.VERCEL && process.env.JOBS_INLINE !== "0") return; // the in-process timer does this
+  if (Date.now() - lastBeat < 60_000) return;
+  lastBeat = Date.now();
+  defer(async () => {
+    if (!(await hit(d, "jobs:heartbeat", 1, 60)).ok) return;
+    await enqueuePeriodic(d);
+    await runDueJobs(d, 50);
+  });
 }

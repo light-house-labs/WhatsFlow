@@ -1,5 +1,6 @@
 "use client";
 
+import { usePoll } from "@/lib/use-poll";
 import { Fragment, ViewTransition, useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -110,12 +111,8 @@ export function MobileInbox({
     }
   }, [filter, q]);
 
-  useEffect(() => {
-    const first = setTimeout(loadList, 0);
-    // Slower while a chat covers the list.
-    const t = setInterval(loadList, selected ? 10000 : 3000);
-    return () => (clearTimeout(first), clearInterval(t));
-  }, [loadList, selected]);
+  // Slower while a chat covers the list.
+  usePoll(loadList, selected ? 10000 : 3000);
 
   const act: Act = useCallback(
     async (p) => {
@@ -590,13 +587,12 @@ function ChatScreen({
       setFailed(true);
     }
   }, [id]);
+  usePoll(load, 2500);
   useEffect(() => {
-    const first = setTimeout(load, 0);
-    const t = setInterval(load, 2500);
     markRead(id)
       .then(onChanged)
       .catch(() => {});
-    return () => (clearTimeout(first), clearInterval(t), setTyping(false));
+    return () => setTyping(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per conversation
   }, [id]);
 

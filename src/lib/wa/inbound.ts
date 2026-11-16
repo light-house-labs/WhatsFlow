@@ -326,7 +326,7 @@ export function parseCloudWebhook(body: any) {
           text,
           replyId,
           media,
-          timestamp: new Date(Number(msg.timestamp) * 1000),
+          timestamp: Number(msg.timestamp) > 0 ? new Date(Number(msg.timestamp) * 1000) : new Date(),
           referral: msg.referral ?? null,
         };
       });

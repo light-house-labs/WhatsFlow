@@ -13,6 +13,7 @@ async function graph(path: string, token: string, init?: { method?: string; body
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: init?.body ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
+    signal: AbortSignal.timeout(20_000), // a hung call must not hold a campaign batch past its job lock
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, any>;
   if (!res.ok) {

@@ -19,11 +19,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .limit(1);
   if (!row) return NextResponse.json({ error: "not found" }, { status: 404 });
   const typing = new URL(req.url).searchParams.get("typing") === "1";
-  await ctx.db
-    .insert(schema.presence)
-    .values({ conversationId: id, userId: ctx.user.id, typing, seenAt: new Date() })
-    .onConflictDoUpdate({ target: [schema.presence.conversationId, schema.presence.userId], set: { typing, seenAt: new Date() } });
-  const [messages, notes, leads, tickets, orders, [appointment], viewers, [fromAd]] = await Promise.all([
+  const [, messages, notes, leads, tickets, orders, [appointment], viewers, [fromAd]] = await Promise.all([
+    ctx.db
+      .insert(schema.presence)
+      .values({ conversationId: id, userId: ctx.user.id, typing, seenAt: new Date() })
+      .onConflictDoUpdate({ target: [schema.presence.conversationId, schema.presence.userId], set: { typing, seenAt: new Date() } }),
     ctx.db.select().from(schema.messages).where(eq(schema.messages.conversationId, id)).orderBy(asc(schema.messages.createdAt)).limit(500),
     ctx.db.select().from(schema.notes).where(eq(schema.notes.conversationId, id)).orderBy(asc(schema.notes.createdAt)),
     ctx.db.select({ id: schema.leads.id, title: schema.leads.title, stageId: schema.leads.stageId }).from(schema.leads).where(eq(schema.leads.contactId, row.contact.id)).orderBy(desc(schema.leads.createdAt)).limit(5),

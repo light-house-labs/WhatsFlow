@@ -285,6 +285,8 @@ registerJob("automation.step", async (d, p) => {
   let status: "done" | "waiting" | "stopped" | "failed" = "done";
   for (; i < a.steps.length; i++) {
     const s = a.steps[i];
+    // Save progress as we go: if a later step crashes and the job is retried, earlier messages aren't sent twice.
+    if (i !== run.step) await d.update(schema.automationRuns).set({ step: i, log, conversationId: convId, updatedAt: new Date() }).where(eq(schema.automationRuns.id, run.id));
     try {
       if (s.type === "wait") {
         if (p.resumed !== i) {
@@ -348,7 +350,7 @@ registerJob("automation.step", async (d, p) => {
   }
   await d
     .update(schema.automationRuns)
-    .set({ step: status === "waiting" ? i : i, status: status === "waiting" ? "waiting" : status, log, conversationId: convId, updatedAt: new Date() })
+    .set({ step: i, status, log, conversationId: convId, updatedAt: new Date() })
     .where(eq(schema.automationRuns.id, run.id));
 });
 

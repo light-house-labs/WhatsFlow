@@ -14,6 +14,7 @@ export async function sendMail(to: string, subject: string, text: string): Promi
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to, subject, text }),
+    signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) return { ok: false, error: `Resend ${res.status}` };
   return { ok: true };

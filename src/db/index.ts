@@ -23,7 +23,14 @@ function poolConfig(raw: string) {
   u.searchParams.delete("sslmode");
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
   const ca = process.env.DATABASE_CA?.replace(/\\n/g, "\n");
-  return { connectionString: u.toString(), ssl: local ? false : ca ? { ca } : true, max: Number(process.env.DATABASE_POOL_MAX ?? 5) };
+  return {
+    connectionString: u.toString(),
+    ssl: local ? false : ca ? { ca } : true,
+    max: Number(process.env.DATABASE_POOL_MAX ?? 5),
+    // Opening a TLS connection to a far-away database costs several round trips; keep warm ones around.
+    idleTimeoutMillis: 60_000,
+    keepAlive: true,
+  };
 }
 
 async function connect(): Promise<DB> {

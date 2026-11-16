@@ -46,6 +46,7 @@ export async function razorpayLink(cfg: RazorpayConfig, p: PaymentLinkInput): Pr
       notes: { order_id: p.orderId },
     }),
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   const json = (await res.json().catch(() => ({}))) as any;
   if (!res.ok) throw new PaymentError(json?.error?.description ?? `Razorpay ${res.status}`);
@@ -68,6 +69,7 @@ export async function stripeLink(cfg: StripeConfig, p: PaymentLinkInput): Promis
     headers: { Authorization: `Bearer ${cfg.secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: form,
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   const json = (await res.json().catch(() => ({}))) as any;
   if (!res.ok) throw new PaymentError(json?.error?.message ?? `Stripe ${res.status}`);

@@ -3,8 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { handleInbound, parseCloudWebhook } from "@/lib/wa/inbound";
-import { applyStatus } from "@/lib/wa/outbound";
-import { kickJobs } from "@/lib/jobs";
+import { applyStatus, SendError } from "@/lib/wa/outbound";
+import { heartbeat, kickJobs } from "@/lib/jobs";
 import { sha256 } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   if (p.get("hub.mode") !== "subscribe") return new NextResponse("bad request", { status: 400 });
   const token = p.get("hub.verify_token") ?? "";
+  if (!token) return new NextResponse("forbidden", { status: 403 });
   const d = await db();
   const [n] = await d.select({ id: schema.waNumbers.id }).from(schema.waNumbers).where(eq(schema.waNumbers.verifyToken, token)).limit(1);
   if (!n) return new NextResponse("forbidden", { status: 403 });
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
     .returning({ id: schema.webhookEvents.id });
   if (!inserted.length) return NextResponse.json({ ok: true, duplicate: true });
 
+  let failed = false;
   for (const change of parseCloudWebhook(body)) {
     const [number] = await d.select().from(schema.waNumbers).where(eq(schema.waNumbers.phoneNumberId, change.phoneNumberId)).limit(1);
     if (!number) continue;
@@ -57,11 +59,19 @@ export async function POST(req: NextRequest) {
       try {
         await handleInbound(d, number, m);
       } catch (e) {
+        // The message is stored; we just couldn't answer it (say it arrived a day late). A retry wouldn't help.
+        if (!(e instanceof SendError)) failed = true;
         console.error("[webhook] inbound failed", m.waMessageId, e);
       }
     }
     for (const s of change.statuses) await applyStatus(d, s.id, s.status, s.error);
   }
   kickJobs(d);
+  heartbeat(d);
+  if (failed) {
+    // Forget the event and answer 500 so Meta retries; messages already stored are skipped by their id.
+    await d.delete(schema.webhookEvents).where(eq(schema.webhookEvents.id, inserted[0].id));
+    return new NextResponse("retry", { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

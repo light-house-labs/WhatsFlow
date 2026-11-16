@@ -87,7 +87,7 @@ Webhooks POST `{ id, event, createdAt, data }` with `X-WhatsFlow-Signature: sha2
 
 - Add a Postgres database (for example Neon from the Vercel Marketplace) and set `DATABASE_URL`. Migrations in `drizzle/` run on first connection.
 - Set `ENCRYPTION_KEY`, `META_APP_SECRET`, `APP_URL` and `CRON_SECRET`.
-- `vercel.json` schedules `/api/cron/tick` every minute. That drains the job queue (broadcasts, template status, follow-ups, billing period ends). Per-minute cron needs a paid Vercel plan; on Hobby, schedule it daily and rely on the inline kicks that run after each action.
+- `vercel.json` schedules `/api/cron/tick` daily, which is all Vercel's free plan allows. Between ticks the queue (broadcasts, reminders, automations, template status, Sheets sync) is drained after each action, and at most once a minute by a heartbeat that runs whenever someone has the inbox open or a WhatsApp webhook arrives. For exact timing with nobody online, use a paid plan and set the schedule to `* * * * *`, or point any external scheduler at `/api/cron/tick` with `Authorization: Bearer $CRON_SECRET`.
 
 ## What's built, and what isn't
 
