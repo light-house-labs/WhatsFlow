@@ -452,7 +452,6 @@ export const HELP: Record<string, HelpEntry> = {
     ],
     tips: [
       "Messages outside the 24-hour window must use an approved template.",
-      "Going over your plan limit pauses automations until the next period.",
       "Use a wait step so follow-ups don't feel robotic.",
     ],
     shortcuts: [],
@@ -535,13 +534,11 @@ export const HELP: Record<string, HelpEntry> = {
     ],
     tips: [
       "Only an owner can make another owner.",
-      "Your plan sets how many seats you have.",
       "Removed teammates' chats stay; reassign them.",
     ],
     shortcuts: [],
     links: [
       { label: "Chat routing", href: "/settings/routing" },
-      { label: "Plan & billing", href: "/settings/billing" },
     ],
   },
 

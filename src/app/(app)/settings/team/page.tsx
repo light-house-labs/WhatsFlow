@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { and, eq, isNull } from "drizzle-orm";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { limitsFor } from "@/lib/plans";
+import { limitsFor, ofLimit } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
 import { Select, Table, Td, Th } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
@@ -22,8 +22,8 @@ export default async function Page() {
   ]);
   const seats = limitsFor(org.plan).seats;
   return (
-    <SettingsPage title="Team" summary={`${members.length} of ${seats} seats used · ${invites.length} pending ${invites.length === 1 ? "invite" : "invites"} · you are ${role}`} status={[{ label: "Seats used", value: `${members.length} of ${seats}`, tone: members.length >= seats ? "warn" : "on" }, { label: "Pending invites", value: String(invites.length), tone: invites.length ? "warn" : "off" }, { label: "Your role", value: role, tone: "on" }]} tips={["Agents work the inbox; admins also change settings.", "Only an owner can make another owner.", "Revoke an invite if it went to the wrong address."]}>
-      <SettingsSection title="Members" description={`${members.length} of ${seats} seats used on your plan. Everyone with access to this workspace.`} flush>
+    <SettingsPage title="Team" summary={`${ofLimit(members.length, seats)} ${Number.isFinite(seats) ? "seats used" : members.length === 1 ? "member" : "members"} · ${invites.length} pending ${invites.length === 1 ? "invite" : "invites"} · you are ${role}`} status={[Number.isFinite(seats) ? { label: "Seats used", value: ofLimit(members.length, seats), tone: members.length >= seats ? "warn" : "on" } : { label: "Members", value: String(members.length), tone: "on" }, { label: "Pending invites", value: String(invites.length), tone: invites.length ? "warn" : "off" }, { label: "Your role", value: role, tone: "on" }]} tips={["Agents work the inbox; admins also change settings.", "Only an owner can make another owner.", "Revoke an invite if it went to the wrong address."]}>
+      <SettingsSection title="Members" description={`${Number.isFinite(seats) ? `${ofLimit(members.length, seats)} seats used on your plan. ` : ""}Everyone with access to this workspace.`} flush>
           <Table>
             <thead>
               <tr>
@@ -85,7 +85,7 @@ export default async function Page() {
             </div>
           )}
       </SettingsSection>
-      <SettingsSection id="invite" title="Invite someone" description="Agents work the inbox, contacts, pipeline and tickets. Admins can also change settings, templates, campaigns and bots. Owners manage billing.">
+      <SettingsSection id="invite" title="Invite someone" description="Agents work the inbox, contacts, pipeline and tickets. Admins can also change settings, templates, campaigns and bots. Owners can also manage other owners and the workspace itself.">
           <InviteForm canInviteOwner={role === "owner"} />
           {invites.length > 0 && (
             <ul className="divide-y divide-line text-sm">

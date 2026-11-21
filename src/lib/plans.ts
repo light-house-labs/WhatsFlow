@@ -75,8 +75,23 @@ export const PLANS: Record<Plan, PlanInfo> = {
 
 export const PAID_PLANS: Plan[] = ["starter", "team"];
 
+/**
+ * Plans, trials and limits are switched off unless NEXT_PUBLIC_BILLING=on.
+ * Self-hosted (open source) installs get every feature with no caps.
+ */
+export function billingEnabled() {
+  return process.env.NEXT_PUBLIC_BILLING === "on";
+}
+
+const NO_LIMITS: PlanLimits = { seats: Infinity, botFlows: Infinity, numbers: Infinity, products: Infinity, appointmentsPerMonth: Infinity, automations: Infinity };
+
 export function limitsFor(plan: Plan): PlanLimits {
-  return PLANS[plan].limits;
+  return billingEnabled() ? PLANS[plan].limits : NO_LIMITS;
+}
+
+/** "3 of 10", or just "3" when there is no cap. */
+export function ofLimit(used: number, limit: number) {
+  return Number.isFinite(limit) ? `${used} of ${limit}` : String(used);
 }
 
 export type Usage = { seats: number; liveFlows: number; numbers: number };

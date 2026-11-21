@@ -9,6 +9,7 @@ import { HelpProvider } from "@/components/help-drawer";
 import { nowMs } from "@/lib/format";
 import { TRIAL_DAYS } from "@/lib/org-setup";
 import { vapidPublicKey } from "@/lib/push";
+import { billingEnabled } from "@/lib/plans";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireOrg();
@@ -30,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .limit(1),
   ]);
   const trialDaysLeft =
-    org.billingStatus === "trialing" && org.currentPeriodEnd
+    billingEnabled() && org.billingStatus === "trialing" && org.currentPeriodEnd
       ? Math.max(0, Math.ceil((org.currentPeriodEnd.getTime() - nowMs()) / 86400_000))
       : null;
   return (
@@ -50,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Shell
           mobile={{ unread: Number(waiting[0]?.n ?? 0), userId: user.id, vapidKey: vapidPublicKey() }}
           banner={
-            org.billingStatus === "cancelled" ? (
+            billingEnabled() && org.billingStatus === "cancelled" ? (
               <div className="border-b border-line bg-warning-soft px-4 py-2 text-sm max-md:text-13">
                 This workspace&apos;s plan has ended. Your data is safe and the inbox still works.{" "}
                 <Link href="/settings/billing" className="font-medium link">

@@ -13,6 +13,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { billingEnabled } from "@/lib/plans";
 
 type NavLink = { href: string; label: string; icon: LucideIcon; exact?: boolean; admin?: boolean; sandbox?: boolean };
 
@@ -44,7 +45,7 @@ export const GROUPS: { label: string; items: NavLink[] }[] = [
   {
     label: "Account",
     items: [
-      { href: "/settings/billing", label: "Plan & billing", icon: CreditCard, admin: true },
+      ...(billingEnabled() ? [{ href: "/settings/billing", label: "Plan & billing", icon: CreditCard, admin: true }] : []),
       { href: "/settings/data", label: "Your data", icon: Database, admin: true },
       { href: "/settings/audit", label: "Audit log", icon: History, admin: true },
     ],

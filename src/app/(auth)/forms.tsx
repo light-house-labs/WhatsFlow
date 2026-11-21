@@ -80,9 +80,8 @@ export function SignupForm({ next }: { next?: string }) {
         <input type="checkbox" name="marketing" className="mt-0.5" /> Send me product tips now and then. (Optional, unsubscribe any time.)
       </label>
       <Button className="w-full" disabled={pending}>
-        {pending ? "Creating account…" : "Start 14-day trial"}
+        {pending ? "Creating account…" : "Create account"}
       </Button>
-      <p className="text-center text-xs text-muted">No card needed. Cancel any time from Billing, in one click.</p>
       <p className="text-center text-sm text-muted">
         Have an account?{" "}
         <Link className="font-medium link" href="/login">

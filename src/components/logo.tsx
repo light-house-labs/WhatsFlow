@@ -1,15 +1,23 @@
+import { MARK_INK, MARK_LIGHT, MARK_VIEWBOX } from "./logo-mark";
+
+/** The Harbor mark alone. Ink follows the text colour, so it works in both themes. */
+export function LogoMark({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox={MARK_VIEWBOX} aria-hidden="true" className={className}>
+      <path d={MARK_INK} fill="currentColor" />
+      <rect x={MARK_LIGHT.x} y={MARK_LIGHT.y} width={MARK_LIGHT.size} height={MARK_LIGHT.size} fill="var(--wf-brand)" />
+    </svg>
+  );
+}
+
 export function Logo({ compact = false, byline = false, className = "text-ink" }: { compact?: boolean; /** Add "by LightHouse Labs" under the name. */ byline?: boolean; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="2" fill="var(--wf-green)" />
-        <path d="M8 11c0-1.7 1.3-3 3-3h10c1.7 0 3 1.3 3 3v6c0 1.7-1.3 3-3 3h-6l-4.5 3.6c-.6.5-1.5 0-1.5-.8V20c-.6-.5-1-1.2-1-2v-7z" className="fill-on-accent" />
-        <path d="M11.5 14.5h3m3 0h3" stroke="var(--wf-green)" strokeWidth="2" strokeLinecap="square" />
-      </svg>
+      <LogoMark size={byline ? 28 : 24} />
       {!compact && (
         <span className="flex flex-col leading-none">
-          <span className="type-display text-[18px] tracking-[-0.035em]">Harbor</span>
-          {byline && <span className="mt-1 text-[11px] font-medium tracking-normal text-muted">by LightHouse Labs</span>}
+          <span className="text-[16px] font-semibold uppercase tracking-[0.04em]">Harbor</span>
+          {byline && <span className="mt-1 text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted">by LightHouse Labs</span>}
         </span>
       )}
     </span>

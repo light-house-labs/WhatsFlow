@@ -3,100 +3,102 @@
 /* Dark mode: next-themes toggles .dark on <html>. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* SizeIt brand tokens. Components use the Tailwind names (bg-surface,
-   text-muted, border-line, …), never raw hex. Green is the only accent and
-   stays rare: primary action, active/selected, success, key numbers. */
+/* Harbor tokens, matched to LightHouse Labs: zinc neutrals, one orange.
+   Components use the Tailwind names (bg-surface, text-muted, border-line, …),
+   never raw hex. The accent values come from src/lib/brand.ts (run
+   `npx tsx scripts/brand.ts`); tests/brand.test.ts keeps them in step and
+   checks every text/background pair against WCAG AA. Orange stays rare:
+   primary action, active/selected, key numbers. Green means success only. */
 :root {
-  /* Cool-neutral tokens. Components use the Tailwind names (bg-surface,
-     text-muted, border-line, …), never raw hex. */
-  --wf-ink: #1b1b1b;
-  --wf-green: #239641;
+  --wf-brand: #ed701d; /* LightHouse Labs orange: logo and decoration, never text */
+  --wf-ink: #18181b;
   --wf-paper: #ffffff;
 
-  --wf-canvas: #f7f7f8; /* bg-app: sidebar, chat message area */
-  --wf-panel: #f7f7f8;
-  --wf-hover: rgba(0, 0, 0, 0.04); /* nav / row hover */
-  --wf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --wf-canvas: #fafafa; /* bg-app: sidebar, chat message area */
+  --wf-panel: #fafafa;
+  --wf-hover: rgba(24, 24, 27, 0.04); /* nav / row hover */
+  --wf-shadow-xs: 0 1px 2px rgba(24, 24, 27, 0.05);
   --wf-bg: var(--wf-canvas);
   --wf-surface: #ffffff; /* list, chat header, composer, right panel, cards, inputs */
   --wf-fill: #f4f4f5; /* subtle: hover, inbound bubble, avatar, chips */
-  --wf-fill-strong: #f0f0f1; /* selected */
+  --wf-fill-strong: #ececee; /* selected */
   --wf-surface-2: var(--wf-fill);
   --wf-surface-3: var(--wf-fill-strong);
   --wf-border: #e4e4e7; /* panel dividers, card edges, list dividers */
   --wf-border-input: #d4d4d8; /* inputs, secondary buttons, selects */
   --wf-border-strong: #d4d4d8;
-  --wf-shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px #e4e4e7;
+  --wf-shadow-menu: 0 8px 24px rgba(24, 24, 27, 0.08), 0 0 0 1px #e4e4e7;
   --wf-text: var(--wf-ink);
-  --wf-text-muted: #52525b; /* text-2 */
+  --wf-text-muted: #52525b;
   --wf-text-soft: #52525b;
-  --wf-text-faint: #71717a; /* text-3: lightest allowed for real content */
+  --wf-text-faint: #71717a; /* lightest allowed for real content */
   --wf-placeholder: #a1a1aa;
-  --wf-accent: var(--wf-green);
-  --wf-accent-hover: #1e7f37;
-  --wf-accent-text: #17692e; /* on-soft */
-  --wf-accent-soft: #e9f6ed;
+  --wf-accent: #c35600; /* brand.ts: white label 4.51:1 */
+  --wf-accent-hover: #ad4b00;
+  --wf-accent-text: #b85100; /* brand.ts: 4.53:1 on soft, 4.98:1 on white */
+  --wf-accent-soft: #fdf2eb;
   --wf-on-accent: #ffffff;
   --wf-danger: #b91c1c;
   --wf-danger-soft: #fee2e2;
   --wf-danger-hover: #fecaca;
   --wf-field: var(--wf-surface); /* input background */
-  --wf-focus: var(--wf-accent-soft); /* focus ring */
-  --wf-success: var(--wf-accent-text);
-  --wf-warning: #b45309;
-  --wf-warning-soft: #fef3c7;
+  --wf-focus: color-mix(in srgb, var(--wf-brand) 22%, transparent); /* focus ring */
+  --wf-success: #15803d;
+  --wf-warning: #a16207; /* yellow, kept well apart from the orange accent */
+  --wf-warning-soft: #fef9c3;
   --wf-bubble-out: var(--wf-accent-soft);
   --wf-bubble-in: var(--wf-surface);
-  --wf-bubble-agent: #dff1e5;
+  --wf-bubble-agent: #fbe4d4;
   --wf-edge: #a1a1aa;
   --wf-dot: #d4d4d8;
-  --wf-scrim: rgba(27, 27, 27, 0.35);
-  --wf-wa-bg: #efeae2; /* WhatsApp-style chat preview */
+  --wf-scrim: rgba(24, 24, 27, 0.35);
+  --wf-wa-bg: #efeae2; /* WhatsApp-style chat preview keeps WhatsApp's own colours */
   --wf-wa-out: #d9fdd3;
   color-scheme: light;
 
   /* Font stacks. Real variables (not @theme inline) so utilities resolve. */
-  --wf-font-body: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --wf-font-display: var(--font-display-face), "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --wf-font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --wf-font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Dark set: soft and low-contrast, never pure black or pure white. Brand
-   green (--wf-green) is left alone so the logo tile keeps its colour. */
+/* Dark set: LightHouse Labs' dark sections (zinc, near black), kept soft enough
+   for long inbox sessions. Brand orange (--wf-brand) is left alone for the logo. */
 .dark {
-  --wf-ink: #e4e4e5;
-  --wf-canvas: #222326;
-  --wf-panel: #222326;
+  --wf-ink: #e4e4e7;
+  --wf-canvas: #18181b;
+  --wf-panel: #18181b;
   --wf-hover: rgba(255, 255, 255, 0.05);
-  --wf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --wf-surface: #26272b;
-  --wf-fill: #2e2f33;
-  --wf-fill-strong: #34353a;
-  --wf-border: #37383d;
-  --wf-border-input: #45464c;
-  --wf-border-strong: #45464c;
-  --wf-shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px #37383d;
-  --wf-text: #e4e4e5;
-  --wf-text-muted: #a9aaae;
-  --wf-text-soft: #a9aaae;
-  --wf-text-faint: #8a8b90;
-  --wf-placeholder: #6c6d72;
-  --wf-accent: #2fa84f;
-  --wf-accent-hover: #38b85a;
-  --wf-accent-text: #8fd6a5;
-  --wf-accent-soft: #23382b;
+  --wf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --wf-surface: #1f1f23;
+  --wf-fill: #27272a;
+  --wf-fill-strong: #2f2f34;
+  --wf-border: #2f2f34;
+  --wf-border-input: #3f3f46;
+  --wf-border-strong: #3f3f46;
+  --wf-shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px #2f2f34;
+  --wf-text: #e4e4e7;
+  --wf-text-muted: #a1a1aa;
+  --wf-text-soft: #a1a1aa;
+  --wf-text-faint: #8b8b94;
+  --wf-placeholder: #63636b;
+  --wf-accent: #c35600;
+  --wf-accent-hover: #ad4b00;
+  --wf-accent-text: #f17424; /* brand.ts: 4.52:1 on soft, 5.68:1 on surface */
+  --wf-accent-soft: #442b1b;
   --wf-on-accent: #ffffff;
-  --wf-danger: #ec6f6f;
-  --wf-danger-soft: #3d2729;
-  --wf-danger-hover: #4c2f32;
-  --wf-warning: #e0a33a;
-  --wf-warning-soft: #3a3123;
+  --wf-danger: #f87171;
+  --wf-danger-soft: #3b2224;
+  --wf-danger-hover: #4a2a2d;
+  --wf-success: #4ade80;
+  --wf-warning: #facc15;
+  --wf-warning-soft: #362f17;
   --wf-bubble-in: var(--wf-fill);
-  --wf-bubble-agent: #2a4232;
+  --wf-bubble-agent: #4a2f1e;
   --wf-field: var(--wf-fill);
-  --wf-focus: color-mix(in srgb, var(--wf-accent) 40%, transparent);
-  --wf-edge: #45464c;
-  --wf-dot: #37383d;
-  --wf-scrim: rgba(0, 0, 0, 0.5);
+  --wf-focus: color-mix(in srgb, var(--wf-brand) 40%, transparent);
+  --wf-edge: #3f3f46;
+  --wf-dot: #2f2f34;
+  --wf-scrim: rgba(0, 0, 0, 0.55);
   --wf-wa-bg: #1f2c25;
   --wf-wa-out: #144d37;
   color-scheme: dark;
@@ -157,14 +159,14 @@
   --text-xl--line-height: 28px;
   --text-2xl: 24px;
   --text-2xl--line-height: 32px;
-  /* Radius: 6 controls, 8 cards/bubbles, 999 pills */
+  /* Radius: 6 controls, 8 cards/bubbles, 12 feature cards, 999 pills */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --radius-xl: 8px;
-  --radius-2xl: 8px;
-  --radius-3xl: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
 
   /* No shadows except dropdown menus (shadow-menu) */
   --shadow-*: initial;
@@ -222,12 +224,12 @@
   letter-spacing: -0.01em;
 }
 
-/* Heavy display face: logo and landing page only */
+/* Display type, LightHouse Labs style: Inter medium, tight. Logo and landing page only. */
 @utility type-display {
   font-family: var(--wf-font-display);
-  font-weight: 900;
-  letter-spacing: -0.035em;
-  line-height: 1.02;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.04;
 }
 
 html,
@@ -266,7 +268,7 @@ time,
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--wf-green) 24%, transparent);
+  background: color-mix(in srgb, var(--wf-brand) 24%, transparent);
   color: var(--wf-text);
 }
 
@@ -296,7 +298,7 @@ select {
   accent-color: var(--wf-accent);
 }
 
-/* Standalone controls: green border + 3px soft ring on focus. Text fields
+/* Standalone controls: accent border + 3px soft ring on focus. Text fields
    match :focus-visible on any focus; buttons and links only from the keyboard. */
 input:not([type="checkbox"]):not([type="radio"]):not([data-bare]):focus-visible,
 textarea:not([data-bare]):focus-visible,
@@ -328,7 +330,7 @@ a {
 }
 
 /* Flow builder canvas (React Flow). Paper ground, faint dots, ink edges at
-   40%; green only for the selection and the path through it. */
+   40%; orange only for the selection and the path through it. */
 .wf-canvas {
   --xy-background-color: var(--wf-bg);
   --xy-background-pattern-color: var(--wf-dot);
@@ -412,7 +414,7 @@ a {
   }
 }
 
-/* Unread / nav count: round, 18px, green, white 11/600 */
+/* Unread / nav count: round, 18px, accent, white 11/600 */
 @utility count-badge {
   display: inline-grid;
   place-items: center;
@@ -428,7 +430,7 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-/* A setting opened from search: green-soft wash that fades out over 1s.
+/* A setting opened from search: accent-soft wash that fades out over 1s.
    An inset shadow paints over the element's own background, so cards keep theirs. */
 @keyframes wf-search-flash {
   0%,
@@ -452,7 +454,7 @@ a {
 }
 
 /* Flow builder canvas (React Flow). Paper ground, faint dots, ink edges at
-   40%; green only for the selection and the path through it. */
+   40%; orange only for the selection and the path through it. */
 .wf-canvas {
   --xy-background-color: var(--wf-bg);
   --xy-background-pattern-color: var(--wf-dot);

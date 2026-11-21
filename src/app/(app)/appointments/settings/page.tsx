@@ -30,7 +30,7 @@ export default async function Page() {
   ]);
   return (
     <>
-      <PageHeader title="Services & hours" description={`What customers can book, and when. Up to ${limitsFor(org.plan).appointmentsPerMonth} bookings a month on your plan.`} />
+      <PageHeader title="Services & hours" description={`What customers can book, and when.${Number.isFinite(limitsFor(org.plan).appointmentsPerMonth) ? ` Up to ${limitsFor(org.plan).appointmentsPerMonth} bookings a month on your plan.` : ""}`} />
       <div className="max-w-4xl space-y-6 p-6">
         <Card className="p-5">
           <h2 className="mb-3 type-heading">Services</h2>

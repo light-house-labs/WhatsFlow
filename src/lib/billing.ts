@@ -1,8 +1,8 @@
-import { and, desc, eq, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lte, ne, or, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import { schema } from "@/db";
 import type { Plan } from "@/db/schema";
-import { limitsFor, overLimit, PLANS, type Usage } from "./plans";
+import { billingEnabled, limitsFor, overLimit, PLANS, type Usage } from "./plans";
 
 const PLAN_RANK: Record<Plan, number> = { trial: 0, starter: 1, team: 2, custom: 3 };
 
@@ -74,6 +74,15 @@ export async function resumeSubscription(d: DB, orgId: string, actorId: string) 
 
 /** Apply period-end changes for every workspace that is due. Run from cron. */
 export async function processPeriodEnds(d: DB, now = new Date()) {
+  if (!billingEnabled()) {
+    // Without billing nothing expires: reopen any workspace a trial or plan had closed.
+    const healed = await d
+      .update(schema.orgs)
+      .set({ billingStatus: "active", currentPeriodEnd: null, cancelAtPeriodEnd: false, pendingPlan: null })
+      .where(or(ne(schema.orgs.billingStatus, "active"), isNotNull(schema.orgs.currentPeriodEnd)))
+      .returning({ id: schema.orgs.id });
+    return healed.length;
+  }
   const due = await d
     .select()
     .from(schema.orgs)

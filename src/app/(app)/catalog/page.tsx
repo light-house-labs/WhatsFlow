@@ -4,7 +4,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { Package } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { formatMoney, limitsFor } from "@/lib/plans";
+import { formatMoney, limitsFor, ofLimit } from "@/lib/plans";
 import { SaveForm, SubmitButton } from "@/components/save-form";
 import { Badge, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Table, Td, Textarea, Th } from "@/components/ui";
 import { UploadField } from "@/components/upload-field";
@@ -24,7 +24,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
     <>
       <PageHeader
         title="Catalog"
-        description={`Products your team and bots can sell in chat. ${products.length} of ${limit} on your plan.`}
+        description={`Products your team and bots can sell in chat. ${Number.isFinite(limit) ? `${ofLimit(products.length, limit)} on your plan.` : ""}`}
         actions={admin && !showForm ? <ButtonLink href="/catalog?new=1">Add product</ButtonLink> : undefined}
       />
       <div className="space-y-4 p-6">

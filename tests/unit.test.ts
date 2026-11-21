@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isOpen } from "@/lib/hours";
 import { DEFAULT_HOURS } from "@/lib/hours";
 import { placeholderCount, render, resolveVariables, slugTemplateName, validatePlaceholders } from "@/lib/template-render";
@@ -70,8 +70,10 @@ describe("flows", () => {
 
 describe("plans", () => {
   it("lists what is over a lower plan's limits", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING", "on");
     expect(overLimit("starter", { seats: 2, liveFlows: 9, numbers: 1 })).toHaveLength(1);
     expect(overLimit("team", { seats: 2, liveFlows: 9, numbers: 1 })).toHaveLength(0);
+    vi.unstubAllEnvs();
   });
 });
 

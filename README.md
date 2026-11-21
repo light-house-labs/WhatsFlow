@@ -1,5 +1,7 @@
 # Harbor by LightHouse Labs
 
+Open source. Self-host it with every feature switched on: no plans, no seat limits, no trial.
+
 The honest WhatsApp CRM: a shared inbox, bot flows, broadcasts, enquiries, a sales pipeline and support tickets for businesses that sell and support on WhatsApp. Real people for support, and cancelling takes one click.
 
 Built on the official **WhatsApp Cloud API**. Every workspace starts with a **sandbox number**, so the whole product works locally with no Meta account.
@@ -86,8 +88,7 @@ Webhooks POST `{ id, event, createdAt, data }` with `X-Harbor-Signature: sha256=
 ## Deploy (Vercel)
 
 - Add a Postgres database (for example Neon from the Vercel Marketplace) and set `DATABASE_URL`. Migrations in `drizzle/` run on first connection.
-- Set `ENCRYPTION_KEY`, `META_APP_SECRET`, `APP_URL` and `CRON_SECRET`. In production `APP_URL` is `https://harbour.lighthouselabs.in`.
-- Domain: in the Vercel project add `harbour.lighthouselabs.in` under Settings → Domains, then create the DNS record Vercel shows at the registrar for `lighthouselabs.in` (a CNAME for `harbour` pointing to `cname.vercel-dns.com`, or what Vercel displays).
+- Set `ENCRYPTION_KEY`, `META_APP_SECRET`, `APP_URL` and `CRON_SECRET`. `APP_URL` is the public address you host it at.
 - `vercel.json` schedules `/api/cron/tick` daily, which is all Vercel's free plan allows. Between ticks the queue (broadcasts, reminders, automations, template status, Sheets sync) is drained after each action, and at most once a minute by a heartbeat that runs whenever someone has the inbox open or a WhatsApp webhook arrives. For exact timing with nobody online, use a paid plan and set the schedule to `* * * * *`, or point any external scheduler at `/api/cron/tick` with `Authorization: Bearer $CRON_SECRET`.
 
 ## What's built, and what isn't

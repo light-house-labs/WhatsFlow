@@ -9,13 +9,19 @@ export function vapidPublicKey(): string | null {
   return process.env.VAPID_PUBLIC_KEY || null;
 }
 
+/** Push services want a contact: an https URL or a mailto. Use the app's own URL when it is public. */
+function vapidSubject() {
+  const url = process.env.APP_URL ?? "";
+  return url.startsWith("https://") ? url : "mailto:admin@example.com";
+}
+
 let configured: boolean | null = null;
 function configure(): boolean {
   if (configured !== null) return configured;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   configured = Boolean(pub && priv);
-  if (configured) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://harbour.lighthouselabs.in", pub!, priv!);
+  if (configured) webpush.setVapidDetails(process.env.VAPID_SUBJECT || vapidSubject(), pub!, priv!);
   return configured;
 }
 

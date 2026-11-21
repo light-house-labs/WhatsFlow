@@ -1,19 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Inter_Tight } from "next/font/google";
-import { GeistSans } from "geist/font/sans";
+import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/toast";
 import { ThemeColor } from "@/components/mobile/theme-color";
 import "./globals.css";
 
-// Display face: logo and landing page only.
-const display = Inter_Tight({ variable: "--font-display-face", subsets: ["latin"], weight: ["800", "900"] });
+// One family for everything, as on lighthouselabs.in: Inter, variable weight.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Harbor by LightHouse Labs", template: "%s · Harbor" },
-  description: "The honest WhatsApp CRM: shared inbox, bots, broadcasts and pipeline. Real people, one-click cancel.",
+  description: "The open-source WhatsApp CRM: shared inbox, bots, broadcasts and pipeline, on your own server.",
   applicationName: "Harbor",
-  authors: [{ name: "LightHouse Labs", url: "https://harbour.lighthouselabs.in" }],
+  authors: [{ name: "LightHouse Labs" }],
   metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   appleWebApp: { capable: true, title: "Harbor", statusBarStyle: "default" },
 };
@@ -29,7 +28,7 @@ export const viewport: Viewport = {
   // Matches the mobile header (bg-surface). ThemeColor keeps it in step with the in-app theme toggle.
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#26272b" },
+    { media: "(prefers-color-scheme: dark)", color: "#1f1f23" },
   ],
 };
 
@@ -37,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     // Browser extensions (e.g. ColorZilla's cz-shortcut-listen) write attributes onto
     // <html>/<body> before React hydrates; this only silences those two elements.
-    <html lang="en" className={`${GeistSans.variable} ${display.variable}`} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         <ThemeProvider>
           <ThemeColor />

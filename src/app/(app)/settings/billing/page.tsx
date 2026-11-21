@@ -4,9 +4,10 @@ import { desc, eq } from "drizzle-orm";
 import { CheckCircle2 } from "lucide-react";
 import { schema } from "@/db";
 import type { Plan } from "@/db/schema";
+import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/auth";
 import { usageFor } from "@/lib/billing";
-import { PLANS, formatMoney, limitsFor, overLimit } from "@/lib/plans";
+import { PLANS, billingEnabled, formatMoney, limitsFor, overLimit } from "@/lib/plans";
 import { dateTime } from "@/lib/format";
 import { Alert, Button, ButtonLink, Card, Select, cx } from "@/components/ui";
 import { SettingsPage } from "@/components/settings-page";
@@ -19,6 +20,7 @@ export const metadata: Metadata = { title: "Plan & billing" };
 const RANK: Record<Plan, number> = { trial: 0, starter: 1, team: 2, custom: 3 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ done?: string; preview?: Plan; interval?: "month" | "year" }> }) {
+  if (!billingEnabled()) notFound();
   const sp = await searchParams;
   const { db: d, org, role } = await requireOrg("admin");
   const owner = role === "owner";

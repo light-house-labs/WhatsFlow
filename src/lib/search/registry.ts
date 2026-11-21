@@ -1,4 +1,5 @@
 import Fuse, { type FuseResultMatch } from "fuse.js";
+import { billingEnabled } from "@/lib/plans";
 import {
   BarChart3,
   Bot,
@@ -475,7 +476,8 @@ function build(): StaticEntry[] {
   return out;
 }
 
-export const REGISTRY: StaticEntry[] = build();
+// Plan & billing only exists when billing is switched on.
+export const REGISTRY: StaticEntry[] = build().filter((e) => !e.id.includes(".billing") || billingEnabled());
 
 /** Entries this person can open. */
 export function staticEntries(role: Role, hasSandbox: boolean): StaticEntry[] {

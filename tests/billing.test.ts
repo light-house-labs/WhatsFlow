@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { schema } from "@/db";
 import { cancelSubscription, changePlan, processPeriodEnds } from "@/lib/billing";
 import { makeOrg } from "./helpers";
+import { limitsFor, ofLimit } from "@/lib/plans";
 
 describe("billing", () => {
+  // These cover the hosted product's plans; self-hosted installs run with billing off.
+  beforeEach(() => vi.stubEnv("NEXT_PUBLIC_BILLING", "on"));
+  afterEach(() => vi.unstubAllEnvs());
+
   it("cancel during trial ends access now and never schedules a charge", async () => {
     const { d, org, user } = await makeOrg();
     await cancelSubscription(d, org.id, user.id, "too expensive");
@@ -49,5 +54,22 @@ describe("billing", () => {
     const [after] = await d.select().from(schema.orgs).where(eq(schema.orgs.id, org.id));
     expect(after.plan).toBe("starter");
     expect(after.billingStatus).toBe("active");
+  });
+});
+
+describe("without billing (open source default)", () => {
+  it("gives new workspaces every feature with no trial and no caps", async () => {
+    const { d, org } = await makeOrg();
+    expect(org.billingStatus).toBe("active");
+    expect(org.currentPeriodEnd).toBeNull();
+    expect(limitsFor(org.plan).seats).toBe(Infinity);
+    expect(ofLimit(3, Infinity)).toBe("3");
+    expect(ofLimit(3, 10)).toBe("3 of 10");
+    // a workspace a trial had closed while billing was on is reopened
+    await d.update(schema.orgs).set({ billingStatus: "cancelled", currentPeriodEnd: new Date(0) }).where(eq(schema.orgs.id, org.id));
+    await processPeriodEnds(d);
+    const [o] = await d.select().from(schema.orgs).where(eq(schema.orgs.id, org.id));
+    expect(o.billingStatus).toBe("active");
+    expect(o.currentPeriodEnd).toBeNull();
   });
 });

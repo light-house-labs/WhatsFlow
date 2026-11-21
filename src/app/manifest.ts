@@ -12,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     // Matches the mobile header and tab bar (bg-surface) so the status bar and splash blend in.
     theme_color: "#ffffff",
-    background_color: "#f7f7f8",
+    background_color: "#fafafa",
     icons: [
       { src: "/pwa-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },

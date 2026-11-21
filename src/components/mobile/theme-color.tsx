@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
 
-const COLORS = { light: "#ffffff", dark: "#26272b" } as const;
+const COLORS = { light: "#ffffff", dark: "#1f1f23" } as const;
 
 /**
  * The theme is a class on <html> (next-themes), not the OS setting, so the per-scheme theme-color tags can

@@ -24,7 +24,7 @@ test("signs up and creates a workspace", async () => {
   await page.getByLabel("Work email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByText("I agree to the Terms").click();
-  await page.getByRole("button", { name: "Start 14-day trial" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/onboarding/);
 
   await page.getByLabel("Business name").fill(`E2E Clinic ${run}`);

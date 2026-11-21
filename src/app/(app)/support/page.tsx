@@ -79,7 +79,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               <Field label="Subject" htmlFor="subject">
                 <Input id="subject" name="subject" placeholder="e.g. My number won't connect" />
               </Field>
-              <Field label="What's happening?" htmlFor="body" hint="Screenshots help: paste a link. For billing, include what you expected to be charged.">
+              <Field label="What's happening?" htmlFor="body" hint="Screenshots help: paste a link.">
                 <Textarea id="body" name="body" rows={6} required />
               </Field>
               <SubmitButton>Send to our team</SubmitButton>

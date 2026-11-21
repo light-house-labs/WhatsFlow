@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { ArrowDown, Bot, Plus } from "lucide-react";
 import { schema } from "@/db";
 import { requireOrg } from "@/lib/auth";
-import { limitsFor } from "@/lib/plans";
+import { limitsFor, ofLimit } from "@/lib/plans";
 import { timeAgo } from "@/lib/format";
 import { ButtonLink, Card, EmptyState, PageHeader, SectionLabel, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { STARTERS } from "@/lib/starter-flows";
@@ -28,7 +28,7 @@ export default async function Page() {
           {flows.length === 0 ? (
             <GroupEmpty icon={<Bot />} title="No flows yet" description="Bot flows are built on a computer. Open Harbor there to create your first one." />
           ) : (
-            <Group title={`${live} of ${limit >= 1000 ? "unlimited" : limit} live`} footer="Flows are edited on a computer. Here you can check them and switch them on or off.">
+            <Group title={`${limit >= 1000 ? `${live} of unlimited` : ofLimit(live, limit)} live`} footer="Flows are edited on a computer. Here you can check them and switch them on or off.">
               {flows.map((f) => (
                 <Row
                   key={f.id}
@@ -45,7 +45,7 @@ export default async function Page() {
       <DesktopOnly>
       <PageHeader
         title="Bot flows"
-        description={`Automatic conversations that answer, ask, tag and hand over to your team. ${live} of ${limit >= 1000 ? "unlimited" : limit} live.`}
+        description={`Automatic conversations that answer, ask, tag and hand over to your team. ${limit >= 1000 ? `${live} of unlimited` : ofLimit(live, limit)} live.`}
         actions={
           role !== "agent" && (
             <SaveForm action={createFlow}>

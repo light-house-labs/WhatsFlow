@@ -3,6 +3,7 @@ import { schema } from "@/db";
 import { DEFAULT_HOURS } from "./hours";
 import { randomToken } from "./crypto";
 import { STARTERS, starterFor } from "./starter-flows";
+import { billingEnabled } from "./plans";
 
 export const INDUSTRIES = [
   "Clinic or healthcare",
@@ -25,9 +26,9 @@ export async function createWorkspace(d: DB, userId: string, name: string, indus
       .values({
         name,
         industry,
-        plan: "trial",
-        billingStatus: "trialing",
-        currentPeriodEnd: new Date(Date.now() + TRIAL_DAYS * 86400_000),
+        ...(billingEnabled()
+          ? { plan: "trial" as const, billingStatus: "trialing" as const, currentPeriodEnd: new Date(Date.now() + TRIAL_DAYS * 86400_000) }
+          : { plan: "custom" as const, billingStatus: "active" as const, currentPeriodEnd: null }),
       })
       .returning();
     await tx.insert(schema.memberships).values({ orgId: org.id, userId, role: "owner" });
