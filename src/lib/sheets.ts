@@ -6,17 +6,17 @@ import type { SheetKind } from "@/db/schema";
 import { formatMoney } from "./plans";
 
 /**
- * Google Sheets sync through one WhatsFlow service account. The customer shares
+ * Google Sheets sync through one Harbor service account. The customer shares
  * their sheet with the service account's email as an editor; we append rows.
  * No Google sign-in, and we can only see sheets that were shared with us.
  */
 
 export const SHEET_KINDS: Record<SheetKind, { label: string; tab: string; headers: string[] }> = {
-  leads: { label: "Leads", tab: "WhatsFlow leads", headers: ["Created", "Title", "Name", "Phone", "Stage", "Value", "Source", "Owner"] },
-  appointments: { label: "Bookings", tab: "WhatsFlow bookings", headers: ["Booked at", "Service", "Starts", "Name", "Phone", "Status", "Source"] },
-  orders: { label: "Orders", tab: "WhatsFlow orders", headers: ["Created", "Order", "Name", "Phone", "Items", "Total", "Payment", "Status", "Source"] },
-  enquiries: { label: "Enquiries", tab: "WhatsFlow enquiries", headers: ["Received", "Name", "Phone", "First message", "Source", "Ad"] },
-  contacts: { label: "New contacts", tab: "WhatsFlow contacts", headers: ["Added", "Name", "Phone", "Email", "Tags", "Source"] },
+  leads: { label: "Leads", tab: "Harbor leads", headers: ["Created", "Title", "Name", "Phone", "Stage", "Value", "Source", "Owner"] },
+  appointments: { label: "Bookings", tab: "Harbor bookings", headers: ["Booked at", "Service", "Starts", "Name", "Phone", "Status", "Source"] },
+  orders: { label: "Orders", tab: "Harbor orders", headers: ["Created", "Order", "Name", "Phone", "Items", "Total", "Payment", "Status", "Source"] },
+  enquiries: { label: "Enquiries", tab: "Harbor enquiries", headers: ["Received", "Name", "Phone", "First message", "Source", "Ad"] },
+  contacts: { label: "New contacts", tab: "Harbor contacts", headers: ["Added", "Name", "Phone", "Email", "Tags", "Source"] },
 };
 
 export function serviceAccount(): { email: string; key: string } | null {

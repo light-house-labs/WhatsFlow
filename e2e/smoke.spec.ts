@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 test.describe.configure({ mode: "serial" });
 
 const run = Date.now().toString(36);
-const email = `e2e-${run}@whatsflow.test`;
+const email = `e2e-${run}@harbor.test`;
 const password = `e2e-${randomBytes(8).toString("hex")}`; // generated per run, never reused
 const customer = `+91 9${String(Date.now()).slice(-9)}`;
 let page: Page;

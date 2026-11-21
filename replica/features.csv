@@ -152,7 +152,7 @@ Dedicated success manager and hand-held onboarding,services,could,yes,skip,human
 One-click self-serve cancel with confirmation email and no charge after cancel,billing,must,no,yes,fix F1 - cancel/billing 39 reviews
 Downgrade warns about over-limit items and auto-pauses them at period end,billing,must,no,yes,fix F1
 Clean exit: export all data + disconnect number + revoke Meta access,team,should,no,yes,"fix F2; CSV/JSON export, delete deletes token, Meta revoke steps shown"
-Talk to a person in-app (WhatsApp chat with WhatsFlow team) and ticket status,support,must,no,yes,fix F3 - human support 51 reviews
+Talk to a person in-app (WhatsApp chat with Harbor team) and ticket status,support,must,no,yes,fix F3 - human support 51 reviews
 Public status page,support,should,no,yes,fix F3; /status from live checks + /api/health; STATUS_NOTICE banner
 Connection doctor: token webhook number and round-trip test with fix steps,onboarding,must,no,partial,fix F4 - setup 17 reviews; token/number/quality/subscription/webhook checks with fixes; no automatic round-trip test message
 Number-safety guardrails: quality tier warnings cold-audience warning auto-pause,campaigns,should,no,partial,fix F5 - bans 7 reviews; quality warning in composer + opt-outs enforced; no cold-audience check or auto-pause

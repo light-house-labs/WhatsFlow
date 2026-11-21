@@ -100,13 +100,13 @@ export async function GET(req: Request) {
     const flows = await d.select().from(schema.botFlows).where(eq(schema.botFlows.orgId, o));
     Object.assign(out, { products, templates, botFlows: flows });
     return new NextResponse(JSON.stringify(out, null, 2), {
-      headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="whatsflow-${stamp}.json"` },
+      headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="harbor-${stamp}.json"` },
     });
   }
   const rows: Record<string, unknown>[] = await all[kind]();
   // A leading "=", "+", "-" or "@" makes spreadsheets run the cell as a formula.
   const csv = Papa.unparse(rows, { escapeFormulae: true });
   return new NextResponse(csv, {
-    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="whatsflow-${kind}-${stamp}.csv"` },
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="harbor-${kind}-${stamp}.csv"` },
   });
 }

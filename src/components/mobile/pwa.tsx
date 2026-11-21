@@ -96,7 +96,7 @@ export async function currentSubscription() {
 
 /** Asks for permission (must run from a tap), subscribes this device and saves it. Returns an error message or null. */
 export async function enablePush(vapidKey: string): Promise<string | null> {
-  if (!pushSupported()) return "This browser can't show notifications. On iPhone, add WhatsFlow to your Home Screen first.";
+  if (!pushSupported()) return "This browser can't show notifications. On iPhone, add Harbor to your Home Screen first.";
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return "Notifications are blocked. Allow them for this site in your browser settings.";
   const reg = await navigator.serviceWorker.ready;

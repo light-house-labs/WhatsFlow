@@ -17,7 +17,7 @@ export async function deleteWorkspace(form: FormData): Promise<{ error: string }
   await sendMail(
     ctx.user.email,
     `${ctx.org.name} was deleted`,
-    `Your WhatsFlow workspace “${ctx.org.name}” and its data were deleted. Your plan is cancelled and you won't be charged again.`,
+    `Your Harbor workspace “${ctx.org.name}” and its data were deleted. Your plan is cancelled and you won't be charged again.`,
   );
   redirect("/onboarding");
 }

@@ -20,6 +20,8 @@ const CUSTOMERS = [
 
 async function main() {
   const d = await db();
+  // The product was renamed: carry the existing demo login over instead of creating a second account.
+  await d.update(schema.users).set({ email: DEV_ACCOUNT.email }).where(eq(schema.users.email, "demo@whatsflow.test"));
   let [user] = await d.select().from(schema.users).where(eq(schema.users.email, DEV_ACCOUNT.email)).limit(1);
   if (!user) {
     [user] = await d

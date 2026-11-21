@@ -177,15 +177,15 @@ describe("Google Sheets sync", () => {
   });
 
   it("adds the tab and header, then appends each new row exactly once", async () => {
-    vi.stubEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", "sync@whatsflow-test.iam.gserviceaccount.com");
+    vi.stubEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", "sync@harbor-test.iam.gserviceaccount.com");
     vi.stubEnv("GOOGLE_SERVICE_ACCOUNT_KEY", pem.replace(/\n/g, "\\n"));
     const g = fakeGoogle();
-    expect(await prepareSheet("SHEET123456789012345678", "WhatsFlow contacts", "contacts")).toBe("Sales");
+    expect(await prepareSheet("SHEET123456789012345678", "Harbor contacts", "contacts")).toBe("Sales");
     expect(g.calls.some((c) => c.includes(":batchUpdate"))).toBe(true);
-    expect(g.calls.some((c) => c.startsWith("PUT") && c.includes("'WhatsFlow contacts'!A1"))).toBe(true);
+    expect(g.calls.some((c) => c.startsWith("PUT") && c.includes("'Harbor contacts'!A1"))).toBe(true);
 
     const o = await makeOrg();
-    const [sync] = await o.d.insert(schema.sheetSyncs).values({ orgId: o.org.id, kind: "contacts", spreadsheetId: "SHEET123456789012345678", tab: "WhatsFlow contacts", cursorAt: new Date(0) }).returning();
+    const [sync] = await o.d.insert(schema.sheetSyncs).values({ orgId: o.org.id, kind: "contacts", spreadsheetId: "SHEET123456789012345678", tab: "Harbor contacts", cursorAt: new Date(0) }).returning();
     await o.d.insert(schema.contacts).values([
       { orgId: o.org.id, waId: "919000000301", name: "=HYPERLINK(\"x\")", tags: ["a"] },
       { orgId: o.org.id, waId: "919000000302", name: "Second" },
@@ -203,7 +203,7 @@ describe("Google Sheets sync", () => {
   });
 
   it("explains how to share the sheet when Google refuses", async () => {
-    vi.stubEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", "sync@whatsflow-test.iam.gserviceaccount.com");
+    vi.stubEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", "sync@harbor-test.iam.gserviceaccount.com");
     vi.stubEnv("GOOGLE_SERVICE_ACCOUNT_KEY", pem);
     fakeGoogle({ forbidden: true });
     const o = await makeOrg();
@@ -211,7 +211,7 @@ describe("Google Sheets sync", () => {
     const [sync] = await o.d.insert(schema.sheetSyncs).values({ orgId: o.org.id, kind: "contacts", spreadsheetId: "SHEET123456789012345678", tab: "t", cursorAt: new Date(0) }).returning();
     expect(await runSheetSync(o.d, sync)).toBe(0);
     const [after] = await o.d.select().from(schema.sheetSyncs).where(eq(schema.sheetSyncs.id, sync.id));
-    expect(after.lastError).toMatch(/Share it with sync@whatsflow-test/);
+    expect(after.lastError).toMatch(/Share it with sync@harbor-test/);
     expect(after.rowsSynced).toBe(0);
   });
 });

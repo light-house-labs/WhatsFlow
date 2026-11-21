@@ -116,7 +116,7 @@ export function MobileInbox({
 
   const act: Act = useCallback(
     async (p) => {
-      const r = await p.catch(() => ({ ok: false, error: "Couldn't reach WhatsFlow. Check your connection." }));
+      const r = await p.catch(() => ({ ok: false, error: "Couldn't reach Harbor. Check your connection." }));
       if (!r.ok) {
         haptic("error");
         toast.error(r.error ?? "Something went wrong.");
@@ -598,7 +598,7 @@ function ChatScreen({
 
   const act: Act = useCallback(
     async (p) => {
-      const r = await p.catch(() => ({ ok: false, error: "Couldn't reach WhatsFlow. Check your connection." }));
+      const r = await p.catch(() => ({ ok: false, error: "Couldn't reach Harbor. Check your connection." }));
       if (!r.ok) {
         haptic("error");
         toast.error(r.error ?? "Something went wrong.");

@@ -180,7 +180,7 @@ export async function requestReset(_: FormState, form: FormData): Promise<FormSt
     const token = randomToken(24);
     await d.insert(schema.passwordResets).values({ userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_MINUTES * 60_000) });
     const link = `${process.env.APP_URL ?? "http://localhost:3000"}/reset-password/${token}`;
-    await sendMail(user.email, "Reset your WhatsFlow password", `Hi ${user.name},\n\nUse this link to choose a new password. It works once and expires in ${RESET_MINUTES} minutes:\n\n${link}\n\nIf you didn't ask for this, you can ignore this email.`);
+    await sendMail(user.email, "Reset your Harbor password", `Hi ${user.name},\n\nUse this link to choose a new password. It works once and expires in ${RESET_MINUTES} minutes:\n\n${link}\n\nIf you didn't ask for this, you can ignore this email.`);
   }
   return { error: undefined, fields: { sent: "1" } };
 }

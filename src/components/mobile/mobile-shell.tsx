@@ -86,7 +86,7 @@ function Top({ mode, userId, vapidKey, children }: { mode: Mode; userId: string;
 
   // Pushed screens take their compact title from the page's <title>, minus the suffix.
   useEffect(() => {
-    const read = () => setTitle(document.title.replace(/\s*·\s*WhatsFlow$/, ""));
+    const read = () => setTitle(document.title.replace(/\s*·\s*Harbor$/, ""));
     read();
     const el = document.querySelector("title");
     if (!el) return;

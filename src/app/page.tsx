@@ -118,13 +118,16 @@ export default function Home() {
       </section>
 
       <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t border-line px-6 py-8 text-sm text-muted">
-        <Logo />
+        <Logo byline />
         <span className="flex items-center gap-2">
           <LifeBuoy size={14} aria-hidden /> Help from real people, on WhatsApp
         </span>
-        <Link href="/status" className="hover:text-ink">
-          System status
-        </Link>
+        <span className="flex items-center gap-4">
+          <span>© {new Date().getFullYear()} LightHouse Labs</span>
+          <Link href="/status" className="hover:text-ink">
+            System status
+          </Link>
+        </span>
       </footer>
     </div>
   );

@@ -10,10 +10,12 @@ import "./globals.css";
 const display = Inter_Tight({ variable: "--font-display-face", subsets: ["latin"], weight: ["800", "900"] });
 
 export const metadata: Metadata = {
-  title: { default: "WhatsFlow", template: "%s · WhatsFlow" },
+  title: { default: "Harbor by LightHouse Labs", template: "%s · Harbor" },
   description: "The honest WhatsApp CRM: shared inbox, bots, broadcasts and pipeline. Real people, one-click cancel.",
-  applicationName: "WhatsFlow",
-  appleWebApp: { capable: true, title: "WhatsFlow", statusBarStyle: "default" },
+  applicationName: "Harbor",
+  authors: [{ name: "LightHouse Labs", url: "https://harbour.lighthouselabs.in" }],
+  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
+  appleWebApp: { capable: true, title: "Harbor", statusBarStyle: "default" },
 };
 
 // viewport-fit=cover lets the mobile shell paint under the notch and pad back with env(safe-area-inset-*).

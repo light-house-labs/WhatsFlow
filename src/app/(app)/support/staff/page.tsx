@@ -7,7 +7,7 @@ import { Card, PageHeader, StatusBadge, Textarea, cx } from "@/components/ui";
 import { reply } from "../actions";
 import { SaveForm, SubmitButton } from "@/components/save-form";
 
-/** Support queue for WhatsFlow staff (users with is_staff). Customers never see this. */
+/** Support queue for Harbor staff (users with is_staff). Customers never see this. */
 export const metadata = { title: "Support queue" };
 
 export default async function Page() {

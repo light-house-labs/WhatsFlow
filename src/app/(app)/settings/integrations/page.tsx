@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         {sp.saved && sp.saved !== "sheets" && <Alert tone="success">Connected. Send a test order to check it.</Alert>}
       </div>
       {connected === 0 ? (
-        <EmptyState icon={<Plug />} columns={["App", "Status"]} title="No apps connected" description="Connect your store, payments or a spreadsheet to bring orders and data into WhatsFlow." primary={{ label: "Browse apps", href: "#shopify" }} />
+        <EmptyState icon={<Plug />} columns={["App", "Status"]} title="No apps connected" description="Connect your store, payments or a spreadsheet to bring orders and data into Harbor." primary={{ label: "Browse apps", href: "#shopify" }} />
       ) : (
       <SettingsSection title="Overview" description={`${connected} connected. Orders from your store land in Orders and can trigger WhatsApp automations.`}>
         <div className="grid grid-cols-2 gap-2">
@@ -196,7 +196,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                       </Select>
                     </Field>
                   </div>
-                  <Field label="Tab name (optional)" htmlFor="tab" hint="Leave blank for a tab named like “WhatsFlow leads”.">
+                  <Field label="Tab name (optional)" htmlFor="tab" hint="Leave blank for a tab named like “Harbor leads”.">
                     <Input id="tab" name="tab" maxLength={80} />
                   </Field>
                   <Toggle name="backfill" label="Also send everything from before today" />

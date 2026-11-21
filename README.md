@@ -1,4 +1,4 @@
-# WhatsFlow
+# Harbor by LightHouse Labs
 
 The honest WhatsApp CRM: a shared inbox, bot flows, broadcasts, enquiries, a sales pipeline and support tickets for businesses that sell and support on WhatsApp. Real people for support, and cancelling takes one click.
 
@@ -55,7 +55,7 @@ Copy `.env.example` to `.env.local`.
 
 ## Connect a real WhatsApp number
 
-Go to **Settings → WhatsApp numbers** and paste the Phone number ID, WhatsApp Business Account ID and a permanent System User token from your Meta app. WhatsFlow checks them with Meta before saving. Then set the callback URL `APP_URL/api/webhooks/whatsapp` and the verify token shown on that page in your Meta app, and subscribe to `messages`. The connection checklist on that page tells you what's wrong and how to fix it.
+Go to **Settings → WhatsApp numbers** and paste the Phone number ID, WhatsApp Business Account ID and a permanent System User token from your Meta app. Harbor checks them with Meta before saving. Then set the callback URL `APP_URL/api/webhooks/whatsapp` and the verify token shown on that page in your Meta app, and subscribe to `messages`. The connection checklist on that page tells you what's wrong and how to fix it.
 
 One-click *Embedded Signup* is built in: set `META_APP_ID`, `META_APP_SECRET` and `META_ES_CONFIG_ID` (the Embedded Signup configuration ID from your Meta app) and the page shows **Connect with Facebook**. It only works once your Meta app is approved as a Tech Provider, so it hasn't been tested against Meta yet. Until then, use the manual connection.
 
@@ -81,12 +81,13 @@ Create keys in **Settings → API & webhooks** and send `Authorization: Bearer w
 
 Every call made with a key is logged for 30 days, with its status, error code and timing, in **Settings → Developers**. Each key can make 120 requests a minute (`API_RATE_PER_MINUTE`). Over that, the API answers `429` with `Retry-After`. Logins, sign-ups and password resets are throttled the same way, per email and per IP.
 
-Webhooks POST `{ id, event, createdAt, data }` with `X-WhatsFlow-Signature: sha256=<HMAC-SHA256 of "timestamp.body">` and `X-WhatsFlow-Timestamp`. Failed deliveries retry 6 times with backoff; the delivery log has a retry button. URLs that resolve to private addresses are refused in production.
+Webhooks POST `{ id, event, createdAt, data }` with `X-Harbor-Signature: sha256=<HMAC-SHA256 of "timestamp.body">` and `X-Harbor-Timestamp`. Failed deliveries retry 6 times with backoff; the delivery log has a retry button. URLs that resolve to private addresses are refused in production.
 
 ## Deploy (Vercel)
 
 - Add a Postgres database (for example Neon from the Vercel Marketplace) and set `DATABASE_URL`. Migrations in `drizzle/` run on first connection.
-- Set `ENCRYPTION_KEY`, `META_APP_SECRET`, `APP_URL` and `CRON_SECRET`.
+- Set `ENCRYPTION_KEY`, `META_APP_SECRET`, `APP_URL` and `CRON_SECRET`. In production `APP_URL` is `https://harbour.lighthouselabs.in`.
+- Domain: in the Vercel project add `harbour.lighthouselabs.in` under Settings → Domains, then create the DNS record Vercel shows at the registrar for `lighthouselabs.in` (a CNAME for `harbour` pointing to `cname.vercel-dns.com`, or what Vercel displays).
 - `vercel.json` schedules `/api/cron/tick` daily, which is all Vercel's free plan allows. Between ticks the queue (broadcasts, reminders, automations, template status, Sheets sync) is drained after each action, and at most once a minute by a heartbeat that runs whenever someone has the inbox open or a WhatsApp webhook arrives. For exact timing with nobody online, use a paid plan and set the schedule to `* * * * *`, or point any external scheduler at `/api/cron/tick` with `Authorization: Bearer $CRON_SECRET`.
 
 ## What's built, and what isn't

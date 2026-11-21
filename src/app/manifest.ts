@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "WhatsFlow",
-    short_name: "WhatsFlow",
+    name: "Harbor by LightHouse Labs",
+    short_name: "Harbor",
     description: "Shared WhatsApp inbox, bots, broadcasts and pipeline.",
     id: "/inbox",
     start_url: "/inbox",

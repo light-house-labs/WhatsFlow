@@ -1,5 +1,5 @@
 {
-  "name": "WhatsFlow",
+  "name": "Harbor",
   "avoid": ["Crawdle", "NIXRIX"],
   "domains": ["crawdle.com", "app.crawdle.com"],
   "colors": []

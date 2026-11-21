@@ -1,4 +1,4 @@
-# Fixes: what WhatsApp CRM users hate, and what WhatsFlow does instead
+# Fixes: what WhatsApp CRM users hate, and what Harbor does instead
 
 Date: 2026-11-07. Inputs: `replica/reviews.csv` (96 rows), `replica/feedback.md`,
 themes in `replica/research/themes.json`.
@@ -70,7 +70,7 @@ Ranked by evidence × cheapness. Each one is a row in `features.csv` with `origi
 | --- | --- | --- | --- | --- |
 | F1 | **One-click cancel and honest downgrade.** Cancel in Billing with no ticket and no chat. Email confirmation with the end date. Never charge after cancel (Stripe/Razorpay webhook check). A downgrade warns about each over-limit item and auto-pauses those items at period end | S | replica-backend, pricing → replica-launch | cancel 15, billing 24, 3 products |
 | F2 | **Clean exit kit.** Export everything (CSV/JSON), a "disconnect number and revoke access" button that deregisters the webhook and drops tokens, and a written confirmation email | S | replica-backend | 6a80978a, 6922f26b |
-| F3 | **Human support inside the app.** "Talk to a person" opens a WhatsApp chat with the WhatsFlow team (dogfooding). Target response time shown, in-app ticket status, public status page | S product + ops | replica-build, replica-deploy (status page) | human-support theme 51, 3 products |
+| F3 | **Human support inside the app.** "Talk to a person" opens a WhatsApp chat with the Harbor team (dogfooding). Target response time shown, in-app ticket status, public status page | S product + ops | replica-build, replica-deploy (status page) | human-support theme 51, 3 products |
 | F4 | **Connection doctor.** A live checklist on S04/S43: token valid, number registered, webhook subscribed, last inbound event time, test message round trip. Every failure gets plain-language fix steps | M | replica-backend + replica-build | onboarding 17, HN webhook comment |
 | F5 | **Number-safety guardrails.** Quality rating and messaging tier always visible. Warn before broadcasting to contacts with no inbound in 90+ days. Opt-out enforced. Auto-pause a campaign if the block rate spikes | M | replica-backend | ban 7, 2 products |
 | F6 | **See-before-you-send pricing.** Campaign composer shows the Meta cost estimate before sending. Wallet balance is visible. Unused prepaid message credit is refundable on cancel | M | replica-build, replica-launch | hidden-cost 7, refund 12 |
@@ -85,17 +85,17 @@ Three options, each grounded in a top theme:
 
 **A. Leave anytime**
 For small businesses who got burned by WhatsApp tools that are easy to join and
-impossible to leave, WhatsFlow cancels in one click, shows every rupee before you
+impossible to leave, Harbor cancels in one click, shows every rupee before you
 send, and refunds unused credit.
 Evidence: billing / cancel / refund, 24 + 15 + 12 reviews across 3 products.
 
 **B. A human on WhatsApp**
 For businesses who wait days for a support email while their WhatsApp is down,
-WhatsFlow puts a real person one tap away, on WhatsApp.
+Harbor puts a real person one tap away, on WhatsApp.
 Evidence: human support, 51 reviews across 3 products.
 
 **C. Your number, protected**
-For businesses whose WhatsApp number *is* their business, WhatsFlow warns you
+For businesses whose WhatsApp number *is* their business, Harbor warns you
 before a broadcast can get you blocked, and shows the number's health every day.
 Evidence: bans 7 reviews and setup pain 17 reviews, across 3 products plus HN. Thinner.
 
@@ -106,5 +106,5 @@ revenue. Support (B) is the most-voiced complaint, but it's an ops promise as mu
 as a feature, so it backs A rather than leading. C works well as a feature
 section, not as the headline.
 
-Keep competitor names out of the WhatsFlow name, ads and store listing. A factual
+Keep competitor names out of the Harbor name, ads and store listing. A factual
 comparison page is a question for a lawyer.

@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "whatsflow", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+    { "name": "harbor", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
   ]
 }

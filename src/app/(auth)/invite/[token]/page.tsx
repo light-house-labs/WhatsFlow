@@ -47,7 +47,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </div>
       )}
       <p className="text-xs text-muted">
-        <Link href="/">What is WhatsFlow?</Link>
+        <Link href="/">What is Harbor?</Link>
       </p>
     </div>
   );

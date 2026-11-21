@@ -69,7 +69,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           title="API keys"
           description={
             <>
-              Connect WhatsFlow to your own systems with the REST API and webhooks. Send <code>Authorization: Bearer &lt;key&gt;</code> to <code>{base}/api/v1</code>. Endpoints: <code>GET/POST /contacts</code>, <code>GET/PATCH /contacts/:id</code>,{" "}
+              Connect Harbor to your own systems with the REST API and webhooks. Send <code>Authorization: Bearer &lt;key&gt;</code> to <code>{base}/api/v1</code>. Endpoints: <code>GET/POST /contacts</code>, <code>GET/PATCH /contacts/:id</code>,{" "}
               <code>GET /conversations</code>, <code>GET /conversations/:id/messages</code>, <code>POST /messages</code>, <code>GET /messages/:id</code>, <code>GET /orders</code>.
             </>
           }
@@ -137,7 +137,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           title="Webhooks"
           description={
             <>
-              We POST JSON to your URL. Verify <code>X-WhatsFlow-Signature</code>: <code>sha256=</code> HMAC-SHA256 of <code>{"{X-WhatsFlow-Timestamp}.{body}"}</code> with your signing secret. Failed deliveries are retried 6 times with backoff.
+              We POST JSON to your URL. Verify <code>X-Harbor-Signature</code>: <code>sha256=</code> HMAC-SHA256 of <code>{"{X-Harbor-Timestamp}.{body}"}</code> with your signing secret. Failed deliveries are retried 6 times with backoff.
             </>
           }
         >
@@ -174,7 +174,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           ))}
           <SaveForm action={addWebhook} success="Webhook added" resetOnSuccess className="space-y-3">
             <Field label="Endpoint URL" htmlFor="wurl">
-              <Input id="wurl" name="url" type="url" placeholder="https://example.com/whatsflow" required />
+              <Input id="wurl" name="url" type="url" placeholder="https://example.com/harbor" required />
             </Field>
             <fieldset className="grid gap-1 sm:grid-cols-3">
               <legend className="section-label mb-1 text-faint">Events</legend>

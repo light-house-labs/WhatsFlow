@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         actions={
           <>
             {wa && (
-              <ButtonLink href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hi, I need help with WhatsFlow (workspace: ${org.name})`)}`} target="_blank">
+              <ButtonLink href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hi, I need help with Harbor (workspace: ${org.name})`)}`} target="_blank">
                 <MessageCircle size={16} /> Message us on WhatsApp
               </ButtonLink>
             )}
@@ -60,7 +60,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             <div className="flex-1 space-y-3">
               {messages.map((m) => (
                 <div key={m.id} className={cx("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.fromStaff ? "bg-surface-2" : "ml-auto bg-bubble-out")}>
-                  <div className="section-label mb-1 text-xs text-faint">{m.fromStaff ? "WhatsFlow team" : "You"}</div>
+                  <div className="section-label mb-1 text-xs text-faint">{m.fromStaff ? "Harbor team" : "You"}</div>
                   <div className="whitespace-pre-wrap">{m.body}</div>
                   <div className="mt-0.5 text-right text-xs text-muted">{dateTime(m.createdAt)}</div>
                 </div>

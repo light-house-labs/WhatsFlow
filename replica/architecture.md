@@ -1,4 +1,4 @@
-# Architecture: WhatsFlow (a rebuild of Crawdle's core features)
+# Architecture: Harbor (a rebuild of Crawdle's core features)
 
 Scope of this document: **Phase 1** (all `must` rows in `features.csv`, plus the
 must-level fixes F1, F3, F4). Phases 2–3 are listed at the end.

@@ -15,7 +15,7 @@ function configure(): boolean {
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   configured = Boolean(pub && priv);
-  if (configured) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:support@whatsflow.app", pub!, priv!);
+  if (configured) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://harbour.lighthouselabs.in", pub!, priv!);
   return configured;
 }
 

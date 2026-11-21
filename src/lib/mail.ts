@@ -4,7 +4,7 @@
  */
 export async function sendMail(to: string, subject: string, text: string): Promise<{ ok: boolean; error?: string }> {
   const key = process.env.RESEND_API_KEY;
-  const from = process.env.MAIL_FROM ?? "WhatsFlow <no-reply@localhost>";
+  const from = process.env.MAIL_FROM ?? "Harbor <no-reply@localhost>";
   if (!key) {
     if (process.env.NODE_ENV === "production") return { ok: false, error: "RESEND_API_KEY is not set" };
     console.info(`\n[mail] to=${to}\n[mail] subject=${subject}\n${text}\n`);

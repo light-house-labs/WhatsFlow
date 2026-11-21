@@ -26,7 +26,7 @@ export default async function Page() {
       <MobileOnly>
         <MobileScreen>
           {flows.length === 0 ? (
-            <GroupEmpty icon={<Bot />} title="No flows yet" description="Bot flows are built on a computer. Open WhatsFlow there to create your first one." />
+            <GroupEmpty icon={<Bot />} title="No flows yet" description="Bot flows are built on a computer. Open Harbor there to create your first one." />
           ) : (
             <Group title={`${live} of ${limit >= 1000 ? "unlimited" : limit} live`} footer="Flows are edited on a computer. Here you can check them and switch them on or off.">
               {flows.map((f) => (

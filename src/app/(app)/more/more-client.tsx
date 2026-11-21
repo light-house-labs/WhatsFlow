@@ -83,7 +83,7 @@ export function InstallRow() {
         <span className={rowBody}>
           <span className="min-w-0 flex-1">
             <span className="row-title block">Install app</span>
-            <span className="row-meta block">Open WhatsFlow from your home screen, full screen</span>
+            <span className="row-meta block">Open Harbor from your home screen, full screen</span>
           </span>
         </span>
       </button>
@@ -107,7 +107,7 @@ export function InstallRow() {
                 <li className="flex items-start gap-3">
                   <Step n={3} />
                   <span>
-                    Tap <b className="font-semibold">Add</b>. WhatsFlow opens full screen from your home screen, and can send you notifications.
+                    Tap <b className="font-semibold">Add</b>. Harbor opens full screen from your home screen, and can send you notifications.
                   </span>
                 </li>
               </>

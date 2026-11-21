@@ -1,4 +1,4 @@
-/* WhatsFlow service worker: app shell + last inbox list offline, and web push. */
+/* Harbor service worker: app shell + last inbox list offline, and web push. */
 const DEV = new URL(self.location.href).searchParams.has("dev");
 const VERSION = "wf-v1";
 const SHELL = `${VERSION}-shell`;
@@ -22,9 +22,9 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-const OFFLINE_HTML = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Offline · WhatsFlow</title>
+const OFFLINE_HTML = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Offline · Harbor</title>
 <style>:root{color-scheme:light dark}body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px/24px system-ui,sans-serif;background:#f7f7f8;color:#1b1b1b;text-align:center;padding:24px}@media (prefers-color-scheme:dark){body{background:#222326;color:#e4e4e5}}button{font:inherit;margin-top:16px;height:44px;padding:0 20px;border:0;border-radius:8px;background:#239641;color:#fff}</style>
-<div><h1 style="font-size:20px">You're offline</h1><p>WhatsFlow will reconnect when you have signal.</p><button onclick="location.reload()">Try again</button></div>`;
+<div><h1 style="font-size:20px">You're offline</h1><p>Harbor will reconnect when you have signal.</p><button onclick="location.reload()">Try again</button></div>`;
 
 async function networkFirst(request, cacheName, fallback) {
   try {
@@ -75,11 +75,11 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "WhatsFlow", body: event.data ? event.data.text() : "" };
+    data = { title: "Harbor", body: event.data ? event.data.text() : "" };
   }
   const url = typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/inbox";
   event.waitUntil(
-    self.registration.showNotification(data.title || "WhatsFlow", {
+    self.registration.showNotification(data.title || "Harbor", {
       body: data.body || "",
       tag: data.tag,
       renotify: Boolean(data.tag),

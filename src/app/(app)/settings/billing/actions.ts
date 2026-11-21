@@ -24,7 +24,7 @@ export async function cancel(form: FormData) {
   await audit(ctx, "plan.cancelled", ctx.org.plan);
   await sendMail(
     ctx.user.email,
-    "Your WhatsFlow subscription is cancelled",
+    "Your Harbor subscription is cancelled",
     `Hi ${ctx.user.name},\n\nThis confirms that the subscription for ${ctx.org.name} is cancelled. You will not be charged again.\n\n${endsAt && endsAt > new Date() ? `You keep access until ${endsAt.toUTCString()}.` : "Access to paid features has ended."} Your contacts and chats stay in your workspace and can be exported.\n\nChanged your mind? Resume any time from Plan & billing.`,
   );
   redirect("/settings/billing?done=cancelled");

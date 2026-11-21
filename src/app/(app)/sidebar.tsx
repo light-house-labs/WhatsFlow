@@ -111,7 +111,7 @@ export function Sidebar({ org, orgs, user, role, unread, trialDaysLeft, trialTot
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-line bg-app text-ink max-md:hidden md:max-lg:w-16">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2 md:max-lg:justify-center">
-        <Link href="/dashboard" aria-label="WhatsFlow home" className="grid size-8 shrink-0 place-items-center rounded-md hover:bg-hover">
+        <Link href="/dashboard" aria-label="Harbor home" className="grid size-8 shrink-0 place-items-center rounded-md hover:bg-hover">
           <Logo compact />
         </Link>
         <div className="contents md:max-lg:hidden">

@@ -76,7 +76,7 @@ export async function sendTestWebhook(form: FormData) {
   if (!ep) return;
   const [del] = await ctx.db
     .insert(schema.webhookDeliveries)
-    .values({ endpointId: ep.id, orgId: ctx.org.id, event: "test", payload: { message: "Test delivery from WhatsFlow" } })
+    .values({ endpointId: ep.id, orgId: ctx.org.id, event: "test", payload: { message: "Test delivery from Harbor" } })
     .returning();
   await enqueue(ctx.db, "webhook.deliver", { deliveryId: del.id });
   kickJobs(ctx.db);

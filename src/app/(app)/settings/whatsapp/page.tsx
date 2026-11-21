@@ -38,7 +38,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   return (
     <SettingsPage title="WhatsApp numbers" summary={numbers.length ? `${live} of ${numbers.length} ${numbers.length === 1 ? "number" : "numbers"} connected${current ? ` · viewing ${current.displayPhone}` : ""}` : "No numbers connected"} status={[{ label: "Numbers connected", value: `${live} of ${numbers.length}`, tone: live ? "on" : "warn" }, { label: "Connection checks", value: checks.length ? `${passing} of ${checks.length} passing` : "None run", tone: checks.length ? (passing < checks.length ? "warn" : "on") : "off" }, { label: "Provider", value: current ? (current.provider === "sandbox" ? "Sandbox" : "Cloud API") : "None", tone: current ? "on" : "off" }]} tips={["Connect through Meta's official Cloud API; the number stays yours.", "A failing check lists how to fix it.", "Disconnecting deletes the access token."]}>
       {sp.disconnected && (
-        <Alert tone="success">Disconnected. We deleted the access token, so WhatsFlow can no longer send or read anything on that number. You can also remove our app in Meta Business Settings → Integrations.</Alert>
+        <Alert tone="success">Disconnected. We deleted the access token, so Harbor can no longer send or read anything on that number. You can also remove our app in Meta Business Settings → Integrations.</Alert>
       )}
       {numbers.length === 0 ? (
         <EmptyState icon={<Phone />} columns={["Number", "Provider", "Status"]} title="No numbers connected" description="Connect a WhatsApp number to send and receive customer messages." primary={{ label: "Connect number", href: "#connect" }} />

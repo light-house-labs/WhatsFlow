@@ -48,7 +48,7 @@ export const HELP: Record<string, HelpEntry> = {
     howTo: [
       { step: "Open a section", detail: "Tap a row. Dashboard and Analytics lead with the numbers." },
       { step: "Switch workspace", detail: "Tap another workspace under Workspace. The app reloads in it." },
-      { step: "Install the app", detail: "Install app adds WhatsFlow to your home screen, full screen, with notifications." },
+      { step: "Install the app", detail: "Install app adds Harbor to your home screen, full screen, with notifications." },
     ],
     tips: [
       "Turn notifications on per device under Settings, This device.",
@@ -494,7 +494,7 @@ export const HELP: Record<string, HelpEntry> = {
 
   "/support": {
     title: "Talk to a person",
-    purpose: "Ask the WhatsFlow team for help with anything.",
+    purpose: "Ask the Harbor team for help with anything.",
     howTo: [
       { step: "Describe the problem", detail: "What you were trying to do, what happened, and the page you were on." },
       { step: "Send it", detail: "A real person replies, usually within a working day." },
@@ -634,7 +634,7 @@ export const HELP: Record<string, HelpEntry> = {
 
   "/settings/integrations": {
     title: "Connected apps",
-    purpose: "Sync your online store and Google Sheets with WhatsFlow.",
+    purpose: "Sync your online store and Google Sheets with Harbor.",
     howTo: [
       { step: "Connect a store", detail: "Shopify or WooCommerce. Orders and products start syncing." },
       { step: "Send a test order", detail: "Place one on your store to check it arrives here." },
@@ -709,7 +709,7 @@ export const HELP: Record<string, HelpEntry> = {
 
 const FALLBACK: HelpEntry = {
   title: "Help",
-  purpose: "Find your way around WhatsFlow.",
+  purpose: "Find your way around Harbor.",
   howTo: [
     { step: "Search anything", detail: "Pages, settings, contacts, orders and messages, from one box." },
     { step: "Ask us", detail: "Talk to a person if you're stuck. A real human replies." },

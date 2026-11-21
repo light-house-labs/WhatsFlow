@@ -224,8 +224,8 @@ describe("outbound webhooks", () => {
     expect(del.status).toBe("ok");
     expect(del.attempts).toBe(2);
     const last = calls[calls.length - 1];
-    const ts = Number(last.headers.get("x-whatsflow-timestamp"));
-    expect(last.headers.get("x-whatsflow-signature")).toBe(signWebhook(secret, ts, last.body));
+    const ts = Number(last.headers.get("x-harbor-timestamp"));
+    expect(last.headers.get("x-harbor-signature")).toBe(signWebhook(secret, ts, last.body));
     expect(JSON.parse(last.body).data.contact.phone).toBe("919811100005");
   });
 

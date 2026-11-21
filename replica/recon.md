@@ -3,7 +3,7 @@
 Scope: full parity — every module on crawdle.com (inbox, bots, AI agent, enquiries,
 pipeline, contacts, tickets, catalog, orders, payments, appointments, campaigns,
 templates, automations, integrations, API/webhooks, analytics, roles, white label)
-For: WhatsFlow — the user's own WhatsApp CRM product to sell
+For: Harbor — the user's own WhatsApp CRM product to sell
 Date: 2026-11-07
 
 Method: public pages only. `app.crawdle.com/*` is a login wall (checked
@@ -34,7 +34,7 @@ inbox and turns it into a lead, booking, order or ticket.
 
 ## Screens
 
-Routes are proposals for WhatsFlow, not Crawdle's (only six of theirs are known:
+Routes are proposals for Harbor, not Crawdle's (only six of theirs are known:
 `/enquiries /pipeline /catalog /orders /tickets /campaigns`).
 
 ### Auth and onboarding
@@ -422,7 +422,7 @@ See `features.csv`. 150 rows. Must: 55, should: 67, could: 22, skip: 6
 
 ## Out of scope (cannot or should not be cloned)
 
-- **Meta Tech Provider status** — not a feature; WhatsFlow must apply to Meta itself (business verification + app review for Embedded Signup). Until then, onboarding is manual (user pastes WABA ID + token) or via a BSP.
+- **Meta Tech Provider status** — not a feature; Harbor must apply to Meta itself (business verification + app review for Embedded Signup). Until then, onboarding is manual (user pastes WABA ID + token) or via a BSP.
 - **Crawdle's template library and industry flow templates content** — write our own.
 - **Trustpilot rating / reviews, customer base** — their network.
 - **Partner contracts, pricing deals, sales kits** — business, not product.
